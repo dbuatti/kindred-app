@@ -19,7 +19,8 @@ const JoinFamily = () => {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: window.location.origin,
+          // Fixed: Added /auth/confirm to the redirect path
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
         },
       });
 
