@@ -23,7 +23,8 @@ import {
   Calendar,
   Briefcase,
   Sparkles,
-  Plus
+  Plus,
+  Image as ImageIcon
 } from 'lucide-react';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import SuggestionDialog from '../components/SuggestionDialog';
@@ -138,6 +139,11 @@ const PersonDetail = () => {
       })
       .filter(Boolean);
   }, [person, relationships, people]);
+
+  const photos = useMemo(() => {
+    if (!person) return [];
+    return person.memories.filter(m => m.type === 'photo' && m.imageUrl);
+  }, [person]);
 
   const missingInfo = useMemo(() => {
     if (!person) return [];
@@ -397,6 +403,42 @@ const PersonDetail = () => {
           </div>
         </section>
 
+        {/* Photo Gallery Section */}
+        {photos.length > 0 && (
+          <section className="space-y-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-serif font-bold text-stone-800 flex items-center gap-3">
+                <ImageIcon className="w-8 h-8 text-stone-300" />
+                Photo Gallery
+              </h2>
+              <Button 
+                variant="ghost" 
+                onClick={() => setIsAddMemoryOpen(true)}
+                className="text-amber-600 hover:bg-amber-50 rounded-full gap-2"
+              >
+                <Plus className="w-4 h-4" /> Add Photos
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {photos.map((photo) => (
+                <div 
+                  key={photo.id} 
+                  className="group relative aspect-square rounded-3xl overflow-hidden border-4 border-white shadow-md hover:shadow-xl transition-all duration-500 cursor-pointer"
+                >
+                  <img 
+                    src={photo.imageUrl} 
+                    alt={photo.content} 
+                    className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700" 
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                    <p className="text-white text-xs font-medium line-clamp-2">{photo.content}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Missing Info Prompt */}
         {missingInfo.length > 0 && !isOwnProfile && (
           <section className="bg-amber-50/50 border-2 border-dashed border-amber-200 p-8 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
@@ -488,6 +530,11 @@ const PersonDetail = () => {
                         <Button size="icon" variant="ghost" className="mb-6 h-14 w-14 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 shadow-sm">
                           <Play className="w-6 h-6 fill-current" />
                         </Button>
+                      )}
+                      {memory.type === 'photo' && memory.imageUrl && (
+                        <div className="mb-6 rounded-2xl overflow-hidden border-4 border-white shadow-sm">
+                          <img src={memory.imageUrl} alt="Memory" className="w-full h-auto max-h-[400px] object-cover" />
+                        </div>
                       )}
                       <p className="text-stone-700 italic">"{memory.content}"</p>
                     </div>

@@ -21,7 +21,7 @@ interface FamilyContextType {
   addPerson: (person: Partial<Person>, relativeId?: string, relType?: string) => Promise<void>;
   updatePerson: (id: string, updates: Partial<Person>) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
-  addMemory: (personId: string, content: string, type: MemoryType) => Promise<void>;
+  addMemory: (personId: string, content: string, type: MemoryType, imageUrl?: string) => Promise<void>;
   addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'status'>) => Promise<void>;
   resolveSuggestion: (id: string, status: 'approved' | 'rejected') => Promise<void>;
   toggleReaction: (memoryId: string) => Promise<void>;
@@ -217,7 +217,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [fetchData, user]);
 
-  const addMemory = useCallback(async (personId: string, content: string, type: MemoryType) => {
+  const addMemory = useCallback(async (personId: string, content: string, type: MemoryType, imageUrl?: string) => {
     if (!user) return;
     try {
       const { error } = await supabase
@@ -226,6 +226,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           person_id: personId === 'general' ? null : personId,
           content,
           type,
+          image_url: imageUrl,
           created_by_email: user.email,
           user_id: user.id
         }]);
