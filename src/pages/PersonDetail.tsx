@@ -119,7 +119,6 @@ const PersonDetail = () => {
 
   const onDropProfile = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDraggingOverProfile(false);
     setIsDraggingOverPage(false);
     const file = e.dataTransfer.files?.[0];
