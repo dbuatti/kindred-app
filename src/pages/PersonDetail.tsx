@@ -45,10 +45,17 @@ const PersonDetail = () => {
   const [memorySearch, setMemorySearch] = useState('');
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
 
-  const shortId = useMemo(() => parsePersonIdFromSlug(slug), [slug]);
+  const shortId = useMemo(() => {
+    const id = parsePersonIdFromSlug(slug);
+    console.log(`[PersonDetail] Parsed shortId from slug "${slug}":`, id);
+    return id;
+  }, [slug]);
+
   const person = useMemo(() => {
     if (!shortId || loading) return null;
-    return people.find(p => p.id.startsWith(shortId));
+    const found = people.find(p => p.id.startsWith(shortId));
+    console.log(`[PersonDetail] Lookup for shortId "${shortId}":`, found ? `Found ${found.name}` : "Not found");
+    return found;
   }, [shortId, people, loading]);
 
   const relatives = usePersonRelatives(person, people, relationships);
@@ -68,6 +75,7 @@ const PersonDetail = () => {
     onDrop: onProfileDrop
   } = useImageUpload(async (base64) => {
     if (person) {
+      console.log(`[PersonDetail] Updating profile photo for ${person.name}`);
       await updatePerson(person.id, { photoUrl: base64 });
       toast.success("Profile photo updated!");
     }
@@ -75,6 +83,7 @@ const PersonDetail = () => {
 
   useEffect(() => {
     if (person) {
+      console.log(`[PersonDetail] Recording visit to ${person.name}`);
       const stored = localStorage.getItem('kindred_recent');
       let recent = stored ? JSON.parse(stored) : [];
       recent = [person.id, ...recent.filter((id: string) => id !== person.id)].slice(0, 10);

@@ -12,7 +12,12 @@ export interface TreeNode {
 const BRANCH_COLORS = ['#d97706', '#2563eb', '#16a34a', '#dc2626', '#7c3aed'];
 
 export const buildTree = (people: Person[], relationships: any[]): TreeNode[] => {
-  if (!people.length) return [];
+  if (!people.length) {
+    console.warn("[tree-utils] No people provided to buildTree.");
+    return [];
+  }
+
+  console.log(`[tree-utils] Building tree for ${people.length} people and ${relationships.length} relationships.`);
 
   const personMap = new Map<string, Person>();
   people.forEach(p => personMap.set(p.id, p));
@@ -29,7 +34,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     if (!personMap.has(p1) || !personMap.has(p2)) return;
 
     if (['father', 'mother', 'parent'].includes(type)) {
-      // p1 is the parent of p2
       const children = childrenOf.get(p1) || [];
       if (!children.includes(p2)) children.push(p2);
       childrenOf.set(p1, children);
@@ -38,7 +42,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       if (!parents.includes(p1)) parents.push(p1);
       parentsOf.set(p2, parents);
     } else if (['son', 'daughter', 'child'].includes(type)) {
-      // p1 is the child of p2
       const children = childrenOf.get(p2) || [];
       if (!children.includes(p1)) children.push(p1);
       childrenOf.set(p2, children);
@@ -60,7 +63,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   const levels: Record<string, number> = {};
   people.forEach(p => levels[p.id] = 0);
 
-  // Iterative level assignment to ensure parents are always above children
+  console.log("[tree-utils] Calculating generational levels...");
   for (let i = 0; i < 20; i++) {
     let changed = false;
     relationships.forEach(r => {
@@ -70,19 +73,16 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       if (!personMap.has(p1) || !personMap.has(p2)) return;
 
       if (['father', 'mother', 'parent'].includes(type)) {
-        // p1 (parent) should be at a lower level (higher up) than p2 (child)
         if (levels[p2] <= levels[p1]) {
           levels[p2] = levels[p1] + 1;
           changed = true;
         }
       } else if (['son', 'daughter', 'child'].includes(type)) {
-        // p1 (child) should be at a higher level than p2 (parent)
         if (levels[p1] <= levels[p2]) {
           levels[p1] = levels[p2] + 1;
           changed = true;
         }
       } else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
-        // Spouses and siblings should be on the same level
         const maxLvl = Math.max(levels[p1], levels[p2]);
         if (levels[p1] !== maxLvl || levels[p2] !== maxLvl) {
           levels[p1] = maxLvl;
@@ -101,17 +101,16 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     if (!person || globalVisited.has(personId)) return null;
 
     globalVisited.add(personId);
+    console.log(`[tree-utils] Constructing node for ${person.name} at level ${level}`);
 
     const spouseIds = spousesOf.get(personId) || [];
     const spouses = spouseIds
       .map(id => {
-        // Mark spouses as visited so they don't appear as separate main nodes
         globalVisited.add(id);
         return personMap.get(id);
       })
       .filter((p): p is Person => !!p);
 
-    // Collect all children from this person and all their spouses
     const parentGroupIds = [personId, ...spouseIds];
     const childIds = new Set<string>();
     parentGroupIds.forEach(pId => {
@@ -133,10 +132,11 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   };
 
   const roots: TreeNode[] = [];
-  // Potential roots are people with no parents, sorted by their calculated level
   const potentialRoots = people
     .filter(p => !parentsOf.has(p.id))
     .sort((a, b) => levels[a.id] - levels[b.id]);
+  
+  console.log(`[tree-utils] Identified ${potentialRoots.length} potential root nodes.`);
   
   potentialRoots.forEach((p) => {
     if (globalVisited.has(p.id)) return;
@@ -145,5 +145,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     if (node) roots.push(node);
   });
 
+  console.log(`[tree-utils] Tree construction complete. ${roots.length} root branches created.`);
   return roots;
 };
