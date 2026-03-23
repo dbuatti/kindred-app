@@ -39,6 +39,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [user, setUser] = useState<any>(null);
 
   const fetchData = useCallback(async () => {
+    console.log("[FamilyContext] Starting data fetch...");
     setLoading(true);
     try {
       // Fetch People & Memories
@@ -47,6 +48,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .select('*, memories(*)');
       
       if (peopleError) throw peopleError;
+      console.log("[FamilyContext] Fetched people:", peopleData?.length);
 
       // Fetch Suggestions
       const { data: suggestionsData, error: suggestionsError } = await supabase
@@ -55,6 +57,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .eq('status', 'pending');
 
       if (suggestionsError) throw suggestionsError;
+      console.log("[FamilyContext] Fetched pending suggestions:", suggestionsData?.length);
 
       // Fetch Profiles
       const { data: profilesData } = await supabase
@@ -66,6 +69,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         profileMap[p.id] = p;
       });
       setProfiles(profileMap);
+      console.log("[FamilyContext] Fetched profiles:", Object.keys(profileMap).length);
 
       // Fetch Reactions
       const { data: reactionsData } = await supabase
@@ -78,12 +82,14 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         reactionMap[r.memory_id].push(r.user_id);
       });
       setReactions(reactionMap);
+      console.log("[FamilyContext] Fetched reactions for memories:", Object.keys(reactionMap).length);
 
       // Fetch Relationships
       const { data: relData } = await supabase
         .from('relationships')
         .select('*');
       setRelationships(relData || []);
+      console.log("[FamilyContext] Fetched relationships:", relData?.length);
 
       const mappedPeople: Person[] = (peopleData || []).map((p: any) => ({
         id: p.id,
@@ -119,29 +125,40 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         suggestedByEmail: s.suggested_by_email,
         status: s.status
       })));
+      console.log("[FamilyContext] Data mapping complete.");
     } catch (error: any) {
-      console.error("Error fetching data:", error.message);
+      console.error("[FamilyContext] Error fetching data:", error.message);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    console.log("[FamilyContext] Initializing auth listener...");
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("[FamilyContext] Initial session check:", session ? "User logged in" : "No session");
       setUser(session?.user ?? null);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[FamilyContext] Auth state change event:", event);
       setUser(session?.user ?? null);
     });
 
     fetchData();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log("[FamilyContext] Cleaning up auth listener.");
+      subscription.unsubscribe();
+    };
   }, [fetchData]);
 
   const addPerson = useCallback(async (newPerson: Partial<Person>) => {
-    if (!user) return;
+    if (!user) {
+      console.warn("[FamilyContext] Attempted to add person without user session.");
+      return;
+    }
+    console.log("[FamilyContext] Adding new person:", newPerson.name);
     try {
       const { error } = await supabase
         .from('people')
@@ -153,18 +170,20 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           personality_tags: newPerson.personalityTags,
           photo_url: newPerson.photoUrl,
           created_by_email: user.email,
-          // Removed user_id: user.id to prevent 409 conflicts with the current user's profile
         }]);
 
       if (error) throw error;
+      console.log("[FamilyContext] Person added successfully.");
       fetchData();
     } catch (error: any) {
+      console.error("[FamilyContext] Error adding person:", error.message);
       toast.error("Failed to add person: " + error.message);
     }
   }, [fetchData, user]);
 
   const updatePerson = useCallback(async (id: string, updates: Partial<Person>) => {
     if (!user) return;
+    console.log("[FamilyContext] Updating person:", id, updates);
     try {
       const { error } = await supabase
         .from('people')
@@ -180,14 +199,17 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .eq('id', id);
 
       if (error) throw error;
+      console.log("[FamilyContext] Person updated successfully.");
       fetchData();
     } catch (error: any) {
+      console.error("[FamilyContext] Error updating person:", error.message);
       toast.error("Failed to update: " + error.message);
     }
   }, [fetchData, user]);
 
   const addMemory = useCallback(async (personId: string, content: string, type: MemoryType) => {
     if (!user) return;
+    console.log("[FamilyContext] Adding memory for person:", personId, "Type:", type);
     try {
       const { error } = await supabase
         .from('memories')
@@ -200,8 +222,10 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }]);
 
       if (error) throw error;
+      console.log("[FamilyContext] Memory added successfully.");
       fetchData();
     } catch (error: any) {
+      console.error("[FamilyContext] Error adding memory:", error.message);
       toast.error("Failed to save story: " + error.message);
     }
   }, [fetchData, user]);
@@ -211,6 +235,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     const userReactions = reactions[memoryId] || [];
     const hasReacted = userReactions.includes(user.id);
+    console.log("[FamilyContext] Toggling reaction for memory:", memoryId, "Has reacted:", hasReacted);
 
     try {
       if (hasReacted) {
@@ -219,19 +244,22 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .delete()
           .eq('memory_id', memoryId)
           .eq('user_id', user.id);
+        console.log("[FamilyContext] Reaction removed.");
       } else {
         await supabase
           .from('reactions')
           .upsert({ memory_id: memoryId, user_id: user.id }, { onConflict: 'memory_id,user_id' });
+        console.log("[FamilyContext] Reaction added.");
       }
       fetchData();
     } catch (error: any) {
-      console.error("Reaction error:", error);
+      console.error("[FamilyContext] Reaction error:", error.message);
     }
   }, [user, reactions, fetchData]);
 
   const addSuggestion = useCallback(async (s: Omit<Suggestion, 'id' | 'status'>) => {
     if (!user) return;
+    console.log("[FamilyContext] Adding suggestion for person:", s.personId, "Field:", s.fieldName);
     try {
       const { error } = await supabase
         .from('suggestions')
@@ -244,16 +272,22 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }]);
 
       if (error) throw error;
+      console.log("[FamilyContext] Suggestion added successfully.");
       fetchData();
     } catch (error: any) {
+      console.error("[FamilyContext] Error adding suggestion:", error.message);
       toast.error("Failed to send suggestion: " + error.message);
     }
   }, [fetchData, user]);
 
   const resolveSuggestion = useCallback(async (id: string, status: 'approved' | 'rejected') => {
+    console.log("[FamilyContext] Resolving suggestion:", id, "Status:", status);
     try {
       const suggestion = suggestions.find(s => s.id === id);
-      if (!suggestion) return;
+      if (!suggestion) {
+        console.warn("[FamilyContext] Suggestion not found for resolution:", id);
+        return;
+      }
 
       const { error: updateError } = await supabase
         .from('suggestions')
@@ -263,6 +297,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (updateError) throw updateError;
 
       if (status === 'approved') {
+        console.log("[FamilyContext] Applying approved suggestion to person:", suggestion.personId);
         const { error: personError } = await supabase
           .from('people')
           .update({ [suggestion.fieldName]: suggestion.suggestedValue })
@@ -271,8 +306,10 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (personError) throw personError;
       }
 
+      console.log("[FamilyContext] Suggestion resolved successfully.");
       fetchData();
     } catch (error: any) {
+      console.error("[FamilyContext] Error resolving suggestion:", error.message);
       toast.error("Failed to resolve suggestion: " + error.message);
     }
   }, [suggestions, fetchData]);

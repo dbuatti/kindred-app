@@ -54,12 +54,17 @@ const Onboarding = () => {
   const [relativeName, setRelativeName] = useState('');
   const [relativeType, setRelativeType] = useState('mother');
 
+  useEffect(() => {
+    console.log("[Onboarding] Current step:", step);
+  }, [step]);
+
   const updateField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const addRelative = () => {
     if (!relativeName) return;
+    console.log("[Onboarding] Adding relative to list:", relativeName, relativeType);
     setFormData(prev => ({
       ...prev,
       newRelatives: [...prev.newRelatives, { name: relativeName, type: relativeType }]
@@ -69,11 +74,16 @@ const Onboarding = () => {
   };
 
   const handleComplete = async () => {
-    if (!user) return;
+    if (!user) {
+      console.error("[Onboarding] Cannot complete onboarding: No user session.");
+      return;
+    }
+    console.log("[Onboarding] Starting completion process for user:", user.id);
     setIsSaving(true);
 
     try {
       // 1. Update Profile
+      console.log("[Onboarding] Step 1: Updating profile...");
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -88,10 +98,12 @@ const Onboarding = () => {
         });
 
       if (profileError) throw profileError;
+      console.log("[Onboarding] Profile updated successfully.");
 
       const fullName = `${formData.firstName} ${formData.lastName}`.trim();
       
-      // 2. Upsert Person record (prevents 409 Conflict)
+      // 2. Upsert Person record
+      console.log("[Onboarding] Step 2: Upserting person record...");
       const personData = {
         user_id: user.id,
         name: fullName,
@@ -110,9 +122,12 @@ const Onboarding = () => {
 
       if (pErr) throw pErr;
       const myPersonId = person.id;
+      console.log("[Onboarding] Person record upserted. ID:", myPersonId);
 
       // 3. Add Relatives
+      console.log("[Onboarding] Step 3: Adding relatives...", formData.newRelatives.length);
       for (const rel of formData.newRelatives) {
+        console.log("[Onboarding] Creating relative person:", rel.name);
         const { data: relPerson, error: relErr } = await supabase
           .from('people')
           .insert({
@@ -125,17 +140,22 @@ const Onboarding = () => {
           .single();
 
         if (!relErr && relPerson && myPersonId) {
+          console.log("[Onboarding] Creating relationship between", myPersonId, "and", relPerson.id);
           await supabase.from('relationships').insert({
             person_id: myPersonId,
             related_person_id: relPerson.id,
             relationship_type: rel.type
           });
+        } else if (relErr) {
+          console.error("[Onboarding] Error creating relative:", rel.name, relErr.message);
         }
       }
 
+      console.log("[Onboarding] Completion process finished successfully.");
       toast.success("Welcome to the family archive!");
       navigate('/');
     } catch (error: any) {
+      console.error("[Onboarding] Critical error during completion:", error.message);
       toast.error("Something went wrong: " + error.message);
     } finally {
       setIsSaving(false);
@@ -174,6 +194,7 @@ const Onboarding = () => {
                     onChange={(e) => {
                       const found = unclaimedPeople.find(p => p.name.toLowerCase().includes(e.target.value.toLowerCase()));
                       if (found && e.target.value.length > 2) {
+                        console.log("[Onboarding] Found matching unclaimed person:", found.name);
                         updateField('claimedPersonId', found.id);
                         const names = found.name.split(' ');
                         updateField('firstName', names[0]);
