@@ -19,6 +19,62 @@ const FamilyTree = () => {
     return people.find(p => p.userId === user?.id) || people[0];
   }, [people, user]);
 
+  // 1. Calculate Generations (Levels) with a robust iterative algorithm
+  const generations = useMemo(() => {
+    if (!people.length) return {};
+    
+    const levels: Record<string, number> = {};
+    people.forEach(p => levels[p.id] = 0);
+
+    // Iterative relaxation to settle levels
+    // We want: Parent = Child + 1
+    // Spouse = Spouse
+    // Sibling = Sibling
+    // Cousin = Cousin
+    for (let i = 0; i < 50; i++) {
+      let changed = false;
+      relationships.forEach(r => {
+        const type = r.relationship_type.toLowerCase();
+        const p1 = r.person_id;
+        const p2 = r.related_person_id;
+
+        // Parent/Child relationships
+        if (['mother', 'father', 'parent'].includes(type)) {
+          // p2 is the parent of p1
+          if (levels[p2] !== levels[p1] + 1) {
+            levels[p2] = levels[p1] + 1;
+            changed = true;
+          }
+        }
+        if (['son', 'daughter', 'child'].includes(type)) {
+          // p1 is the parent of p2
+          if (levels[p1] !== levels[p2] + 1) {
+            levels[p1] = levels[p2] + 1;
+            changed = true;
+          }
+        }
+
+        // Same-level relationships: Spouse, Sibling, Cousin
+        if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling', 'cousin'].includes(type)) {
+          const max = Math.max(levels[p1], levels[p2]);
+          if (levels[p1] !== max || levels[p2] !== max) {
+            levels[p1] = max;
+            levels[p2] = max;
+            changed = true;
+          }
+        }
+      });
+      if (!changed) break;
+    }
+
+    // Normalize so the lowest level is 0
+    const minLevel = Math.min(...Object.values(levels));
+    const normalized: Record<string, number> = {};
+    Object.keys(levels).forEach(id => normalized[id] = levels[id] - minLevel);
+
+    return normalized;
+  }, [people, relationships]);
+
   // Helper to get direct parents
   const getDirectParents = (personId: string) => {
     const parentIds = relationships
@@ -51,38 +107,12 @@ const FamilyTree = () => {
     return Array.from(unitSet).sort().join('-');
   };
 
-  // 1. Calculate Generations (Levels)
-  const generations = useMemo(() => {
-    if (!people.length) return {};
-    
-    const levels: Record<string, number> = {};
-    people.forEach(p => levels[p.id] = 0);
-
-    // Simple iterative approach to settle levels
-    for (let i = 0; i < 10; i++) {
-      relationships.forEach(r => {
-        const type = r.relationship_type.toLowerCase();
-        if (['mother', 'father', 'parent'].includes(type)) {
-          levels[r.person_id] = Math.max(levels[r.person_id], levels[r.related_person_id] + 1);
-        }
-        if (['son', 'daughter', 'child'].includes(type)) {
-          levels[r.related_person_id] = Math.max(levels[r.related_person_id], levels[r.person_id] + 1);
-        }
-      });
-    }
-
-    const minLevel = Math.min(...Object.values(levels));
-    Object.keys(levels).forEach(id => levels[id] -= minLevel);
-
-    return levels;
-  }, [people, relationships]);
-
   // 2. Group people by generation and sibling groups
   const treeData = useMemo(() => {
     const gens: Record<number, { siblingGroups: Record<string, any[]> }> = {};
     const renderedIds = new Set<string>();
 
-    const sortedLevels = Array.from(new Set(Object.values(generations))).sort((a, b) => a - b);
+    const sortedLevels = Array.from(new Set(Object.values(generations))).sort((a, b) => b - a);
 
     sortedLevels.forEach(level => {
       if (!gens[level]) gens[level] = { siblingGroups: {} };
@@ -119,7 +149,7 @@ const FamilyTree = () => {
     });
 
     return Object.entries(gens)
-      .sort(([a], [b]) => Number(a) - Number(b))
+      .sort(([a], [b]) => Number(b) - Number(a))
       .map(([level, data]) => ({ level: Number(level), ...data }));
   }, [people, generations, relationships]);
 
