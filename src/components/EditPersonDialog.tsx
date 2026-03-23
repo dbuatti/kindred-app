@@ -20,7 +20,8 @@ import {
   Camera, 
   Tag, 
   User,
-  Sparkles
+  Sparkles,
+  UserCheck
 } from 'lucide-react';
 import { Person } from '../types';
 import { useFamily } from '../context/FamilyContext';
@@ -54,7 +55,7 @@ const GENDER_OPTIONS = [
 
 const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: setExternalOpen }: EditPersonDialogProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
-  const { updatePerson, deletePerson, relationships, people, addRelationship } = useFamily();
+  const { updatePerson, deletePerson, relationships, people, addRelationship, addPerson } = useFamily();
   
   const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
   const setIsOpen = setExternalOpen || setInternalOpen;
@@ -78,6 +79,8 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
 
   const [newRelType, setNewRelType] = useState('');
   const [newRelTargetId, setNewRelTargetId] = useState('');
+  const [newPersonName, setNewPersonName] = useState('');
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -150,11 +153,24 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
   };
 
   const handleAddRelationship = async () => {
-    if (!newRelType || !newRelTargetId) return;
-    await addRelationship(person.id, newRelTargetId, newRelType);
+    if (!newRelType) return;
+
+    if (isCreatingNew) {
+      if (!newPersonName) return;
+      await addPerson({ 
+        name: newPersonName,
+        personalityTags: [newRelType]
+      }, person.id, newRelType);
+      setNewPersonName('');
+      toast.success(`${newPersonName} added and connected!`);
+    } else {
+      if (!newRelTargetId) return;
+      await addRelationship(person.id, newRelTargetId, newRelType);
+      setNewRelTargetId('');
+      toast.success("Relationship added!");
+    }
+    
     setNewRelType('');
-    setNewRelTargetId('');
-    toast.success("Relationship added!");
   };
 
   const handleDelete = async () => {
@@ -362,9 +378,32 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
               </div>
 
               <div className="bg-amber-50/50 p-6 rounded-3xl border border-amber-100 space-y-4">
-                <p className="text-xs font-bold text-amber-800 uppercase tracking-widest flex items-center gap-2">
-                  <UserPlus className="w-3 h-3" /> Add New Connection
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-amber-800 uppercase tracking-widest flex items-center gap-2">
+                    <UserPlus className="w-3 h-3" /> Add New Connection
+                  </p>
+                  <div className="flex bg-stone-200/50 p-1 rounded-lg">
+                    <button 
+                      onClick={() => setIsCreatingNew(false)}
+                      className={cn(
+                        "px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all",
+                        !isCreatingNew ? "bg-white text-stone-800 shadow-sm" : "text-stone-400"
+                      )}
+                    >
+                      Existing
+                    </button>
+                    <button 
+                      onClick={() => setIsCreatingNew(true)}
+                      className={cn(
+                        "px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all",
+                        isCreatingNew ? "bg-white text-stone-800 shadow-sm" : "text-stone-400"
+                      )}
+                    >
+                      New
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <Select onValueChange={setNewRelType} value={newRelType}>
                     <SelectTrigger className="bg-white border-none rounded-xl h-10 text-sm">
@@ -376,23 +415,34 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
                       ))}
                     </SelectContent>
                   </Select>
-                  <Select onValueChange={setNewRelTargetId} value={newRelTargetId}>
-                    <SelectTrigger className="bg-white border-none rounded-xl h-10 text-sm">
-                      <SelectValue placeholder="Select Person" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      {otherPeople.map(p => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+                  {isCreatingNew ? (
+                    <Input 
+                      placeholder="Full Name"
+                      value={newPersonName}
+                      onChange={(e) => setNewPersonName(e.target.value)}
+                      className="bg-white border-none rounded-xl h-10 text-sm focus-visible:ring-amber-500/20"
+                    />
+                  ) : (
+                    <Select onValueChange={setNewRelTargetId} value={newRelTargetId}>
+                      <SelectTrigger className="bg-white border-none rounded-xl h-10 text-sm">
+                        <SelectValue placeholder="Select Person" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        {otherPeople.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <Button 
                   onClick={handleAddRelationship}
-                  disabled={!newRelType || !newRelTargetId}
+                  disabled={!newRelType || (isCreatingNew ? !newPersonName : !newRelTargetId)}
                   className="w-full h-10 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold uppercase tracking-widest gap-2"
                 >
-                  <Plus className="w-3 h-3" /> Add Connection
+                  {isCreatingNew ? <Plus className="w-3 h-3" /> : <UserCheck className="w-3 h-3" />}
+                  {isCreatingNew ? "Create & Connect" : "Add Connection"}
                 </Button>
               </div>
             </div>
