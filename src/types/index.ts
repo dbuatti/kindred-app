@@ -53,6 +53,8 @@ export interface Person {
   createdByEmail: string;
   memories: Memory[];
   userId?: string;
+  isLiving?: boolean;
+  relationshipType?: string;
 }
 
 export interface StoryPrompt {
