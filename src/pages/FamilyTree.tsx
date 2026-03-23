@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Users, Share2, Heart, UserCircle, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Users, Share2, Heart, UserCircle, ChevronDown, Link2 } from 'lucide-react';
 import { getPersonUrl } from '@/lib/slugify';
 import { getInverseRelationship } from '@/lib/relationships';
 import { cn } from '@/lib/utils';
@@ -78,14 +78,12 @@ const FamilyTree = () => {
   const branches = useMemo(() => {
     if (!people.length || !me) return [];
 
-    // 1. Identify all "Couples" (Spouses or people who share children)
     const couples: any[][] = [];
     const processedParents = new Set();
 
     people.forEach(p => {
       if (processedParents.has(p.id)) return;
 
-      // Find explicit spouse
       const spouseRel = relationships.find(r => 
         (r.person_id === p.id && ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())) ||
         (r.related_person_id === p.id && ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase()))
@@ -93,7 +91,6 @@ const FamilyTree = () => {
 
       let spouseId = spouseRel ? (spouseRel.person_id === p.id ? spouseRel.related_person_id : spouseRel.person_id) : null;
 
-      // If no explicit spouse, check if they share children
       if (!spouseId) {
         const myChildren = getChildren(p.id);
         if (myChildren.length > 0) {
@@ -114,7 +111,6 @@ const FamilyTree = () => {
           processedParents.add(spouse.id);
         }
       } else {
-        // Single parent or unlinked individual
         const children = getChildren(p.id);
         if (children.length > 0) {
           couples.push([p]);
@@ -123,32 +119,50 @@ const FamilyTree = () => {
       }
     });
 
-    // 2. Build the branches (Couple + their children)
     return couples.map(parents => {
       const parentIds = parents.map(p => p.id);
-      
-      // Find children of this couple
-      // We check if a child is linked to ANY of the parents in the unit
       const children = people.filter(p => {
         const myParents = getParents(p.id);
-        // Direct link
         if (myParents.some(pid => parentIds.includes(pid))) return true;
-        
-        // Sibling inference: if I have a sibling who is linked to these parents, I am too
         const mySiblings = relationships
           .filter(r => (r.person_id === p.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
                        (r.related_person_id === p.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())))
           .map(r => r.person_id === p.id ? r.related_person_id : r.person_id);
-          
         return mySiblings.some(sibId => getParents(sibId).some(pid => parentIds.includes(pid)));
       });
 
       return {
+        id: parents.map(p => p.id).join('-'),
         parents,
         children: children.sort((a, b) => (a.birthYear || '').localeCompare(b.birthYear || ''))
       };
     }).filter(b => b.parents.length > 0);
   }, [people, me, relationships]);
+
+  // Identify sibling links between branches
+  const siblingLinks = useMemo(() => {
+    const links: { from: string; to: string }[] = [];
+    for (let i = 0; i < branches.length; i++) {
+      for (let j = i + 1; j < branches.length; j++) {
+        const branchA = branches[i];
+        const branchB = branches[j];
+        
+        const hasSiblingLink = branchA.parents.some(pA => 
+          branchB.parents.some(pB => 
+            relationships.some(r => 
+              (r.person_id === pA.id && r.related_person_id === pB.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
+              (r.person_id === pB.id && r.related_person_id === pA.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
+            )
+          )
+        );
+
+        if (hasSiblingLink) {
+          links.push({ from: branchA.id, to: branchB.id });
+        }
+      }
+    }
+    return links;
+  }, [branches, relationships]);
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the branches...</div>;
 
@@ -172,9 +186,20 @@ const FamilyTree = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-8 py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 md:gap-24">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-24 gap-y-32 relative">
+          {/* Sibling Bridges */}
+          <div className="absolute inset-0 pointer-events-none hidden lg:block">
+            {siblingLinks.map((link, idx) => (
+              <div key={idx} className="absolute top-24 left-1/2 -translate-x-1/2 w-24 border-t-2 border-dashed border-stone-200 flex items-center justify-center">
+                <div className="bg-[#FDFCF9] px-2 -mt-3">
+                  <span className="text-[8px] font-bold text-stone-300 uppercase tracking-widest">Siblings</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
           {branches.map((branch, bIdx) => (
-            <div key={bIdx} className="space-y-12 relative">
+            <div key={branch.id} className="space-y-12 relative">
               {/* Parent Unit */}
               <div className="flex justify-center">
                 <div className={cn(
