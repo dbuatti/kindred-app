@@ -60,13 +60,14 @@ const AddPersonDialog = () => {
 
         <div className="space-y-8 py-6">
           <div className="space-y-3">
-            <label className="text-lg font-bold text-stone-600">Full Name</label>
+            <label className="text-lg font-bold text-stone-600">Name or Nickname</label>
             <Input 
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Martha Miller"
+              placeholder="e.g. Aunt Martha or Grandpa Joe"
               className="h-16 bg-stone-50 border-2 border-stone-100 rounded-2xl text-xl px-6"
             />
+            <p className="text-sm text-stone-400 italic">Just a first name is fine if you don't know the rest.</p>
           </div>
 
           <div className="space-y-3">

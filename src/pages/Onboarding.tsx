@@ -6,8 +6,6 @@ import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { 
   Heart, 
   ArrowRight, 
@@ -19,13 +17,11 @@ import {
   Users,
   Check,
   Loader2,
-  ChevronsUpDown,
   UserPlus,
   Search
 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 
 const RELATIONSHIP_TYPES = [
   { label: "Parent", value: "parent" },
@@ -37,11 +33,10 @@ const RELATIONSHIP_TYPES = [
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const { user, people, profiles, loading: contextLoading } = useFamily();
+  const { user, people, loading: contextLoading } = useFamily();
   const [step, setStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Form State
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -74,7 +69,6 @@ const Onboarding = () => {
     setIsSaving(true);
 
     try {
-      // 1. Update Profile
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -90,12 +84,10 @@ const Onboarding = () => {
 
       if (profileError) throw profileError;
 
-      // 2. Handle Person Record (Claim or Create)
       const fullName = `${formData.firstName} ${formData.lastName}`.trim();
       let myPersonId = formData.claimedPersonId;
 
       if (myPersonId) {
-        // Claim existing
         await supabase
           .from('people')
           .update({ 
@@ -106,7 +98,6 @@ const Onboarding = () => {
           })
           .eq('id', myPersonId);
       } else {
-        // Create new
         const { data: newPerson, error: pErr } = await supabase
           .from('people')
           .insert({
@@ -124,7 +115,6 @@ const Onboarding = () => {
         myPersonId = newPerson.id;
       }
 
-      // 3. Add New Relatives
       for (const rel of formData.newRelatives) {
         const { data: relPerson, error: relErr } = await supabase
           .from('people')
@@ -170,7 +160,7 @@ const Onboarding = () => {
             {step === 1 ? "Who are you?" : step === 2 ? "Your Roots" : "Your Connections"}
           </h1>
           <p className="text-stone-500 italic text-lg">
-            {step === 1 ? "Let's find your place in the archive." : step === 2 ? "Tell us a bit about your beginning." : "Who else should be in our storybook?"}
+            {step === 1 ? "Just a name or nickname is fine to start." : step === 2 ? "Tell us a bit about your beginning." : "Who else should be in our storybook?"}
           </p>
         </div>
 
@@ -185,8 +175,8 @@ const Onboarding = () => {
                     placeholder="Has someone already added you?" 
                     className="h-14 pl-12 bg-stone-50 border-none rounded-2xl text-lg"
                     onChange={(e) => {
-                      const found = unclaimedPeople.find(p => p.name.toLowerCase() === e.target.value.toLowerCase());
-                      if (found) {
+                      const found = unclaimedPeople.find(p => p.name.toLowerCase().includes(e.target.value.toLowerCase()));
+                      if (found && e.target.value.length > 2) {
                         updateField('claimedPersonId', found.id);
                         const names = found.name.split(' ');
                         updateField('firstName', names[0]);
@@ -199,14 +189,24 @@ const Onboarding = () => {
               </div>
 
               <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-stone-400 uppercase">First Name</label>
-                    <Input value={formData.firstName} onChange={(e) => updateField('firstName', e.target.value)} className="h-14 bg-stone-50 border-none rounded-2xl text-lg" />
+                    <label className="text-xs font-bold text-stone-400 uppercase">First Name or Nickname</label>
+                    <Input 
+                      value={formData.firstName} 
+                      onChange={(e) => updateField('firstName', e.target.value)} 
+                      placeholder="e.g. Mary or Aunt Mary"
+                      className="h-14 bg-stone-50 border-none rounded-2xl text-lg" 
+                    />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-stone-400 uppercase">Last Name</label>
-                    <Input value={formData.lastName} onChange={(e) => updateField('lastName', e.target.value)} className="h-14 bg-stone-50 border-none rounded-2xl text-lg" />
+                    <label className="text-xs font-bold text-stone-400 uppercase">Last Name (Optional)</label>
+                    <Input 
+                      value={formData.lastName} 
+                      onChange={(e) => updateField('lastName', e.target.value)} 
+                      placeholder="If you know it"
+                      className="h-14 bg-stone-50 border-none rounded-2xl text-lg" 
+                    />
                   </div>
                 </div>
               </div>
@@ -216,11 +216,11 @@ const Onboarding = () => {
           {step === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-stone-400 uppercase">Birth Date</label>
+                <label className="text-xs font-bold text-stone-400 uppercase">Birth Date (Optional)</label>
                 <Input type="date" value={formData.birthDate} onChange={(e) => updateField('birthDate', e.target.value)} className="h-14 bg-stone-50 border-none rounded-2xl text-lg" />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold text-stone-400 uppercase">Birth Place</label>
+                <label className="text-xs font-bold text-stone-400 uppercase">Birth Place (Optional)</label>
                 <Input value={formData.birthPlace} onChange={(e) => updateField('birthPlace', e.target.value)} placeholder="City, Country" className="h-14 bg-stone-50 border-none rounded-2xl text-lg" />
               </div>
               <div className="space-y-2">
@@ -233,10 +233,10 @@ const Onboarding = () => {
           {step === 3 && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
               <div className="space-y-4">
-                <p className="text-sm text-stone-400 font-medium">Add relatives who aren't here yet:</p>
+                <p className="text-sm text-stone-400 font-medium">Add relatives who aren't here yet (Nicknames are fine!):</p>
                 <div className="flex gap-2">
                   <Input 
-                    placeholder="Relative's Name" 
+                    placeholder="e.g. Uncle Joe" 
                     value={relativeName}
                     onChange={(e) => setRelativeName(e.target.value)}
                     className="h-14 bg-stone-50 border-none rounded-2xl flex-1"
