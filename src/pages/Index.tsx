@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import PersonCard from '../components/PersonCard';
@@ -9,8 +9,9 @@ import StoryStarter from '../components/StoryStarter';
 import ProfileDialog from '../components/ProfileDialog';
 import FamilyJournal from '../components/FamilyJournal';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Share2, Heart, Users, ScrollText } from 'lucide-react';
+import { Search, Share2, Heart, Users, ScrollText, Command as CommandIcon, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
@@ -19,11 +20,24 @@ const Index = () => {
   const { people, loading } = useFamily();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('people');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   
   const filteredPeople = people.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.vibeSentence.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const copyInvite = () => {
     navigator.clipboard.writeText(window.location.origin + '/join?code=KINDRED2024');
@@ -87,11 +101,23 @@ const Index = () => {
           <div className="relative group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400 group-focus-within:text-amber-600 transition-colors" />
             <Input 
+              ref={searchInputRef}
               placeholder="Search the archive..."
-              className="pl-12 h-14 bg-stone-100/50 border-none rounded-2xl text-lg placeholder:text-stone-400 focus-visible:ring-amber-500/20 transition-all"
+              className="pl-12 pr-12 h-14 bg-stone-100/50 border-none rounded-2xl text-lg placeholder:text-stone-400 focus-visible:ring-amber-500/20 transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {searchQuery ? (
+                <button onClick={() => setSearchQuery('')} className="p-1 hover:bg-stone-200 rounded-full text-stone-400">
+                  <X className="w-4 h-4" />
+                </button>
+              ) : (
+                <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-stone-200/50 rounded-md text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                  <CommandIcon className="w-3 h-3" /> K
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -126,9 +152,17 @@ const Index = () => {
           <TabsContent value="people" className="mt-0 focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="grid gap-10">
               {filteredPeople.length === 0 ? (
-                <div className="text-center py-20 space-y-4">
-                  <Heart className="w-12 h-12 text-stone-100 mx-auto" />
-                  <p className="text-stone-400 font-serif italic">No one found in the archive yet.</p>
+                <div className="text-center py-20 space-y-6 animate-in fade-in zoom-in duration-500">
+                  <div className="h-20 w-20 bg-stone-50 rounded-full flex items-center justify-center mx-auto">
+                    <Search className="w-8 h-8 text-stone-200" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-stone-800 font-serif text-xl">No matches found</p>
+                    <p className="text-stone-400 text-sm italic">Try searching for a name, place, or a specific memory.</p>
+                  </div>
+                  <Button variant="ghost" onClick={() => setSearchQuery('')} className="text-amber-600 hover:text-amber-700">
+                    Clear search
+                  </Button>
                 </div>
               ) : (
                 filteredPeople.map((person) => (

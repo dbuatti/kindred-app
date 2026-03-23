@@ -16,17 +16,23 @@ interface AddMemoryDialogProps {
   onAdd?: (content: string, type: 'text' | 'voice' | 'photo') => void;
 }
 
+const MAX_CHARS = 500;
+
 const AddMemoryDialog = ({ personId, personName, initialContent, trigger, onAdd }: AddMemoryDialogProps) => {
   const { addMemory } = useFamily();
   const { isListening, transcript, setTranscript, startListening } = useVoiceInput();
   const [isOpen, setIsOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Set initial content if provided when dialog opens
   useEffect(() => {
-    if (isOpen && initialContent && !transcript) {
-      setTranscript(initialContent + "\n\n");
+    if (isOpen) {
+      if (initialContent && !transcript) {
+        setTranscript(initialContent + "\n\n");
+      }
+      // Auto-focus the textarea when dialog opens
+      setTimeout(() => textareaRef.current?.focus(), 100);
     }
   }, [isOpen, initialContent]);
 
@@ -103,11 +109,15 @@ const AddMemoryDialog = ({ personId, personName, initialContent, trigger, onAdd 
 
           <div className="relative">
             <Textarea
+              ref={textareaRef}
               value={transcript}
-              onChange={(e) => setTranscript(e.target.value)}
+              onChange={(e) => setTranscript(e.target.value.slice(0, MAX_CHARS))}
               placeholder="Or type your story here..."
               className="min-h-[120px] bg-white border-stone-200 rounded-2xl p-4 text-lg font-serif leading-relaxed focus-visible:ring-amber-500"
             />
+            <div className="absolute bottom-2 right-4 text-[10px] font-bold text-stone-300 uppercase tracking-widest">
+              {transcript.length} / {MAX_CHARS}
+            </div>
             
             {imagePreview && (
               <div className="mt-4 relative rounded-xl overflow-hidden border border-stone-200">
