@@ -6,7 +6,9 @@ import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
-import { Plus, Sparkles, Mic, Heart, History, UserPlus } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
+import { Plus, Sparkles, Mic, Heart, History, UserPlus, MapPin, Check, ChevronsUpDown } from 'lucide-react';
 import { useVoiceInput } from '../hooks/use-voice';
 import { useFamily } from '../context/FamilyContext.tsx';
 import { cn } from '@/lib/utils';
@@ -14,6 +16,21 @@ import { toast } from 'sonner';
 
 const RELATIONSHIPS = [
   "Parent", "Grandparent", "Great Grandparent", "Sibling", "Aunt/Uncle", "Cousin", "Spouse", "Child"
+];
+
+const COMMON_PLACES = [
+  "London, UK",
+  "New York, USA",
+  "Dublin, Ireland",
+  "Sicily, Italy",
+  "Paris, France",
+  "Berlin, Germany",
+  "Rome, Italy",
+  "Madrid, Spain",
+  "Sydney, Australia",
+  "Toronto, Canada",
+  "Brooklyn, NY",
+  "Chicago, IL"
 ];
 
 const SPIRIT_TAGS = [
@@ -34,6 +51,7 @@ const AddPersonDialog = () => {
   const [birthYear, setBirthYear] = useState('');
   const [birthPlace, setBirthPlace] = useState('');
   const [isLiving, setIsLiving] = useState(false);
+  const [placePopoverOpen, setPlacePopoverOpen] = useState(false);
 
   const handleSpiritTag = (text: string) => {
     setTranscript(prev => prev ? `${prev}\n\n${text}` : text);
@@ -146,12 +164,52 @@ const AddPersonDialog = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Birth Place</label>
-                  <Input 
-                    value={birthPlace}
-                    onChange={(e) => setBirthPlace(e.target.value)}
-                    placeholder="e.g. Sicily, Italy"
-                    className="bg-stone-50/50 border-stone-100 rounded-xl h-12 focus-visible:ring-amber-500/20"
-                  />
+                  <Popover open={placePopoverOpen} onOpenChange={setPlacePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={placePopoverOpen}
+                        className="w-full justify-between bg-stone-50/50 border-stone-100 rounded-xl h-12 font-normal text-stone-600 hover:bg-stone-100"
+                      >
+                        {birthPlace || "Select or type..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[250px] p-0 rounded-2xl border-stone-100 shadow-xl">
+                      <Command className="rounded-2xl">
+                        <CommandInput 
+                          placeholder="Search or type place..." 
+                          value={birthPlace}
+                          onValueChange={setBirthPlace}
+                        />
+                        <CommandList>
+                          <CommandEmpty>No common place found. Keep typing...</CommandEmpty>
+                          <CommandGroup heading="Suggestions">
+                            {COMMON_PLACES.map((place) => (
+                              <CommandItem
+                                key={place}
+                                value={place}
+                                onSelect={(currentValue) => {
+                                  setBirthPlace(currentValue);
+                                  setPlacePopoverOpen(false);
+                                }}
+                                className="rounded-xl"
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    birthPlace === place ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {place}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </div>
