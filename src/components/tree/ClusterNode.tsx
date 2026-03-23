@@ -38,9 +38,11 @@ const ClusterNode = ({
   parentProcessed = new Set() 
 }: ClusterNodeProps) => {
   
+  // Track which members of this cluster have already been assigned to a unit
+  const processedInCluster = new Set<string>();
+
   const parentUnits = useMemo(() => {
     const units: { parents: any[], children: any[] }[] = [];
-    const processedInCluster = new Set<string>();
 
     members.forEach(m => {
       if (processedInCluster.has(m.id)) return;
@@ -49,7 +51,9 @@ const ClusterNode = ({
         (r.person_id === m.id || r.related_person_id === m.id) &&
         ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
       );
-      const spouse = spouseRel ? members.find(p => p.id === (spouseRel.person_id === m.id ? spouseRel.related_person_id : spouseRel.person_id)) : null;
+      
+      const spouseId = spouseRel ? (spouseRel.person_id === m.id ? spouseRel.related_person_id : spouseRel.person_id) : null;
+      const spouse = spouseId ? members.find(p => p.id === spouseId) : null;
 
       const unitParents = spouse ? [m, spouse] : [m];
       unitParents.forEach(p => processedInCluster.add(p.id));
@@ -74,6 +78,9 @@ const ClusterNode = ({
   }, [members, relationships, people]);
 
   const isClusterHighlighted = members.some(m => lineageIds.has(m.id));
+
+  // Track children processed across ALL units in this cluster to prevent duplicates
+  const clusterChildrenProcessed = new Set<string>(parentProcessed);
 
   return (
     <div className="flex flex-col items-center">
@@ -143,13 +150,14 @@ const ClusterNode = ({
       {parentUnits.length > 0 && (
         <div className="flex gap-16 mt-10 relative">
           {parentUnits.map((unit, uIdx) => {
-            const childProcessed = new Set<string>();
             const childClusters: any[][] = [];
+            
             unit.children.forEach(c => {
-              if (!childProcessed.has(c.id) && !parentProcessed.has(c.id)) {
-                const cluster = getPeerCluster(c.id, level + 1, childProcessed);
-                childClusters.push(cluster);
-                cluster.forEach(p => parentProcessed.add(p.id));
+              if (!clusterChildrenProcessed.has(c.id)) {
+                const cluster = getPeerCluster(c.id, level + 1, clusterChildrenProcessed);
+                if (cluster.length > 0) {
+                  childClusters.push(cluster);
+                }
               }
             });
 
@@ -190,7 +198,7 @@ const ClusterNode = ({
                       debugMode={debugMode}
                       onSelect={onSelect}
                       getPeerCluster={getPeerCluster}
-                      parentProcessed={parentProcessed} 
+                      parentProcessed={clusterChildrenProcessed} 
                     />
                   ))}
                 </div>
