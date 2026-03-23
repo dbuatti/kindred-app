@@ -1,13 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
-import { Sparkles, Check, X } from 'lucide-react';
+import { Sparkles, Check, X, CheckCircle2, Loader2 } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext';
 import { cn } from '@/lib/utils';
 
 const FamilyInbox = () => {
-  const { suggestions, resolveSuggestion, people } = useFamily();
+  const { suggestions, resolveSuggestion, resolveAllSuggestions, people, user } = useFamily();
+  const [isProcessing, setIsProcessing] = useState(false);
+  
   const pending = suggestions.filter(s => s.status === 'pending');
+  const isAdmin = user?.email === "daniele.buatti@gmail.com";
+
+  const handleApproveAll = async () => {
+    setIsProcessing(true);
+    await resolveAllSuggestions('approved');
+    setIsProcessing(false);
+  };
 
   if (pending.length === 0) return null;
 
@@ -28,7 +37,21 @@ const FamilyInbox = () => {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none bg-stone-50 p-8">
         <DialogHeader>
-          <DialogTitle className="font-serif text-2xl text-stone-800">Family Inbox</DialogTitle>
+          <div className="flex items-center justify-between mb-2">
+            <DialogTitle className="font-serif text-2xl text-stone-800">Family Inbox</DialogTitle>
+            {isAdmin && pending.length > 1 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleApproveAll}
+                disabled={isProcessing}
+                className="text-amber-600 hover:bg-amber-100 rounded-full gap-2 h-8 px-3"
+              >
+                {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                Approve All
+              </Button>
+            )}
+          </div>
           <DialogDescription className="text-stone-500">
             Review and approve suggestions from other family members.
           </DialogDescription>
@@ -37,7 +60,7 @@ const FamilyInbox = () => {
           {pending.map(s => {
             const person = people.find(p => p.id === s.personId);
             return (
-              <div key={s.id} className="bg-white p-6 rounded-3xl border border-stone-100 space-y-4 shadow-sm">
+              <div key={s.id} className="bg-white p-6 rounded-3xl border border-stone-100 space-y-4 shadow-sm animate-in fade-in slide-in-from-right-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Edit for {person?.name}</span>
                   <span className="text-[10px] text-stone-300 italic">from {s.suggestedByEmail.split('@')[0]}</span>

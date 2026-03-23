@@ -24,8 +24,9 @@ interface FamilyContextType {
   addMemory: (personId: string, content: string, type: MemoryType, imageUrl?: string) => Promise<void>;
   addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'status'>) => Promise<void>;
   resolveSuggestion: (id: string, status: 'approved' | 'rejected') => Promise<void>;
+  resolveAllSuggestions: (status: 'approved' | 'rejected') => Promise<void>;
   toggleReaction: (memoryId: string) => Promise<void>;
-  refreshData: () => Promise<void>;
+  refreshData: (silent?: boolean) => Promise<void>;
 }
 
 const FamilyContext = createContext<FamilyContextType | undefined>(undefined);
@@ -39,9 +40,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
-  const fetchData = useCallback(async () => {
-    console.log("[FamilyContext] Starting data fetch...");
-    setLoading(true);
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const { data: peopleData, error: peopleError } = await supabase
         .from('people')
@@ -118,7 +118,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (error: any) {
       console.error("[FamilyContext] Error fetching data:", error.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -156,7 +156,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (error) throw error;
 
       if (relativeId && relType && person) {
-        // Check for existing relationship to prevent duplicates
         const { data: existing } = await supabase
           .from('relationships')
           .select('id')
@@ -174,7 +173,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }
 
-      fetchData();
+      fetchData(true);
     } catch (error: any) {
       toast.error("Failed to add person: " + error.message);
     }
@@ -197,7 +196,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .eq('id', id);
 
       if (error) throw error;
-      fetchData();
+      fetchData(true);
     } catch (error: any) {
       toast.error("Failed to update: " + error.message);
     }
@@ -213,7 +212,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (error) throw error;
       toast.success("Person removed from archive.");
-      fetchData();
+      fetchData(true);
     } catch (error: any) {
       toast.error("Failed to delete: " + error.message);
     }
@@ -234,7 +233,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }]);
 
       if (error) throw error;
-      fetchData();
+      fetchData(true);
     } catch (error: any) {
       toast.error("Failed to save story: " + error.message);
     }
@@ -257,7 +256,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .from('reactions')
           .upsert({ memory_id: memoryId, user_id: user.id }, { onConflict: 'memory_id,user_id' });
       }
-      fetchData();
+      fetchData(true);
     } catch (error: any) {
       console.error("[FamilyContext] Reaction error:", error.message);
     }
@@ -277,7 +276,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }]);
 
       if (error) throw error;
-      fetchData();
+      fetchData(true);
     } catch (error: any) {
       toast.error("Failed to send suggestion: " + error.message);
     }
@@ -288,6 +287,9 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const suggestion = suggestions.find(s => s.id === id);
       if (!suggestion) return;
 
+      // Optimistic UI: Remove from local state immediately
+      setSuggestions(prev => prev.filter(s => s.id !== id));
+
       const { error: updateError } = await supabase
         .from('suggestions')
         .update({ status })
@@ -297,7 +299,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (status === 'approved') {
         if (suggestion.fieldName === 'link_existing') {
-          // Format: LINK_EXISTING: [targetId] as [rel] to [personId]
           const match = suggestion.suggestedValue.match(/LINK_EXISTING: (.+) as (.+) to (.+)/);
           if (match) {
             const targetId = match[1];
@@ -316,7 +317,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const name = match[1];
             const type = match[2];
 
-            // 1. Create the new person
             const { data: newPerson, error: pErr } = await supabase
               .from('people')
               .insert({
@@ -330,7 +330,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             if (pErr) throw pErr;
 
-            // 2. Create the primary relationship (with duplicate check)
             const { data: existingRel } = await supabase
               .from('relationships')
               .select('id')
@@ -347,7 +346,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               });
             }
 
-            // 3. Parse and create additional connections
             const lines = suggestion.suggestedValue.split('\n');
             for (const line of lines) {
               const infMatch = line.match(/- Is .+\sthe\s(.+)\sof\s(.+)\?\s\(Yes\)/);
@@ -386,11 +384,29 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }
 
-      fetchData();
+      fetchData(true);
     } catch (error: any) {
       toast.error("Failed to resolve suggestion: " + error.message);
+      fetchData(true); // Revert on error
     }
   }, [suggestions, people, fetchData]);
+
+  const resolveAllSuggestions = useCallback(async (status: 'approved' | 'rejected') => {
+    const pending = suggestions.filter(s => s.status === 'pending');
+    if (pending.length === 0) return;
+
+    const toastId = toast.loading(`Processing ${pending.length} suggestions...`);
+    
+    try {
+      // Process sequentially to handle complex relationship logic correctly
+      for (const s of pending) {
+        await resolveSuggestion(s.id, status);
+      }
+      toast.success(`All suggestions ${status === 'approved' ? 'approved' : 'skipped'}!`, { id: toastId });
+    } catch (error: any) {
+      toast.error("Failed to process all suggestions.", { id: toastId });
+    }
+  }, [suggestions, resolveSuggestion]);
 
   return (
     <FamilyContext.Provider value={{ 
@@ -407,6 +423,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       addMemory, 
       addSuggestion, 
       resolveSuggestion,
+      resolveAllSuggestions,
       toggleReaction,
       refreshData: fetchData
     }}>
