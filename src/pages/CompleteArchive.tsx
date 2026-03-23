@@ -17,6 +17,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getPersonUrl } from '@/lib/slugify';
 
 const CompleteArchive = () => {
   const navigate = useNavigate();
@@ -74,7 +75,7 @@ const CompleteArchive = () => {
           {peopleWithScores.map((person) => (
             <div 
               key={person.id}
-              onClick={() => navigate(`/person/${person.id}`)}
+              onClick={() => navigate(getPersonUrl(person.id, person.name))}
               className="bg-white p-8 rounded-[2.5rem] shadow-sm border-4 border-stone-100 hover:border-amber-200 transition-all cursor-pointer group"
             >
               <div className="flex items-start justify-between gap-6 mb-6">

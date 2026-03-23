@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Search, Share2, ScrollText, X, HelpCircle, UserCircle, Network, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { getPersonUrl } from '@/lib/slugify';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -149,7 +150,7 @@ const Index = () => {
                 <PersonCard 
                   key={person.id}
                   person={person} 
-                  onClick={() => navigate(`/person/${person.id}`)}
+                  onClick={() => navigate(getPersonUrl(person.id, person.name))}
                   searchQuery={searchQuery}
                 />
               ))

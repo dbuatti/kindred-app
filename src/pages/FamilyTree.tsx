@@ -6,6 +6,7 @@ import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Users, Heart, ZoomIn, ZoomOut, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getPersonUrl } from '@/lib/slugify';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
@@ -85,7 +86,7 @@ const FamilyTree = () => {
                 {members.map((person) => (
                   <div 
                     key={person.id}
-                    onClick={() => navigate(`/person/${person.id}`)}
+                    onClick={() => navigate(getPersonUrl(person.id, person.name))}
                     className="group relative flex flex-col items-center space-y-4 cursor-pointer animate-in fade-in zoom-in duration-700"
                     style={{ animationDelay: `${idx * 100}ms` }}
                   >

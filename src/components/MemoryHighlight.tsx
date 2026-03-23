@@ -3,6 +3,7 @@ import { useFamily } from '../context/FamilyContext';
 import { Card } from './ui/card';
 import { Quote, Sparkles, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getPersonUrl } from '@/lib/slugify';
 
 const MemoryHighlight = () => {
   const { people } = useFamily();
@@ -18,7 +19,7 @@ const MemoryHighlight = () => {
 
   return (
     <Card 
-      onClick={() => navigate(`/person/${randomMemory.personId}`)}
+      onClick={() => navigate(getPersonUrl(randomMemory.personId, randomMemory.personName))}
       className="bg-stone-900 text-stone-100 p-10 rounded-[3rem] shadow-2xl border-none cursor-pointer group relative overflow-hidden"
     >
       <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[100px] rounded-full -mr-32 -mt-32" />

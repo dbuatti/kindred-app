@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getPersonUrl } from '@/lib/slugify';
 
 const FamilyJournal = () => {
   const { people, reactions, user, toggleReaction } = useFamily();
@@ -75,7 +76,7 @@ const FamilyJournal = () => {
                     </span>
                     <span className="text-stone-200">/</span>
                     <button 
-                      onClick={() => navigate(`/person/${memory.personId}`)}
+                      onClick={() => navigate(getPersonUrl(memory.personId, memory.personName))}
                       className="text-xs font-medium text-stone-400 hover:text-stone-800 transition-colors flex items-center gap-1 group/link"
                     >
                       About {memory.personName} 
