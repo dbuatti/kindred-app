@@ -38,22 +38,6 @@ const CompactNode = ({ node, onSelect }: { node: TreeNode, onSelect: (p: Person)
             </button>
           </React.Fragment>
         ))}
-
-        {/* Siblings */}
-        {node.siblings.map(sib => (
-          <React.Fragment key={sib.id}>
-            <div className="w-4 h-px bg-stone-300 border-dashed" />
-            <button 
-              onClick={() => onSelect(sib)}
-              className="px-4 py-2 bg-white border border-stone-200 border-dashed rounded-md shadow-sm min-w-[140px] text-center hover:border-amber-500 transition-colors"
-            >
-              <p className="text-[11px] font-bold text-stone-500 truncate">
-                {formatDisplayName(sib.name)}
-              </p>
-              <p className="text-[8px] text-stone-300 uppercase tracking-tighter">Sibling</p>
-            </button>
-          </React.Fragment>
-        ))}
       </div>
 
       {node.children.length > 0 && (

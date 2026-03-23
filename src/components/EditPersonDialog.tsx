@@ -133,7 +133,6 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
       .map(tag => tag.trim())
       .filter(tag => tag !== '');
 
-    // Extract year from birthDate if birthYear is empty and it looks like a full date
     let birthYear = formData.birthYear;
     if (!birthYear && formData.birthDate && formData.birthDate.length >= 4) {
       const parts = formData.birthDate.split(/[-/]/);
@@ -164,6 +163,7 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
 
     if (isCreatingNew) {
       if (!newPersonName) return;
+      // Direction: New Person IS THE newRelType OF Existing Person
       await addPerson({ 
         name: newPersonName,
         personalityTags: [newRelType]
@@ -172,7 +172,8 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
       toast.success(`${newPersonName} added and connected!`);
     } else {
       if (!newRelTargetId) return;
-      await addRelationship(person.id, newRelTargetId, newRelType);
+      // Direction: newRelTargetId IS THE newRelType OF person.id
+      await addRelationship(newRelTargetId, person.id, newRelType);
       setNewRelTargetId('');
       toast.success("Relationship added!");
     }
@@ -198,7 +199,6 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
           </DialogHeader>
           
           <div className="space-y-8">
-            {/* Status Toggle */}
             <div className="flex items-center justify-between p-5 bg-stone-50 rounded-3xl border border-stone-100 shadow-sm">
               <div className="flex items-center gap-4">
                 <div className={cn(
@@ -220,7 +220,6 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
               />
             </div>
 
-            {/* Basic Info */}
             <div className="space-y-6">
               <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-stone-400 flex items-center gap-2">
                 <User className="w-3 h-3" /> Identity & Appearance
@@ -275,7 +274,6 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
               </div>
             </div>
 
-            {/* Life Events */}
             <div className="space-y-6 pt-4 border-t border-stone-100">
               <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-stone-400 flex items-center gap-2">
                 <Sparkles className="w-3 h-3" /> Life Events
@@ -290,7 +288,7 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
                       type="text"
                       value={formData.birthDate}
                       onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
-                      placeholder="e.g. 15 or 15/05 or 1920"
+                      placeholder="e.g. 15/05/1920"
                       className="bg-stone-50 border-none rounded-2xl h-14 text-base pl-12 focus-visible:ring-amber-500/20"
                     />
                   </div>
@@ -353,7 +351,6 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
               </div>
             </div>
 
-            {/* Personality & Bio */}
             <div className="space-y-6 pt-4 border-t border-stone-100">
               <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-stone-400 flex items-center gap-2">
                 <Tag className="w-3 h-3" /> Personality & Story
@@ -380,7 +377,6 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
               </div>
             </div>
 
-            {/* Relationships Section */}
             <div className="space-y-6 pt-4 border-t border-stone-100">
               <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-stone-400 flex items-center gap-2">
                 <Users className="w-3 h-3" /> Family Connections
@@ -474,7 +470,6 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
           </div>
         </div>
 
-        {/* Footer Actions */}
         <div className="p-8 bg-stone-50 border-t border-stone-100 flex flex-col gap-3">
           <Button 
             className="w-full h-14 rounded-2xl bg-stone-800 hover:bg-stone-900 text-white text-lg font-bold gap-2 shadow-lg"

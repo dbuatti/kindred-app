@@ -24,11 +24,9 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
   const [isOpen, setIsOpen] = useState(false);
   const { addSuggestion, addRelationship, addPerson, isAdmin, relationships, people, user } = useFamily();
   
-  // State for "Add New" mode
   const [relativeName, setRelativeName] = useState('');
   const [relationship, setRelationship] = useState('');
   
-  // State for "Link Existing" mode
   const [selectedPersonId, setSelectedPersonId] = useState('');
   const [existingRelationship, setExistingRelationship] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,7 +48,6 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
     const inferences: { id: string; question: string; inferredRole: string; targetPersonName: string; targetId: string }[] = [];
     const relType = rel.toLowerCase();
 
-    // 1. SIBLING Inference: If linking a sibling, they share the same parents
     if (relType === "brother" || relType === "sister") {
       const parentRels = relationships.filter(r => r.person_id === person.id && (r.relationship_type === 'mother' || r.relationship_type === 'father'));
       parentRels.forEach(pr => {
@@ -67,7 +64,6 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
       });
     }
 
-    // 2. COUSIN Inference: If adding a cousin, ask about the parent link
     if (relType === "cousin") {
       const myParents = relationships
         .filter(r => r.person_id === person.id && (r.relationship_type === 'mother' || r.relationship_type === 'father'))
@@ -96,13 +92,12 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
 
     if (isAdmin) {
       if (selectedPersonId) {
-        // Link Existing
-        await addRelationship(person.id, selectedPersonId, rel);
+        // Direction: selectedPersonId IS THE rel OF person.id
+        await addRelationship(selectedPersonId, person.id, rel);
         
-        // Handle inferences
         const confirmed = smartInferences.filter(inf => confirmedInferences[inf.id]);
         for (const inf of confirmed) {
-          await addRelationship(inf.targetId, selectedPersonId, inf.inferredRole);
+          await addRelationship(selectedPersonId, inf.targetId, inf.inferredRole);
         }
       } else {
         // Add New
@@ -113,10 +108,9 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
         }, person.id, relationship);
 
         if (newId) {
-          // Handle inferences
           const confirmed = smartInferences.filter(inf => confirmedInferences[inf.id]);
           for (const inf of confirmed) {
-            await addRelationship(inf.targetId, newId, inf.inferredRole);
+            await addRelationship(newId, inf.targetId, inf.inferredRole);
           }
         }
       }
