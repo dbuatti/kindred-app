@@ -22,24 +22,24 @@ const StoryStarter = () => {
   };
 
   return (
-    <Card className="bg-amber-50/30 border-amber-100/50 p-6 rounded-[2rem] shadow-none group hover:bg-amber-50/50 transition-colors">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-3 flex-1">
-          <div className="flex items-center gap-2 text-amber-700 text-xs font-bold uppercase tracking-widest">
-            <Sparkles className="w-3 h-3" />
-            Story Starter
+    <Card className="bg-amber-50/30 border-amber-100/50 p-8 rounded-[2.5rem] shadow-none group hover:bg-amber-50/50 transition-all duration-500 border-2 border-dashed">
+      <div className="flex items-start justify-between gap-6">
+        <div className="space-y-4 flex-1">
+          <div className="flex items-center gap-2 text-amber-700 text-[10px] font-bold uppercase tracking-[0.2em]">
+            <Sparkles className="w-3 h-3 animate-pulse" />
+            Prompt of the Day
           </div>
           
           <AddMemoryDialog 
             personName="the family"
             initialContent={PROMPTS[index]}
             trigger={
-              <button className="text-left space-y-2 block w-full">
-                <h3 className="font-serif text-xl text-stone-800 leading-tight group-hover:text-amber-900 transition-colors">
+              <button className="text-left space-y-3 block w-full group/btn">
+                <h3 className="font-serif text-2xl text-stone-800 leading-tight group-hover/btn:text-amber-900 transition-colors">
                   {PROMPTS[index]}
                 </h3>
-                <p className="text-stone-500 text-sm">
-                  Tap to share a memory inspired by this question.
+                <p className="text-stone-500 text-sm italic font-light">
+                  Tap to share a memory inspired by this question...
                 </p>
               </button>
             }
@@ -52,9 +52,9 @@ const StoryStarter = () => {
             e.stopPropagation();
             nextPrompt();
           }}
-          className="text-amber-600 hover:bg-amber-100 rounded-full shrink-0"
+          className="text-amber-600 hover:bg-amber-100 rounded-full shrink-0 h-12 w-12 transition-transform active:rotate-180 duration-500"
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="w-5 h-5" />
         </Button>
       </div>
     </Card>

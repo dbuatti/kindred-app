@@ -9,7 +9,8 @@ import StoryStarter from '../components/StoryStarter';
 import ProfileDialog from '../components/ProfileDialog';
 import FamilyJournal from '../components/FamilyJournal';
 import { Input } from '@/components/ui/input';
-import { Search, Mic, Share2, Sparkles, BookOpen, Heart, Users, ScrollText } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Search, Share2, Heart, Users, ScrollText } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
@@ -31,11 +32,30 @@ const Index = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FDFCF9] flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center gap-4">
-          <Heart className="w-12 h-12 text-stone-200 fill-current" />
-          <p className="text-stone-400 font-serif italic">Opening the archive...</p>
-        </div>
+      <div className="min-h-screen bg-[#FDFCF9] pb-20">
+        <header className="bg-[#FDFCF9] border-b border-stone-100">
+          <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-32 rounded-lg" />
+                <Skeleton className="h-4 w-48 rounded-lg" />
+              </div>
+              <div className="flex gap-2">
+                <Skeleton className="h-12 w-24 rounded-full" />
+                <Skeleton className="h-12 w-12 rounded-full" />
+              </div>
+            </div>
+            <Skeleton className="h-14 w-full rounded-2xl" />
+          </div>
+        </header>
+        <main className="max-w-2xl mx-auto px-6 py-12 space-y-12">
+          <Skeleton className="h-32 w-full rounded-[2rem]" />
+          <div className="space-y-8">
+            {[1, 2, 3].map(i => (
+              <Skeleton key={i} className="h-48 w-full rounded-[2.5rem]" />
+            ))}
+          </div>
+        </main>
       </div>
     );
   }
@@ -64,11 +84,11 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400 group-focus-within:text-amber-600 transition-colors" />
             <Input 
               placeholder="Search the archive..."
-              className="pl-12 h-14 bg-stone-100/50 border-none rounded-2xl text-lg placeholder:text-stone-400 focus-visible:ring-amber-500/20"
+              className="pl-12 h-14 bg-stone-100/50 border-none rounded-2xl text-lg placeholder:text-stone-400 focus-visible:ring-amber-500/20 transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -84,45 +104,45 @@ const Index = () => {
             <TabsList className="bg-stone-100/50 p-1 rounded-2xl border-none h-12">
               <TabsTrigger 
                 value="people" 
-                className="rounded-xl px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-stone-800 text-stone-400 gap-2"
+                className="rounded-xl px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-stone-800 text-stone-400 gap-2 transition-all"
               >
                 <Users className="w-4 h-4" />
                 People
               </TabsTrigger>
               <TabsTrigger 
                 value="journal" 
-                className="rounded-xl px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-stone-800 text-stone-400 gap-2"
+                className="rounded-xl px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-stone-800 text-stone-400 gap-2 transition-all"
               >
                 <ScrollText className="w-4 h-4" />
                 Journal
               </TabsTrigger>
             </TabsList>
             
-            <div className="text-xs font-medium text-stone-400 uppercase tracking-widest">
+            <div className="text-xs font-medium text-stone-400 uppercase tracking-widest animate-in fade-in duration-500">
               {activeTab === 'people' ? `${people.length} Members` : 'Chronological Feed'}
             </div>
           </div>
 
-          <TabsContent value="people" className="mt-0 focus-visible:ring-0">
+          <TabsContent value="people" className="mt-0 focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="grid gap-10">
               {filteredPeople.length === 0 ? (
                 <div className="text-center py-20 space-y-4">
+                  <Heart className="w-12 h-12 text-stone-100 mx-auto" />
                   <p className="text-stone-400 font-serif italic">No one found in the archive yet.</p>
                 </div>
               ) : (
                 filteredPeople.map((person) => (
-                  <div key={person.id} className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    <PersonCard 
-                      person={person} 
-                      onClick={() => navigate(`/person/${person.id}`)}
-                    />
-                  </div>
+                  <PersonCard 
+                    key={person.id}
+                    person={person} 
+                    onClick={() => navigate(`/person/${person.id}`)}
+                  />
                 ))
               )}
             </div>
           </TabsContent>
 
-          <TabsContent value="journal" className="mt-0 focus-visible:ring-0">
+          <TabsContent value="journal" className="mt-0 focus-visible:ring-0 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <FamilyJournal />
           </TabsContent>
         </Tabs>
