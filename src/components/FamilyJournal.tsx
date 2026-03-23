@@ -1,17 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useFamily } from '../context/FamilyContext';
 import { formatDistanceToNow } from 'date-fns';
 import { Mic, MessageSquare, Heart, Clock, ArrowRight, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const FamilyJournal = () => {
   const { people } = useFamily();
   const navigate = useNavigate();
+  const [warmedMemories, setWarmedMemories] = useState<Set<string>>(new Set());
 
   const allMemories = people.flatMap(p => 
     p.memories.map(m => ({ ...m, personName: p.name, personId: p.id }))
   ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const handleWarm = (id: string) => {
+    if (warmedMemories.has(id)) return;
+    
+    setWarmedMemories(prev => new Set(prev).add(id));
+    toast.success("You warmed this story. The family will feel the love!", {
+      icon: <Heart className="w-4 h-4 text-red-500 fill-current" />
+    });
+  };
 
   if (allMemories.length === 0) {
     return (
@@ -85,9 +96,19 @@ const FamilyJournal = () => {
                     </span>
                   </div>
                   
-                  <button className="flex items-center gap-2 px-4 py-2 rounded-full bg-stone-50 text-stone-400 hover:bg-red-50 hover:text-red-500 transition-all duration-300 group/heart">
-                    <Heart className="w-4 h-4 group-hover:fill-current transition-transform group-active:scale-125" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest">Warm this</span>
+                  <button 
+                    onClick={() => handleWarm(memory.id)}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 group/heart",
+                      warmedMemories.has(memory.id) 
+                        ? "bg-red-50 text-red-500" 
+                        : "bg-stone-50 text-stone-400 hover:bg-red-50 hover:text-red-500"
+                    )}
+                  >
+                    <Heart className={cn("w-4 h-4 transition-transform group-active:scale-125", warmedMemories.has(memory.id) && "fill-current")} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">
+                      {warmedMemories.has(memory.id) ? 'Warmed' : 'Warm this'}
+                    </span>
                   </button>
                 </div>
               </div>

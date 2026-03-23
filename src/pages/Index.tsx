@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Search, Share2, Heart, Users, ScrollText, Command as CommandIcon, X, ArrowUp } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const Index = () => {
   const navigate = useNavigate();

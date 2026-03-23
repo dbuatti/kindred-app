@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext.tsx';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Quote, Mic, MessageSquare, Play, Clock, Camera, Edit3 } from 'lucide-react';
+import { ArrowLeft, Quote, Mic, MessageSquare, Play, Clock, Camera, Edit3, Share2, ChevronRight } from 'lucide-react';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import SuggestionDialog from '../components/SuggestionDialog';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const PersonDetail = () => {
   const { id } = useParams();
@@ -26,20 +27,49 @@ const PersonDetail = () => {
 
   const isOwnProfile = user?.id === person.userId;
 
+  const handleShare = async () => {
+    const shareData = {
+      title: `${person.name} - Family Archive`,
+      text: `Check out the stories and memories of ${person.name} in our family archive.`,
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        // User cancelled
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied to clipboard!");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans pb-32">
       {/* Navigation */}
       <nav className="sticky top-0 z-10 bg-[#FDFCF9]/80 backdrop-blur-md px-6 py-4 flex items-center justify-between border-b border-stone-100">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => navigate('/')}
-          className="rounded-full text-stone-500"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <span className="font-serif text-stone-400 text-sm italic">Family Archive</span>
-        <div className="w-10" />
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate('/')}
+            className="rounded-full text-stone-500"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="hidden md:flex items-center gap-2 text-xs font-medium text-stone-400 uppercase tracking-widest">
+            <span className="cursor-pointer hover:text-stone-800 transition-colors" onClick={() => navigate('/')}>Archive</span>
+            <ChevronRight className="w-3 h-3" />
+            <span className="text-stone-800">{person.name.split(' ')[0]}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={handleShare} className="rounded-full text-stone-500">
+            <Share2 className="w-5 h-5" />
+          </Button>
+        </div>
       </nav>
 
       {/* Hero Section */}
@@ -115,7 +145,7 @@ const PersonDetail = () => {
                   <div className="space-y-3 flex-1">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-stone-400 uppercase tracking-wider">
-                        {memory.createdByEmail.split('@')[0]}
+                        {memory.authorName || memory.createdByEmail.split('@')[0]}
                       </span>
                       <span className="text-[10px] text-stone-300 flex items-center gap-1">
                         <Clock className="w-3 h-3" /> {format(new Date(memory.createdAt), 'MMM d, yyyy')}
