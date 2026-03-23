@@ -95,10 +95,10 @@ const ClusterNode = ({
                 return (
                   <React.Fragment key={person.id}>
                     <div className="relative flex flex-col items-center">
-                      {/* Line UP to ancestors */}
+                      {/* Line UP to ancestors - meets the line DOWN from above */}
                       {hasAncestors && (
                         <div className={cn(
-                          "absolute -top-16 w-0.5 h-16",
+                          "absolute -top-12 w-0.5 h-12",
                           lineageIds.has(person.id) ? "bg-amber-500" : "bg-stone-200"
                         )} />
                       )}
@@ -139,16 +139,16 @@ const ClusterNode = ({
               {/* Vertical line DOWN from the center of the parent unit */}
               {unit.children.length > 0 && (
                 <div className={cn(
-                  "absolute top-[50px] left-1/2 -translate-x-1/2 w-0.5 h-24",
+                  "absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-12",
                   unit.parents.some(p => lineageIds.has(p.id)) ? "bg-amber-500" : "bg-stone-200"
                 )} />
               )}
             </div>
 
-            {/* Children Row */}
+            {/* Children Row Area */}
             {unit.children.length > 0 && (
-              <div className="mt-24 relative flex flex-col items-center">
-                {/* Horizontal "Bus" line connecting all children */}
+              <div className="mt-12 relative flex flex-col items-center w-full">
+                {/* Horizontal "Bus" line connecting all children - positioned at the top of this container */}
                 {unit.children.length > 1 && (
                   <div className={cn(
                     "absolute top-0 h-0.5",
@@ -159,7 +159,7 @@ const ClusterNode = ({
                   }} />
                 )}
 
-                <div className="flex gap-12">
+                <div className="flex gap-12 pt-12">
                   {(() => {
                     const childClusters: any[][] = [];
                     const localProcessed = new Set<string>();
@@ -174,7 +174,7 @@ const ClusterNode = ({
                       <div key={ccIdx} className="relative flex flex-col items-center">
                         {/* Vertical line UP from child to the horizontal bus */}
                         <div className={cn(
-                          "absolute -top-8 w-0.5 h-8",
+                          "absolute -top-12 w-0.5 h-12",
                           cc.some(p => lineageIds.has(p.id)) ? "bg-amber-500" : "bg-stone-200"
                         )} />
                         
