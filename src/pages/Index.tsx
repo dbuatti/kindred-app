@@ -3,22 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { MOCK_PEOPLE } from '../data/mock';
 import PersonCard from '../components/PersonCard';
 import AddMemoryDialog from '../components/AddMemoryDialog';
+import AddPersonDialog from '../components/AddPersonDialog';
 import { Input } from '@/components/ui/input';
-import { Search, Heart, Plus } from 'lucide-react';
+import { Search, Heart, Plus, MessageSquare, Mic, Clock } from 'lucide-react';
 import { MadeWithDyad } from '@/components/made-with-dyad';
+import { format } from 'date-fns';
 
 const Index = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [people, setPeople] = useState(MOCK_PEOPLE);
+  
+  // Flatten all memories for the "Recent" feed
+  const allMemories = MOCK_PEOPLE.flatMap(p => 
+    p.memories.map(m => ({ ...m, personName: p.name, personId: p.id }))
+  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const filteredPeople = people.filter(p => 
+  const filteredPeople = MOCK_PEOPLE.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.vibeSentence.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans selection:bg-amber-100">
+    <div className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans selection:bg-amber-100 pb-20">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
         <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
@@ -44,36 +50,82 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Main Feed */}
-      <main className="max-w-2xl mx-auto px-6 py-12 space-y-12">
-        <div className="grid gap-10">
-          {filteredPeople.map((person) => (
-            <div key={person.id} className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <PersonCard 
-                person={person} 
-                onClick={() => navigate(`/person/${person.id}`)}
-              />
+      <main className="max-w-2xl mx-auto px-6 py-12 space-y-16">
+        {/* Recent Memories Feed */}
+        {!searchQuery && (
+          <section className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="font-serif text-xl text-stone-800">Recent Stories</h2>
+              <span className="text-stone-400 text-xs uppercase tracking-widest">Latest updates</span>
             </div>
-          ))}
-          
-          {filteredPeople.length === 0 && (
-            <div className="text-center py-20 space-y-4">
-              <p className="text-stone-400 font-serif italic text-lg">No one found by that name...</p>
-              <button className="text-amber-600 font-medium hover:underline flex items-center gap-2 mx-auto">
-                <Plus className="w-4 h-4" /> Add someone new to the family
-              </button>
+            <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 no-scrollbar">
+              {allMemories.slice(0, 5).map((memory) => (
+                <div 
+                  key={memory.id}
+                  onClick={() => navigate(`/person/${memory.personId}`)}
+                  className="min-w-[280px] bg-white border border-stone-100 p-5 rounded-3xl shadow-sm hover:shadow-md transition-all cursor-pointer space-y-3"
+                >
+                  <div className="flex items-center justify-between text-[10px] text-stone-400 uppercase tracking-wider">
+                    <span className="flex items-center gap-1">
+                      {memory.type === 'voice' ? <Mic className="w-3 h-3" /> : <MessageSquare className="w-3 h-3" />}
+                      {memory.personName.split(' ')[0]}
+                    </span>
+                    <span>{format(new Date(memory.createdAt), 'MMM d')}</span>
+                  </div>
+                  <p className="text-stone-700 font-serif italic line-clamp-3 leading-relaxed">
+                    "{memory.content}"
+                  </p>
+                  <div className="pt-2 text-[10px] text-stone-300 italic">
+                    Shared by {memory.createdByEmail.split('@')[0]}
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+          </section>
+        )}
 
-        <div className="pt-20 pb-32 text-center">
+        {/* People Grid */}
+        <section className="space-y-8">
+          <div className="flex items-center justify-between">
+            <h2 className="font-serif text-xl text-stone-800">
+              {searchQuery ? 'Search Results' : 'Our People'}
+            </h2>
+            <span className="text-stone-400 text-xs uppercase tracking-widest">
+              {filteredPeople.length} {filteredPeople.length === 1 ? 'Person' : 'People'}
+            </span>
+          </div>
+          
+          <div className="grid gap-10">
+            {filteredPeople.map((person) => (
+              <div key={person.id} className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <PersonCard 
+                  person={person} 
+                  onClick={() => navigate(`/person/${person.id}`)}
+                />
+              </div>
+            ))}
+            
+            {filteredPeople.length === 0 && (
+              <div className="text-center py-20 space-y-4">
+                <p className="text-stone-400 font-serif italic text-lg">No one found by that name...</p>
+                <button className="text-amber-600 font-medium hover:underline flex items-center gap-2 mx-auto">
+                  <Plus className="w-4 h-4" /> Add someone new to the family
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <div className="pt-10 pb-20 text-center">
           <p className="text-stone-300 font-serif italic">
             "To live in hearts we leave behind is not to die."
           </p>
         </div>
       </main>
 
-      {/* Floating Action */}
+      {/* Floating Actions */}
+      <AddPersonDialog />
+      
       <AddMemoryDialog 
         personName="the family" 
         onAdd={(content, type) => {
