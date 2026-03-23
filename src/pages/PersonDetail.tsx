@@ -18,6 +18,40 @@ import { parsePersonIdFromSlug, getPersonUrl } from '@/lib/slugify';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
+// Helper to get the inverse of a relationship
+const getInverseRelationship = (type: string, relativeTags: string[] = []) => {
+  const t = type.toLowerCase();
+  const tags = relativeTags.map(tag => tag.toLowerCase());
+  
+  const isMale = tags.some(tag => ['son', 'father', 'brother', 'uncle', 'grandfather'].includes(tag));
+  const isFemale = tags.some(tag => ['daughter', 'mother', 'sister', 'aunt', 'grandmother'].includes(tag));
+
+  if (t === 'father' || t === 'mother') {
+    if (isMale) return 'son';
+    if (isFemale) return 'daughter';
+    return 'child';
+  }
+  if (t === 'son' || t === 'daughter' || t === 'child') {
+    if (isMale) return 'father';
+    if (isFemale) return 'mother';
+    return 'parent';
+  }
+  if (t === 'brother' || t === 'sister') {
+    if (isMale) return 'brother';
+    if (isFemale) return 'sister';
+    return 'sibling';
+  }
+  if (t === 'grandfather' || t === 'grandmother') {
+    return 'grandchild';
+  }
+  if (t === 'aunt' || t === 'uncle') {
+    return 'niece/nephew';
+  }
+  if (t === 'spouse') return 'spouse';
+  
+  return type;
+};
+
 const PersonDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -53,14 +87,17 @@ const PersonDetail = () => {
         
         if (!relative) return null;
         
+        // Determine the correct label
+        const type = isPrimary ? r.relationship_type : getInverseRelationship(r.relationship_type, relative.personalityTags);
+        
         // Create a unique key to filter duplicates
-        const key = `${relative.id}-${r.relationship_type}`;
+        const key = `${relative.id}-${type}`;
         if (seen.has(key)) return null;
         seen.add(key);
         
         return {
           ...relative,
-          type: r.relationship_type
+          type: type
         };
       })
       .filter(Boolean);
