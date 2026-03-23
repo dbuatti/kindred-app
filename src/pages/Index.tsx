@@ -6,7 +6,6 @@ import { useFamily } from '../context/FamilyContext';
 import PersonCard from '../components/PersonCard';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import AddPersonDialog from '../components/AddPersonDialog';
-import StoryStarter from '../components/StoryStarter';
 import FamilyJournal from '../components/FamilyJournal';
 import MemoryHighlight from '../components/MemoryHighlight';
 import FamilyInbox from '../components/FamilyInbox';
@@ -119,7 +118,6 @@ const Index = () => {
         {!searchQuery && (
           <div className="space-y-12">
             <MemoryHighlight />
-            <StoryStarter />
           </div>
         )}
 
