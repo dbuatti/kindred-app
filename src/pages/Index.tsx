@@ -1,40 +1,57 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_PEOPLE } from '../data/mock';
+import { useFamily } from '../context/FamilyContext.tsx';
 import PersonCard from '../components/PersonCard';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import AddPersonDialog from '../components/AddPersonDialog';
+import FamilyInbox from '../components/FamilyInbox';
 import { Input } from '@/components/ui/input';
-import { Search, Heart, Plus, MessageSquare, Mic, Clock } from 'lucide-react';
+import { Search, Heart, Plus, MessageSquare, Mic, Share2 } from 'lucide-react';
 import { MadeWithDyad } from '@/components/made-with-dyad';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 const Index = () => {
   const navigate = useNavigate();
+  const { people, addMemory } = useFamily();
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Flatten all memories for the "Recent" feed
-  const allMemories = MOCK_PEOPLE.flatMap(p => 
+  const allMemories = people.flatMap(p => 
     p.memories.map(m => ({ ...m, personName: p.name, personId: p.id }))
   ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const filteredPeople = MOCK_PEOPLE.filter(p => 
+  const filteredPeople = people.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.vibeSentence.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const copyInvite = () => {
+    navigator.clipboard.writeText(window.location.origin + '/join?code=ROSSI2024');
+    toast.success("Invite link copied to clipboard");
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans selection:bg-amber-100 pb-20">
-      {/* Header */}
       <header className="sticky top-0 z-10 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
         <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="space-y-1">
               <h1 className="text-3xl font-serif font-medium tracking-tight text-stone-800">Kindred</h1>
-              <p className="text-stone-500 text-sm font-light mt-1">The Rossi Family Archive</p>
+              <div className="flex items-center gap-3">
+                <p className="text-stone-500 text-sm font-light">The Rossi Family Archive</p>
+                <FamilyInbox />
+              </div>
             </div>
-            <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center text-stone-400">
-              <Heart className="w-5 h-5 fill-current" />
+            <div className="flex gap-2">
+              <button 
+                onClick={copyInvite}
+                className="h-10 w-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-400 hover:text-amber-600 transition-colors"
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
+              <div className="h-10 w-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-400">
+                <Heart className="w-4 h-4 fill-current" />
+              </div>
             </div>
           </div>
 
@@ -51,8 +68,7 @@ const Index = () => {
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-12 space-y-16">
-        {/* Recent Memories Feed */}
-        {!searchQuery && (
+        {!searchQuery && allMemories.length > 0 && (
           <section className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="font-serif text-xl text-stone-800">Recent Stories</h2>
@@ -84,7 +100,6 @@ const Index = () => {
           </section>
         )}
 
-        {/* People Grid */}
         <section className="space-y-8">
           <div className="flex items-center justify-between">
             <h2 className="font-serif text-xl text-stone-800">
@@ -123,13 +138,13 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Floating Actions */}
       <AddPersonDialog />
       
       <AddMemoryDialog 
         personName="the family" 
         onAdd={(content, type) => {
-          console.log('New memory:', { content, type });
+          // For the global button, we'll just log it or show a toast
+          toast.success("Memory captured. Who should we attach it to?");
         }} 
       />
 
