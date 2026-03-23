@@ -7,13 +7,27 @@ import { formatDisplayName } from '@/lib/utils';
 const CompactNode = ({ node }: { node: TreeNode }) => {
   return (
     <div className="flex flex-col items-center">
-      <div className="px-4 py-2 bg-white border border-stone-200 rounded-md shadow-sm min-w-[140px] text-center">
-        <p className="text-[11px] font-bold text-stone-800 truncate">
-          {formatDisplayName(node.person.name)}
-        </p>
-        <p className="text-[9px] text-stone-400 font-mono">
-          {node.person.birthYear || '????'} — {node.person.isLiving ? 'Pres.' : (node.person.deathYear || '????')}
-        </p>
+      <div className="flex items-center gap-2">
+        <div className="px-4 py-2 bg-white border border-stone-200 rounded-md shadow-sm min-w-[140px] text-center">
+          <p className="text-[11px] font-bold text-stone-800 truncate">
+            {formatDisplayName(node.person.name)}
+          </p>
+          <p className="text-[9px] text-stone-400 font-mono">
+            {node.person.birthYear || '????'} — {node.person.isLiving ? 'Pres.' : (node.person.deathYear || '????')}
+          </p>
+        </div>
+
+        {node.spouses.map(spouse => (
+          <React.Fragment key={spouse.id}>
+            <div className="w-4 h-px bg-stone-300" />
+            <div className="px-4 py-2 bg-stone-50 border border-stone-200 rounded-md shadow-sm min-w-[140px] text-center italic">
+              <p className="text-[11px] font-bold text-stone-600 truncate">
+                {formatDisplayName(spouse.name)}
+              </p>
+              <p className="text-[8px] text-stone-400 uppercase tracking-tighter">Spouse</p>
+            </div>
+          </React.Fragment>
+        ))}
       </div>
 
       {node.children.length > 0 && (
@@ -23,7 +37,6 @@ const CompactNode = ({ node }: { node: TreeNode }) => {
             {node.children.map((child, idx) => (
               <div key={child.id} className="relative pt-6">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-6 bg-stone-300" />
-                {/* Connector line for siblings */}
                 {node.children.length > 1 && (
                   <div 
                     className="absolute top-0 h-px bg-stone-300" 

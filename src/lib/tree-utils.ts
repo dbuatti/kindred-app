@@ -23,40 +23,48 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   const personMap = new Map<string, Person>();
   people.forEach(p => personMap.set(p.id, p));
 
-  // Find parents for everyone
   const parentMap = new Map<string, string[]>();
   relationships.forEach(r => {
     const type = r.relationship_type.toLowerCase();
     if (['father', 'mother', 'parent'].includes(type)) {
       const children = parentMap.get(r.related_person_id) || [];
-      children.push(r.person_id);
+      if (!children.includes(r.person_id)) children.push(r.person_id);
       parentMap.set(r.related_person_id, children);
     } else if (['son', 'daughter', 'child'].includes(type)) {
       const children = parentMap.get(r.person_id) || [];
-      children.push(r.related_person_id);
+      if (!children.includes(r.related_person_id)) children.push(r.related_person_id);
       parentMap.set(r.person_id, children);
     }
   });
 
-  // Find spouses
   const spouseMap = new Map<string, string[]>();
   relationships.forEach(r => {
     const type = r.relationship_type.toLowerCase();
     if (['spouse', 'wife', 'husband'].includes(type)) {
       const s1 = spouseMap.get(r.person_id) || [];
-      s1.push(r.related_person_id);
+      if (!s1.includes(r.related_person_id)) s1.push(r.related_person_id);
       spouseMap.set(r.person_id, s1);
 
       const s2 = spouseMap.get(r.related_person_id) || [];
-      s2.push(r.person_id);
+      if (!s2.includes(r.person_id)) s2.push(r.person_id);
       spouseMap.set(r.related_person_id, s2);
     }
   });
 
-  // Identify Roots (People with no parents in the system)
   const allChildren = new Set<string>();
   parentMap.forEach(children => children.forEach(c => allChildren.add(c)));
-  const roots = people.filter(p => !allChildren.has(p.id));
+  
+  const potentialRoots = people.filter(p => !allChildren.has(p.id));
+  const roots: Person[] = [];
+  const processedAsSpouse = new Set<string>();
+
+  potentialRoots.forEach(p => {
+    if (!processedAsSpouse.has(p.id)) {
+      roots.push(p);
+      const spouses = spouseMap.get(p.id) || [];
+      spouses.forEach(sId => processedAsSpouse.add(sId));
+    }
+  });
 
   const visited = new Set<string>();
 

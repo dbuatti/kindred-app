@@ -13,21 +13,23 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize,
-  AlignVerticalSpaceAround
+  AlignVerticalSpaceAround,
+  GitBranch
 } from 'lucide-react';
 import { buildTree } from '@/lib/tree-utils';
 import { OutlineLayout } from '@/components/tree/OutlineLayout';
 import { TraditionalLayout } from '@/components/tree/TraditionalLayout';
 import { ModernHorizontalLayout } from '@/components/tree/ModernHorizontalLayout';
 import { CompactVerticalLayout } from '@/components/tree/CompactVerticalLayout';
+import { FlowLayout } from '@/components/tree/FlowLayout';
 import { motion } from 'framer-motion';
 
-type LayoutType = 'outline' | 'traditional' | 'modern' | 'compact';
+type LayoutType = 'outline' | 'traditional' | 'modern' | 'compact' | 'flow';
 
 const TreeDebug = () => {
   const navigate = useNavigate();
   const { people, loading, relationships } = useFamily();
-  const [layout, setLayout] = useState<LayoutType>('compact');
+  const [layout, setLayout] = useState<LayoutType>('flow');
   const [zoom, setZoom] = useState(1.0);
   
   const roots = useMemo(() => {
@@ -58,6 +60,14 @@ const TreeDebug = () => {
         <div className="flex items-center gap-1 bg-stone-800 p-1 rounded-xl border border-stone-700">
           <Button 
             size="sm" 
+            variant={layout === 'flow' ? 'secondary' : 'ghost'}
+            onClick={() => setLayout('flow')}
+            className="rounded-lg gap-2 text-xs"
+          >
+            <GitBranch className="w-4 h-4" /> Flow
+          </Button>
+          <Button 
+            size="sm" 
             variant={layout === 'compact' ? 'secondary' : 'ghost'}
             onClick={() => setLayout('compact')}
             className="rounded-lg gap-2 text-xs"
@@ -71,14 +81,6 @@ const TreeDebug = () => {
             className="rounded-lg gap-2 text-xs"
           >
             <Layout className="w-4 h-4" /> Classic
-          </Button>
-          <Button 
-            size="sm" 
-            variant={layout === 'modern' ? 'secondary' : 'ghost'}
-            onClick={() => setLayout('modern')}
-            className="rounded-lg gap-2 text-xs"
-          >
-            <Columns className="w-4 h-4" /> Modern
           </Button>
           <Button 
             size="sm" 
@@ -108,6 +110,7 @@ const TreeDebug = () => {
           {layout === 'traditional' && <TraditionalLayout roots={roots} />}
           {layout === 'modern' && <ModernHorizontalLayout roots={roots} />}
           {layout === 'compact' && <CompactVerticalLayout roots={roots} />}
+          {layout === 'flow' && <FlowLayout roots={roots} />}
         </motion.div>
       </div>
 
