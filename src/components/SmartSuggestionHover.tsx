@@ -36,7 +36,6 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       const potentialSiblings = people.filter(p => {
         if (p.id === personId) return false;
         
-        // Check if this person shares any of my parents
         const theirParents = relationships
           .filter(r => r.person_id === p.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
           .map(r => r.related_person_id)
@@ -47,8 +46,6 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
           );
         
         const sharesParent = theirParents.some(tp => myParents.includes(tp));
-        
-        // Check if we are already marked as siblings
         const alreadySiblings = relationships.some(r => 
           (r.person_id === personId && r.related_person_id === p.id || r.person_id === p.id && r.related_person_id === personId) &&
           ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())
@@ -62,7 +59,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
           id: `sib-${sib.id}`,
           text: `Should ${person.name.split(' ')[0]} and ${sib.name.split(' ')[0]} be marked as siblings?`,
           action: async () => {
-            const relType = sib.gender === 'female' ? 'sister' : 'brother';
+            const relType = sib.gender?.toLowerCase() === 'female' ? 'sister' : 'brother';
             if (isAdmin) {
               await addRelationship(personId, sib.id, relType);
             } else {
@@ -84,16 +81,16 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       .map(r => r.person_id === personId ? r.related_person_id : r.person_id);
 
     mySiblings.forEach(sibId => {
-      const sibParents = relationships
+      const sibParentRels = relationships
         .filter(r => r.person_id === sibId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
-        .map(r => r.related_person_id)
         .concat(
           relationships
             .filter(r => r.related_person_id === sibId && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
-            .map(r => r.person_id)
         );
 
-      sibParents.forEach(pId => {
+      sibParentRels.forEach(rel => {
+        const pId = rel.person_id === sibId ? rel.related_person_id : rel.person_id;
+        
         const alreadyMyParent = relationships.some(r => 
           (r.person_id === personId && r.related_person_id === pId) ||
           (r.related_person_id === personId && r.person_id === pId)
@@ -102,18 +99,26 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
         if (!alreadyMyParent) {
           const parent = people.find(p => p.id === pId);
           if (parent) {
+            // Determine the correct role (mother/father) based on existing relationship to sibling
+            let role = 'parent';
+            if (rel.relationship_type.toLowerCase() === 'mother' || rel.relationship_type.toLowerCase() === 'father') {
+              role = rel.relationship_type.toLowerCase();
+            } else if (rel.relationship_type.toLowerCase() === 'son' || rel.relationship_type.toLowerCase() === 'daughter') {
+              // If the sibling is the 'son' of this person, we need to know this person's gender
+              role = parent.gender?.toLowerCase() === 'female' ? 'mother' : 'father';
+            }
+
             items.push({
               id: `parent-${pId}`,
-              text: `Is ${parent.name} also the ${parent.gender === 'female' ? 'mother' : 'father'} of ${person.name.split(' ')[0]}?`,
+              text: `Is ${parent.name} also the ${role} of ${person.name.split(' ')[0]}?`,
               action: async () => {
-                const relType = parent.gender === 'female' ? 'mother' : 'father';
                 if (isAdmin) {
-                  await addRelationship(personId, pId, relType);
+                  await addRelationship(personId, pId, role);
                 } else {
                   await addSuggestion({
                     personId: personId,
                     fieldName: 'link_existing',
-                    suggestedValue: `LINK_EXISTING: ${pId} as ${relType} to ${personId}`,
+                    suggestedValue: `LINK_EXISTING: ${pId} as ${role} to ${personId}`,
                     suggestedByEmail: user?.email || 'family@kindred.com'
                   });
                 }
