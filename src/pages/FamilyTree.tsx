@@ -58,8 +58,6 @@ const FamilyTree = () => {
       if (!changed) break;
     }
 
-    // Normalize levels per component to ensure each island starts at its own relative 0
-    // Actually, let's keep global levels but find roots of every component
     return levels;
   }, [people, relationships]);
 
@@ -120,7 +118,6 @@ const FamilyTree = () => {
 
   // 3. Recursive Component to render a Cluster and its children
   const ClusterNode = ({ members, level, parentProcessed = new Set() }: { members: any[], level: number, parentProcessed?: Set<string> }) => {
-    // Identify "Parent Units" in this cluster
     const parentUnits = useMemo(() => {
       const units: { parents: any[], children: any[] }[] = [];
       const processedInCluster = new Set<string>();
@@ -128,7 +125,6 @@ const FamilyTree = () => {
       members.forEach(m => {
         if (processedInCluster.has(m.id)) return;
 
-        // Find spouse in this cluster
         const spouseRel = relationships.find(r => 
           (r.person_id === m.id || r.related_person_id === m.id) &&
           ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
@@ -138,7 +134,6 @@ const FamilyTree = () => {
         const unitParents = spouse ? [m, spouse] : [m];
         unitParents.forEach(p => processedInCluster.add(p.id));
 
-        // Find children of these parents
         const childIds = new Set<string>();
         unitParents.forEach(p => {
           relationships.forEach(r => {
@@ -160,7 +155,6 @@ const FamilyTree = () => {
 
     return (
       <div className="flex flex-col items-center">
-        {/* Render the Cluster Row */}
         <div className="flex items-center gap-4 p-6 rounded-[3.5rem] bg-white/40 border-2 border-stone-50 shadow-sm relative z-10">
           {members.map((person, idx) => {
             const next = members[idx + 1];
@@ -170,7 +164,6 @@ const FamilyTree = () => {
             return (
               <React.Fragment key={person.id}>
                 <div className="relative flex flex-col items-center">
-                  {/* Vertical line UP if has parent */}
                   {relationships.some(r => (r.person_id === person.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) || (r.related_person_id === person.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))) && (
                     <div className="absolute -top-10 w-px h-10 bg-stone-200" />
                   )}
@@ -190,11 +183,9 @@ const FamilyTree = () => {
           })}
         </div>
 
-        {/* Render Children Branches below their respective Parent Units */}
         {parentUnits.length > 0 && (
           <div className="flex gap-16 mt-10 relative">
             {parentUnits.map((unit, uIdx) => {
-              // Group these children into their own peer clusters
               const childProcessed = new Set<string>();
               const childClusters: any[][] = [];
               unit.children.forEach(c => {
@@ -209,7 +200,6 @@ const FamilyTree = () => {
 
               return (
                 <div key={uIdx} className="flex flex-col items-center">
-                  {/* Line from this specific parent unit down */}
                   <div className="w-px h-10 bg-stone-200" />
                   <div className="flex gap-12">
                     {childClusters.map((cc, ccIdx) => (
@@ -243,12 +233,10 @@ const FamilyTree = () => {
     );
   };
 
-  // 4. Find Root Clusters (Every person who has no parents is a potential root)
   const rootClusters = useMemo(() => {
     const processed = new Set<string>();
     const clusters: any[][] = [];
     
-    // A root is someone who has no "upward" relationships (parents)
     const roots = people.filter(p => {
       const hasParent = relationships.some(r => 
         (r.person_id === p.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) ||
@@ -263,7 +251,6 @@ const FamilyTree = () => {
       }
     });
 
-    // Catch any remaining disconnected people (e.g. orphans or cycles)
     people.forEach(p => {
       if (!processed.has(p.id)) {
         clusters.push(getPeerCluster(p.id, personLevels[p.id], processed));
