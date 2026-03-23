@@ -17,6 +17,8 @@ interface PersonNodeProps {
     showPlaces: boolean;
     showOccupation: boolean;
   };
+  debugMode?: boolean;
+  level?: number;
 }
 
 const PersonNode = ({ 
@@ -27,7 +29,9 @@ const PersonNode = ({
   isInLineage, 
   isSelected, 
   onSelect,
-  settings 
+  settings,
+  debugMode,
+  level
 }: PersonNodeProps) => {
   const isMe = me && person.id === me.id;
   const isDeceased = person.isLiving === false;
@@ -74,6 +78,13 @@ const PersonNode = ({
           )}
         </div>
       </div>
+
+      {debugMode && (
+        <div className="p-2 bg-red-50 border-t border-red-100 text-[8px] font-mono text-red-600 break-all">
+          ID: {person.id}<br/>
+          LVL: {level}
+        </div>
+      )}
     </div>
   );
 };

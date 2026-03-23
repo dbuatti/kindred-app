@@ -18,6 +18,7 @@ interface ClusterNodeProps {
   getPeerCluster: (id: string, level: number, processed: Set<string>) => any[];
   globalProcessed?: Set<string>;
   settings?: any;
+  debugMode?: boolean;
 }
 
 const ClusterNode = ({ 
@@ -33,7 +34,8 @@ const ClusterNode = ({
   onSelect, 
   getPeerCluster,
   globalProcessed = new Set(),
-  settings
+  settings,
+  debugMode
 }: ClusterNodeProps) => {
   
   const uniqueMembers = members.filter(m => !globalProcessed.has(m.id));
@@ -112,6 +114,8 @@ const ClusterNode = ({
                         isSelected={person.id === selectedPersonId}
                         onSelect={onSelect}
                         settings={settings}
+                        debugMode={debugMode}
+                        level={personLevels[person.id]}
                       />
                     </div>
 
@@ -192,6 +196,7 @@ const ClusterNode = ({
                           getPeerCluster={getPeerCluster}
                           globalProcessed={globalProcessed} 
                           settings={settings}
+                          debugMode={debugMode}
                         />
                       </div>
                     ));

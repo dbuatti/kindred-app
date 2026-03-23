@@ -18,7 +18,8 @@ import {
   Settings2,
   LayoutGrid,
   Users,
-  History
+  History,
+  Bug
 } from 'lucide-react';
 import { useTreeLayout, TreeMode } from '../hooks/use-tree-layout';
 import ClusterNode from '../components/tree/ClusterNode';
@@ -31,6 +32,7 @@ const FamilyTree = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
   
   const [treeMode, setTreeMode] = useState<TreeMode>('all');
   const [chartSettings, setChartSettings] = useState({
@@ -129,6 +131,12 @@ const FamilyTree = () => {
                       <Label className="text-xs text-stone-600">Show Dates</Label>
                       <Switch checked={chartSettings.showDates} onCheckedChange={(val) => setChartSettings({...chartSettings, showDates: val})} />
                     </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-stone-600 flex items-center gap-2">
+                        <Bug className="w-3 h-3" /> Debug Mode
+                      </Label>
+                      <Switch checked={debugMode} onCheckedChange={setDebugMode} />
+                    </div>
                   </div>
                 </div>
               </PopoverContent>
@@ -169,6 +177,7 @@ const FamilyTree = () => {
                 onSelect={(id) => { setHighlightedId(id); setSelectedPersonId(id); }}
                 getPeerCluster={getPeerCluster}
                 settings={chartSettings}
+                debugMode={debugMode}
               />
             ))}
           </motion.div>
