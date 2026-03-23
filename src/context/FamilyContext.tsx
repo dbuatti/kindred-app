@@ -3,6 +3,8 @@ import { Person, Memory, Suggestion, MemoryType, Profile } from '../types';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 
+const ADMIN_EMAIL = "daniele.buatti@gmail.com";
+
 interface Relationship {
   id: string;
   person_id: string;
@@ -18,11 +20,13 @@ interface FamilyContextType {
   relationships: Relationship[];
   loading: boolean;
   user: any;
-  addPerson: (person: Partial<Person>, relativeId?: string, relType?: string) => Promise<void>;
+  isAdmin: boolean;
+  addPerson: (person: Partial<Person>, relativeId?: string, relType?: string) => Promise<string | undefined>;
   updatePerson: (id: string, updates: Partial<Person>) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
   addMemory: (personId: string, content: string, type: MemoryType, imageUrl?: string) => Promise<void>;
   addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'status'>) => Promise<void>;
+  addRelationship: (personId: string, relatedId: string, type: string) => Promise<void>;
   resolveSuggestion: (id: string, status: 'approved' | 'rejected') => Promise<void>;
   resolveAllSuggestions: (status: 'approved' | 'rejected') => Promise<void>;
   toggleReaction: (memoryId: string) => Promise<void>;
@@ -39,6 +43,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -156,24 +162,15 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (error) throw error;
 
       if (relativeId && relType && person) {
-        const { data: existing } = await supabase
-          .from('relationships')
-          .select('id')
-          .eq('person_id', relativeId)
-          .eq('related_person_id', person.id)
-          .eq('relationship_type', relType.toLowerCase())
-          .maybeSingle();
-
-        if (!existing) {
-          await supabase.from('relationships').insert({
-            person_id: relativeId,
-            related_person_id: person.id,
-            relationship_type: relType.toLowerCase()
-          });
-        }
+        await supabase.from('relationships').insert({
+          person_id: relativeId,
+          related_person_id: person.id,
+          relationship_type: relType.toLowerCase()
+        });
       }
 
       fetchData(true);
+      return person.id;
     } catch (error: any) {
       toast.error("Failed to add person: " + error.message);
     }
@@ -281,6 +278,23 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       toast.error("Failed to send suggestion: " + error.message);
     }
   }, [fetchData, user]);
+
+  const addRelationship = useCallback(async (personId: string, relatedId: string, type: string) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('relationships')
+        .insert({
+          person_id: personId,
+          related_person_id: relatedId,
+          relationship_type: type.toLowerCase()
+        });
+      if (error) throw error;
+      fetchData(true);
+    } catch (error: any) {
+      toast.error("Failed to add relationship: " + error.message);
+    }
+  }, [user, fetchData]);
 
   const resolveSuggestion = useCallback(async (id: string, status: 'approved' | 'rejected') => {
     try {
@@ -417,11 +431,13 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       relationships,
       loading,
       user,
+      isAdmin,
       addPerson, 
       updatePerson,
       deletePerson,
       addMemory, 
       addSuggestion, 
+      addRelationship,
       resolveSuggestion,
       resolveAllSuggestions,
       toggleReaction,

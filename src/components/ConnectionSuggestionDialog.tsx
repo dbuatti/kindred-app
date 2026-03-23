@@ -22,7 +22,7 @@ const RELATIONSHIPS = [
 
 const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { addSuggestion, relationships, people, user } = useFamily();
+  const { addSuggestion, addRelationship, addPerson, isAdmin, relationships, people, user } = useFamily();
   
   // State for "Add New" mode
   const [relativeName, setRelativeName] = useState('');
@@ -94,28 +94,58 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
     
     if (!name || !rel) return;
 
-    let finalValue = `${name} (${rel})`;
-    
-    if (selectedPersonId) {
-      finalValue = `LINK_EXISTING: ${selectedPersonId} as ${rel} to ${person.id}`;
-    }
+    if (isAdmin) {
+      if (selectedPersonId) {
+        // Link Existing
+        await addRelationship(person.id, selectedPersonId, rel);
+        
+        // Handle inferences
+        const confirmed = smartInferences.filter(inf => confirmedInferences[inf.id]);
+        for (const inf of confirmed) {
+          await addRelationship(inf.targetId, selectedPersonId, inf.inferredRole);
+        }
+      } else {
+        // Add New
+        const newId = await addPerson({ 
+          name: relativeName, 
+          personalityTags: [relationship],
+          vibeSentence: ""
+        }, person.id, relationship);
 
-    const confirmed = smartInferences.filter(inf => confirmedInferences[inf.id]);
-    if (confirmed.length > 0) {
-      finalValue += "\n\nAdditional Connections:";
-      confirmed.forEach(inf => {
-        finalValue += `\n- ${inf.question} (Yes) [Target: ${inf.targetId}]`;
+        if (newId) {
+          // Handle inferences
+          const confirmed = smartInferences.filter(inf => confirmedInferences[inf.id]);
+          for (const inf of confirmed) {
+            await addRelationship(inf.targetId, newId, inf.inferredRole);
+          }
+        }
+      }
+      toast.success("Connection added directly.");
+    } else {
+      let finalValue = `${name} (${rel})`;
+      
+      if (selectedPersonId) {
+        finalValue = `LINK_EXISTING: ${selectedPersonId} as ${rel} to ${person.id}`;
+      }
+
+      const confirmed = smartInferences.filter(inf => confirmedInferences[inf.id]);
+      if (confirmed.length > 0) {
+        finalValue += "\n\nAdditional Connections:";
+        confirmed.forEach(inf => {
+          finalValue += `\n- ${inf.question} (Yes) [Target: ${inf.targetId}]`;
+        });
+      }
+
+      await addSuggestion({
+        personId: person.id,
+        fieldName: selectedPersonId ? 'link_existing' : 'new_relationship',
+        suggestedValue: finalValue,
+        suggestedByEmail: user?.email || 'family@kindred.com'
       });
+
+      toast.success("Suggestion sent to the family inbox!");
     }
 
-    await addSuggestion({
-      personId: person.id,
-      fieldName: selectedPersonId ? 'link_existing' : 'new_relationship',
-      suggestedValue: finalValue,
-      suggestedByEmail: user?.email || 'family@kindred.com'
-    });
-
-    toast.success("Suggestion sent to the family inbox!");
     setIsOpen(false);
     setRelativeName('');
     setRelationship('');
@@ -139,7 +169,7 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
             Connect to {person.name.split(' ')[0]}
           </DialogTitle>
           <DialogDescription className="text-stone-500">
-            Add a new relative or link someone already in the archive.
+            {isAdmin ? `Adding a connection directly to the archive.` : `Add a new relative or link someone already in the archive.`}
           </DialogDescription>
         </DialogHeader>
         
@@ -247,7 +277,7 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
             onClick={handleSubmit}
             disabled={!( (relativeName && relationship) || (selectedPersonId && existingRelationship) )}
           >
-            Send Suggestion
+            {isAdmin ? "Add Connection" : "Send Suggestion"}
           </Button>
           <Button variant="ghost" className="w-full h-12 text-stone-400" onClick={() => setIsOpen(false)}>
             Cancel

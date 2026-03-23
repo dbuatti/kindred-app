@@ -33,7 +33,7 @@ const GENDER_OPTIONS = [
 
 const SuggestionDialog = ({ person, trigger, initialField = 'vibe_sentence' }: SuggestionDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { addSuggestion } = useFamily();
+  const { addSuggestion, updatePerson, isAdmin, user } = useFamily();
   const [fieldName, setFieldName] = useState(initialField);
   const [value, setValue] = useState('');
 
@@ -44,14 +44,19 @@ const SuggestionDialog = ({ person, trigger, initialField = 'vibe_sentence' }: S
   const handleSubmit = async () => {
     if (!value) return;
 
-    await addSuggestion({
-      personId: person.id,
-      fieldName: fieldName,
-      suggestedValue: value,
-      suggestedByEmail: 'family@kindred.com'
-    });
+    if (isAdmin) {
+      await updatePerson(person.id, { [fieldName]: value });
+      toast.success("Record updated directly.");
+    } else {
+      await addSuggestion({
+        personId: person.id,
+        fieldName: fieldName,
+        suggestedValue: value,
+        suggestedByEmail: user?.email || 'family@kindred.com'
+      });
+      toast.success("Your suggestion has been sent to the family inbox.");
+    }
 
-    toast.success("Your suggestion has been sent to the family inbox.");
     setIsOpen(false);
     setValue('');
   };
@@ -74,7 +79,7 @@ const SuggestionDialog = ({ person, trigger, initialField = 'vibe_sentence' }: S
             {config.label}
           </DialogTitle>
           <DialogDescription className="text-stone-500 text-lg">
-            Help us complete the story of {person.name.split(' ')[0]}.
+            {isAdmin ? `Updating the record for ${person.name.split(' ')[0]}.` : `Help us complete the story of ${person.name.split(' ')[0]}.`}
           </DialogDescription>
         </DialogHeader>
         
@@ -122,7 +127,7 @@ const SuggestionDialog = ({ person, trigger, initialField = 'vibe_sentence' }: S
               onClick={handleSubmit}
               disabled={!value}
             >
-              Send Suggestion
+              {isAdmin ? "Save Changes" : "Send Suggestion"}
             </Button>
             <Button 
               variant="ghost" 
