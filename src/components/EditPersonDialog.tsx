@@ -87,6 +87,13 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
 
   useEffect(() => {
     if (isOpen) {
+      console.log(`[EditPersonDialog] Preloading data for ${person.name}:`, {
+        birthDate: person.birthDate,
+        birthYear: person.birthYear,
+        birthPlace: person.birthPlace,
+        isLiving: person.isLiving
+      });
+      
       setFormData({
         name: person.name,
         maidenName: person.maidenName || '',
@@ -147,6 +154,8 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
       if (yearPart) deathYear = yearPart;
     }
 
+    console.log(`[EditPersonDialog] Saving updates for ${person.id}:`, { ...formData, birthYear, deathYear });
+
     await updatePerson(person.id, {
       ...formData,
       birthYear,
@@ -163,7 +172,6 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
 
     if (isCreatingNew) {
       if (!newPersonName) return;
-      // Direction: New Person IS THE newRelType OF Existing Person
       await addPerson({ 
         name: newPersonName,
         personalityTags: [newRelType]
@@ -172,7 +180,6 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
       toast.success(`${newPersonName} added and connected!`);
     } else {
       if (!newRelTargetId) return;
-      // Direction: newRelTargetId IS THE newRelType OF person.id
       await addRelationship(newRelTargetId, person.id, newRelType);
       setNewRelTargetId('');
       toast.success("Relationship added!");
