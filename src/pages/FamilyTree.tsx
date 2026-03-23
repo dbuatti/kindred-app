@@ -8,6 +8,7 @@ import { ArrowLeft, Users, Share2, Heart, UserCircle, ChevronDown, Link2 } from 
 import { getPersonUrl } from '@/lib/slugify';
 import { getInverseRelationship } from '@/lib/relationships';
 import { cn } from '@/lib/utils';
+import QuickAddMenu from '../components/QuickAddMenu';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
@@ -157,8 +158,6 @@ const FamilyTree = () => {
 
       if (siblingInThisBranch && branch.parents.length === 2) {
         const otherParent = branch.parents.find(p => p.id !== siblingInThisBranch.id);
-        // If this is the left branch, sibling should be on the right
-        // If this is the right branch, sibling should be on the left
         const newParents = isLeft 
           ? [otherParent, siblingInThisBranch] 
           : [siblingInThisBranch, otherParent];
@@ -249,6 +248,7 @@ const FamilyTree = () => {
                         onClick={() => navigate(getPersonUrl(parent.id, parent.name))}
                         className="group relative flex flex-col items-center space-y-3 cursor-pointer"
                       >
+                        <QuickAddMenu personId={parent.id} personName={parent.name} />
                         <div className="h-20 w-20 md:h-28 md:w-28 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
                           {parent.photoUrl ? (
                             <img src={parent.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0" />
@@ -283,8 +283,9 @@ const FamilyTree = () => {
                     <div 
                       key={child.id}
                       onClick={() => navigate(getPersonUrl(child.id, child.name))}
-                      className="group flex flex-col items-center space-y-3 cursor-pointer animate-in fade-in slide-in-from-bottom-4 duration-700"
+                      className="group relative flex flex-col items-center space-y-3 cursor-pointer animate-in fade-in slide-in-from-bottom-4 duration-700"
                     >
+                      <QuickAddMenu personId={child.id} personName={child.name} />
                       <div className="h-16 w-16 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-md ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
                         {child.photoUrl ? (
                           <img src={child.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0" />

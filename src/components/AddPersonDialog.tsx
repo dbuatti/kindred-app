@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -9,6 +9,10 @@ import { toast } from 'sonner';
 
 interface AddPersonDialogProps {
   trigger?: React.ReactNode;
+  initialRelationship?: string;
+  initialRelatedToId?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const RELATIONSHIPS = [
@@ -22,24 +26,34 @@ const GENDER_OPTIONS = [
   { label: "Other", value: "other" }
 ];
 
-const AddPersonDialog = ({ trigger }: AddPersonDialogProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+const AddPersonDialog = ({ 
+  trigger, 
+  initialRelationship = '', 
+  initialRelatedToId = '',
+  open: externalOpen,
+  onOpenChange: setExternalOpen
+}: AddPersonDialogProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
   const { addPerson, people, user } = useFamily();
   
+  const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setIsOpen = setExternalOpen || setInternalOpen;
+
   const [name, setName] = useState('');
   const [gender, setGender] = useState('');
-  const [relationship, setRelationship] = useState('');
-  const [relatedToId, setRelatedToId] = useState<string>('');
+  const [relationship, setRelationship] = useState(initialRelationship);
+  const [relatedToId, setRelatedToId] = useState<string>(initialRelatedToId);
 
   const myPerson = useMemo(() => {
     return people.find(p => p.userId === user?.id);
   }, [people, user]);
 
-  React.useEffect(() => {
-    if (isOpen && myPerson && !relatedToId) {
-      setRelatedToId(myPerson.id);
+  useEffect(() => {
+    if (isOpen) {
+      setRelationship(initialRelationship);
+      setRelatedToId(initialRelatedToId || (myPerson?.id || ''));
     }
-  }, [isOpen, myPerson, relatedToId]);
+  }, [isOpen, initialRelationship, initialRelatedToId, myPerson]);
 
   const handleSave = async () => {
     if (!name || !relationship || !relatedToId) {
@@ -65,14 +79,7 @@ const AddPersonDialog = ({ trigger }: AddPersonDialogProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button className="h-24 px-10 rounded-full shadow-2xl bg-stone-800 hover:bg-stone-900 text-white text-xl font-bold gap-4 border-4 border-white">
-            <UserPlus className="w-8 h-8" />
-            Add Someone
-          </Button>
-        )}
-      </DialogTrigger>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-lg rounded-[3rem] border-none bg-white p-10">
         <DialogHeader>
           <div className="flex items-center gap-4 mb-4">
