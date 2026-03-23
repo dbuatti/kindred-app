@@ -22,7 +22,7 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
   return (
     <div className="flex flex-col items-center">
       <div className="relative flex flex-col items-center">
-        {/* Incoming line from parent */}
+        {/* Incoming line from parent - points to the center of the main person box */}
         {node.level > 0 && (
           <div className="absolute -top-12 left-1/2 w-0.5 h-12 bg-stone-200 -translate-x-[80px]" />
         )}
@@ -104,10 +104,21 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
 };
 
 export const SimpleTreeLayout = ({ roots }: { roots: TreeNode[] }) => {
+  // Group roots by their calculated level to ensure they start at the right height
+  const rootsByLevel = roots.reduce((acc, root) => {
+    if (!acc[root.level]) acc[root.level] = [];
+    acc[root.level].push(root);
+    return acc;
+  }, {} as Record<number, TreeNode[]>);
+
   return (
-    <div className="flex flex-col items-center gap-32">
-      {roots.map(root => (
-        <SimpleNode key={root.id} node={root} />
+    <div className="flex flex-col items-center gap-48">
+      {Object.entries(rootsByLevel).sort(([a], [b]) => Number(a) - Number(b)).map(([level, levelRoots]) => (
+        <div key={level} className="flex gap-32 items-start">
+          {levelRoots.map(root => (
+            <SimpleNode key={root.id} node={root} />
+          ))}
+        </div>
       ))}
     </div>
   );

@@ -12,46 +12,86 @@ export interface TreeNode {
 const BRANCH_COLORS = ['#d97706', '#2563eb', '#16a34a', '#dc2626', '#7c3aed'];
 
 export const buildTree = (people: Person[], relationships: any[]): TreeNode[] => {
+  if (!people.length) return [];
+
   const personMap = new Map<string, Person>();
   people.forEach(p => personMap.set(p.id, p));
 
-  const parentMap = new Map<string, string[]>();
-  const childToParents = new Map<string, string[]>();
-  
+  // 1. Build adjacency lists for different relationship types
+  const parentsOf = new Map<string, string[]>();
+  const childrenOf = new Map<string, string[]>();
+  const spousesOf = new Map<string, string[]>();
+  const siblingsOf = new Map<string, string[]>();
+
   relationships.forEach(r => {
     const type = r.relationship_type.toLowerCase();
+    const p1 = r.person_id;
+    const p2 = r.related_person_id;
+
     if (['father', 'mother', 'parent'].includes(type)) {
-      const children = parentMap.get(r.related_person_id) || [];
-      if (!children.includes(r.person_id)) children.push(r.person_id);
-      parentMap.set(r.related_person_id, children);
-      
-      const parents = childToParents.get(r.person_id) || [];
-      parents.push(r.related_person_id);
-      childToParents.set(r.person_id, parents);
+      // p2 is parent of p1
+      const children = childrenOf.get(p2) || [];
+      if (!children.includes(p1)) children.push(p1);
+      childrenOf.set(p2, children);
+
+      const parents = parentsOf.get(p1) || [];
+      if (!parents.includes(p2)) parents.push(p2);
+      parentsOf.set(p1, parents);
     } else if (['son', 'daughter', 'child'].includes(type)) {
-      const children = parentMap.get(r.person_id) || [];
-      if (!children.includes(r.related_person_id)) children.push(r.related_person_id);
-      parentMap.set(r.person_id, children);
+      // p2 is child of p1
+      const children = childrenOf.get(p1) || [];
+      if (!children.includes(p2)) children.push(p2);
+      childrenOf.set(p1, children);
 
-      const parents = childToParents.get(r.related_person_id) || [];
-      parents.push(r.person_id);
-      childToParents.set(r.related_person_id, parents);
+      const parents = parentsOf.get(p2) || [];
+      if (!parents.includes(p1)) parents.push(p1);
+      parentsOf.set(p2, parents);
+    } else if (['spouse', 'wife', 'husband'].includes(type)) {
+      const s1 = spousesOf.get(p1) || [];
+      if (!s1.includes(p2)) s1.push(p2);
+      spousesOf.set(p1, s1);
+
+      const s2 = spousesOf.get(p2) || [];
+      if (!s2.includes(p1)) s2.push(p1);
+      spousesOf.set(p2, s2);
+    } else if (['brother', 'sister', 'sibling'].includes(type)) {
+      const sib1 = siblingsOf.get(p1) || [];
+      if (!sib1.includes(p2)) sib1.push(p2);
+      siblingsOf.set(p1, sib1);
+
+      const sib2 = siblingsOf.get(p2) || [];
+      if (!sib2.includes(p1)) sib2.push(p1);
+      siblingsOf.set(p2, sib2);
     }
   });
 
-  const spouseMap = new Map<string, string[]>();
-  relationships.forEach(r => {
-    const type = r.relationship_type.toLowerCase();
-    if (['spouse', 'wife', 'husband'].includes(type)) {
-      const s1 = spouseMap.get(r.person_id) || [];
-      if (!s1.includes(r.related_person_id)) s1.push(r.related_person_id);
-      spouseMap.set(r.person_id, s1);
+  // 2. Calculate Levels using a multi-pass approach
+  const levels: Record<string, number> = {};
+  people.forEach(p => levels[p.id] = 0);
 
-      const s2 = spouseMap.get(r.related_person_id) || [];
-      if (!s2.includes(r.person_id)) s2.push(r.person_id);
-      spouseMap.set(r.related_person_id, s2);
-    }
-  });
+  // Pass 1: Parent -> Child (Standard hierarchy)
+  for (let i = 0; i < 10; i++) {
+    relationships.forEach(r => {
+      const type = r.relationship_type.toLowerCase();
+      if (['father', 'mother', 'parent'].includes(type)) {
+        // related is parent, person is child
+        levels[r.person_id] = Math.max(levels[r.person_id], levels[r.related_person_id] + 1);
+      } else if (['son', 'daughter', 'child'].includes(type)) {
+        // person is parent, related is child
+        levels[r.related_person_id] = Math.max(levels[r.related_person_id], levels[r.person_id] + 1);
+      }
+    });
+    
+    // Pass 2: Spouses and Siblings must be on the same level
+    relationships.forEach(r => {
+      const type = r.relationship_type.toLowerCase();
+      if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
+        const maxLvl = Math.max(levels[r.person_id], levels[r.related_person_id]);
+        levels[r.person_id] = maxLvl;
+        levels[r.related_person_id] = maxLvl;
+      }
+    });
+  }
 
   const globalVisited = new Set<string>();
 
@@ -62,8 +102,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     const person = personMap.get(personId);
     if (!person) return null;
 
-    const spouseIds = spouseMap.get(personId) || [];
-    const spouses = spouseIds
+    const spouses = (spousesOf.get(personId) || [])
       .map(id => {
         if (globalVisited.has(id)) return null;
         globalVisited.add(id);
@@ -72,10 +111,10 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       .filter((p): p is Person => !!p);
 
     // Children can come from this person OR their spouses
-    const allParentIds = [personId, ...spouseIds];
+    const allParentIds = [personId, ...(spousesOf.get(personId) || [])];
     const childIds = new Set<string>();
     allParentIds.forEach(pId => {
-      (parentMap.get(pId) || []).forEach(cId => childIds.add(cId));
+      (childrenOf.get(pId) || []).forEach(cId => childIds.add(cId));
     });
 
     const children = Array.from(childIds)
@@ -92,19 +131,19 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     };
   };
 
-  // A person is a root if they have no parents AND they aren't married to someone who has parents
+  // Find roots: People who have no parents in the system
   const roots: TreeNode[] = [];
-  const potentialRoots = people.filter(p => !childToParents.has(p.id));
+  const potentialRoots = people.filter(p => !parentsOf.has(p.id));
   
   potentialRoots.forEach((p, idx) => {
     if (globalVisited.has(p.id)) return;
     
-    const spouses = spouseMap.get(p.id) || [];
-    const spouseHasParents = spouses.some(sId => childToParents.has(sId));
-    
     // If I have no parents but my spouse does, I'll be picked up as a spouse in their branch
+    const spouses = spousesOf.get(p.id) || [];
+    const spouseHasParents = spouses.some(sId => parentsOf.has(sId));
+    
     if (!spouseHasParents) {
-      const node = constructNode(p.id, 0, roots.length);
+      const node = constructNode(p.id, levels[p.id], roots.length);
       if (node) roots.push(node);
     }
   });
