@@ -5,10 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
-import { Edit3, Save, Trash2, AlertCircle, Heart, Skull } from 'lucide-react';
+import { Edit3, Save, Trash2, Heart, Skull } from 'lucide-react';
 import { Person } from '../types';
 import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
@@ -17,19 +16,17 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 interface EditPersonDialogProps {
   person: Person;
   trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-const GENDER_OPTIONS = [
-  { label: "Male", value: "male" },
-  { label: "Female", value: "female" },
-  { label: "Non-binary", value: "non-binary" },
-  { label: "Other", value: "other" }
-];
-
-const EditPersonDialog = ({ person, trigger }: EditPersonDialogProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: setExternalOpen }: EditPersonDialogProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
   const { updatePerson, deletePerson } = useFamily();
   
+  const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setIsOpen = setExternalOpen || setInternalOpen;
+
   const [formData, setFormData] = useState({
     name: person.name,
     maidenName: person.maidenName || '',
@@ -74,13 +71,7 @@ const EditPersonDialog = ({ person, trigger }: EditPersonDialogProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="ghost" size="icon" className="rounded-full text-stone-400 hover:text-amber-600">
-            <Edit3 className="w-4 h-4" />
-          </Button>
-        )}
-      </DialogTrigger>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-lg rounded-[2.5rem] border-none bg-white p-10 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-serif text-3xl text-stone-800">Edit Entry</DialogTitle>

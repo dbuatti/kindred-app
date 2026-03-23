@@ -5,6 +5,7 @@ export interface TreeNode {
   person: Person;
   children: TreeNode[];
   spouses: Person[];
+  siblings: Person[];
   level: number;
   color?: string;
 }
@@ -62,7 +63,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     }
   });
 
-  // Multi-pass leveling to align generations
   const levels: Record<string, number> = {};
   people.forEach(p => levels[p.id] = 0);
 
@@ -99,9 +99,18 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       })
       .filter((p): p is Person => !!p);
 
-    const allParentIds = [personId, ...spouseIds];
+    const siblingIds = siblingsOf.get(personId) || [];
+    const siblings = siblingIds
+      .map(id => {
+        if (globalVisited.has(id)) return null;
+        globalVisited.add(id);
+        return personMap.get(id);
+      })
+      .filter((p): p is Person => !!p);
+
+    const allGroupIds = [personId, ...spouseIds, ...siblingIds];
     const childIds = new Set<string>();
-    allParentIds.forEach(pId => {
+    allGroupIds.forEach(pId => {
       (childrenOf.get(pId) || []).forEach(cId => childIds.add(cId));
     });
 
@@ -114,6 +123,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       person,
       children,
       spouses,
+      siblings,
       level,
       color: BRANCH_COLORS[colorIndex % BRANCH_COLORS.length]
     };
