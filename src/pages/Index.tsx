@@ -8,11 +8,10 @@ import AddMemoryDialog from '../components/AddMemoryDialog';
 import AddPersonDialog from '../components/AddPersonDialog';
 import FamilyInbox from '../components/FamilyInbox';
 import StoryStarter from '../components/StoryStarter';
-import ProfileDialog from '../components/ProfileDialog';
 import FamilyJournal from '../components/FamilyJournal';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Share2, Users, ScrollText, X, HelpCircle } from 'lucide-react';
+import { Search, Share2, Users, ScrollText, X, HelpCircle, UserCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -70,10 +69,15 @@ const Index = () => {
                 </div>
                 <span className="text-sm font-bold uppercase tracking-widest">Invite</span>
               </button>
-              <div className="flex flex-col items-center gap-2 text-stone-500">
-                <ProfileDialog />
+              <button 
+                onClick={() => navigate('/profile')}
+                className="flex flex-col items-center gap-2 text-stone-500 hover:text-amber-600 transition-colors"
+              >
+                <div className="h-20 w-20 rounded-full bg-stone-100 flex items-center justify-center">
+                  <UserCircle className="w-10 h-10" />
+                </div>
                 <span className="text-sm font-bold uppercase tracking-widest">Profile</span>
-              </div>
+              </button>
             </div>
           </div>
 
