@@ -38,6 +38,8 @@ const FamilyTree = () => {
                             relationships.some(r => r.related_person_id === p.id && r.relationship_type.includes('grand'));
 
       const isSpouse = relTags.includes('spouse') || relTags.includes('wife') || relTags.includes('husband');
+      
+      const isSibling = relTags.includes('brother') || relTags.includes('sister') || relTags.includes('sibling');
 
       if (isGrandparent) {
         gen = "Grandparents' Generation";
@@ -58,7 +60,7 @@ const FamilyTree = () => {
         } else {
           gen = "Parents' Generation"; // Default spouse to parents if unknown
         }
-      } else if (relTags.includes('son') || relTags.includes('daughter') || relTags.includes('child') || relTags.includes('family member') || isMe) {
+      } else if (relTags.includes('son') || relTags.includes('daughter') || relTags.includes('child') || relTags.includes('family member') || isMe || isSibling) {
         gen = "Current Generation";
       } 
       // 2. Fallback: Year-based grouping
