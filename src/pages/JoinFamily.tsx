@@ -1,15 +1,37 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Heart, Sparkles, ArrowRight, Mail } from 'lucide-react';
+import { Heart, ArrowRight, Mail, Loader2 } from 'lucide-react';
+import { supabase } from '../integrations/supabase/client';
+import { toast } from 'sonner';
 
 const JoinFamily = () => {
   const [email, setEmail] = useState('');
   const [isSent, setIsSent] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleJoin = (e: React.FormEvent) => {
+  const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) setIsSent(true);
+    if (!email) return;
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      if (error) throw error;
+      
+      setIsSent(true);
+      toast.success("Magic link sent! Check your inbox.");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send magic link.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -38,14 +60,22 @@ const JoinFamily = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-16 bg-stone-50 border-none rounded-2xl text-center text-xl focus-visible:ring-amber-500/20"
                 required
+                disabled={isLoading}
               />
             </div>
             <Button 
               type="submit"
+              disabled={isLoading}
               className="w-full h-16 bg-stone-800 hover:bg-stone-900 text-white rounded-2xl text-xl font-medium group"
             >
-              Step Inside
-              <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" />
+              {isLoading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                <>
+                  Step Inside
+                  <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
             </Button>
           </form>
         ) : (
