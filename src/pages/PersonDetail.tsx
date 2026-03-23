@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,15 @@ const PersonDetail = () => {
     const found = people.find(p => p.id.startsWith(shortId));
     return found;
   }, [shortId, people, loading]);
+
+  useEffect(() => {
+    if (person) {
+      const stored = localStorage.getItem('kindred_recent');
+      let recent = stored ? JSON.parse(stored) : [];
+      recent = [person.id, ...recent.filter((id: string) => id !== person.id)].slice(0, 10);
+      localStorage.setItem('kindred_recent', JSON.stringify(recent));
+    }
+  }, [person]);
 
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
   const [droppedImage, setDroppedImage] = useState<string | null>(null);

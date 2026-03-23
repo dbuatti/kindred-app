@@ -13,7 +13,7 @@ import ScrollToTop from '../components/ScrollToTop';
 import BottomNav from '../components/BottomNav';
 import { PersonCardSkeleton } from '../components/SkeletonLoader';
 import { Input } from '@/components/ui/input';
-import { Search, Share2, ScrollText, X, HelpCircle, UserCircle, Network, Users, ShieldCheck, Sparkles, Command, History, ArrowRight } from 'lucide-react';
+import { Search, Share2, ScrollText, X, HelpCircle, UserCircle, Network, Users, ShieldCheck, Sparkles, Command, History, ArrowRight, Clock } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
@@ -26,15 +26,27 @@ const Index = () => {
   const { people, loading, user } = useFamily();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('people');
+  const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   
   const isAdmin = user?.email === ADMIN_EMAIL;
+
+  useEffect(() => {
+    const stored = localStorage.getItem('kindred_recent');
+    if (stored) setRecentlyViewed(JSON.parse(stored));
+  }, []);
+
+  const recentPeople = useMemo(() => {
+    return recentlyViewed
+      .map(id => people.find(p => p.id === id))
+      .filter(Boolean)
+      .slice(0, 4);
+  }, [recentlyViewed, people]);
 
   // Flashback Memory
   const flashback = useMemo(() => {
     const all = people.flatMap(p => p.memories.map(m => ({ ...m, personName: p.name, personId: p.id })));
     if (all.length < 2) return null;
-    // Pick a random one that isn't the one in MemoryHighlight (which is also random, but this adds variety)
     return all[Math.floor(Math.random() * all.length)];
   }, [people]);
 
@@ -79,7 +91,6 @@ const Index = () => {
               </div>
               <p className="text-stone-500 text-lg italic">Our Family Storybook</p>
             </div>
-            {/* Desktop Only Nav */}
             <div className="hidden md:flex gap-4">
               <button onClick={() => navigate('/complete')} className="flex flex-col items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors">
                 <div className="h-12 w-12 rounded-full bg-amber-50 flex items-center justify-center"><Sparkles className="w-6 h-6" /></div>
@@ -108,7 +119,6 @@ const Index = () => {
                 <span className="text-[10px] font-bold uppercase tracking-widest">Profile</span>
               </button>
             </div>
-            {/* Mobile Only Help */}
             <div className="md:hidden">
               <button onClick={() => navigate('/help')} className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center text-stone-500">
                 <HelpCircle className="w-6 h-6" />
@@ -142,30 +152,55 @@ const Index = () => {
 
       <main className="max-w-4xl mx-auto px-6 py-12 space-y-12">
         {!searchQuery && !loading && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              <MemoryHighlight />
-            </div>
-            <div className="lg:col-span-1 space-y-8">
-              <StoryStarter />
-              {flashback && (
-                <Card 
-                  onClick={() => navigate(getPersonUrl(flashback.personId, flashback.personName))}
-                  className="bg-white border-stone-100 p-6 rounded-[2rem] shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center gap-2 text-stone-400 text-[10px] font-bold uppercase tracking-widest mb-4">
-                    <History className="w-3 h-3" />
-                    Flashback
-                  </div>
-                  <p className="text-stone-600 italic font-serif line-clamp-3 mb-4">
-                    "{flashback.content}"
-                  </p>
-                  <div className="flex items-center justify-between pt-4 border-t border-stone-50">
-                    <span className="text-xs font-bold text-stone-800">{flashback.personName}</span>
-                    <ArrowRight className="w-4 h-4 text-stone-300 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
-                  </div>
-                </Card>
-              )}
+          <div className="space-y-12">
+            {recentPeople.length > 0 && (
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 text-stone-400 text-[10px] font-bold uppercase tracking-widest">
+                  <Clock className="w-3 h-3" />
+                  Recently Visited
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {recentPeople.map(p => (
+                    <button 
+                      key={p!.id}
+                      onClick={() => navigate(getPersonUrl(p!.id, p!.name))}
+                      className="flex items-center gap-3 bg-white border border-stone-100 px-4 py-2 rounded-full shadow-sm hover:border-amber-200 hover:bg-amber-50/30 transition-all group"
+                    >
+                      <div className="h-6 w-6 rounded-full overflow-hidden bg-stone-100">
+                        {p!.photoUrl ? <img src={p!.photoUrl} className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0" /> : <UserCircle className="w-full h-full text-stone-300" />}
+                      </div>
+                      <span className="text-sm font-medium text-stone-700">{p!.name.split(' ')[0]}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2">
+                <MemoryHighlight />
+              </div>
+              <div className="lg:col-span-1 space-y-8">
+                <StoryStarter />
+                {flashback && (
+                  <Card 
+                    onClick={() => navigate(getPersonUrl(flashback.personId, flashback.personName))}
+                    className="bg-white border-stone-100 p-6 rounded-[2rem] shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2 text-stone-400 text-[10px] font-bold uppercase tracking-widest mb-4">
+                      <History className="w-3 h-3" />
+                      Flashback
+                    </div>
+                    <p className="text-stone-600 italic font-serif line-clamp-3 mb-4">
+                      "{flashback.content}"
+                    </p>
+                    <div className="flex items-center justify-between pt-4 border-t border-stone-50">
+                      <span className="text-xs font-bold text-stone-800">{flashback.personName}</span>
+                      <ArrowRight className="w-4 h-4 text-stone-300 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
+                    </div>
+                  </Card>
+                )}
+              </div>
             </div>
           </div>
         )}
