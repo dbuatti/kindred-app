@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { FamilyProvider, useFamily } from "./context/FamilyContext";
 import { supabase } from "./integrations/supabase/client";
+import { motion, AnimatePresence } from "framer-motion";
 import Index from "./pages/Index";
 import PersonDetail from "./pages/PersonDetail";
 import JoinFamily from "./pages/JoinFamily";
@@ -26,7 +27,6 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const location = useLocation();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -62,6 +62,40 @@ const OnboardingCheck = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const PageWrapper = ({ children }: { children: React.ReactNode }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+  >
+    {children}
+  </motion.div>
+);
+
+const AnimatedRoutes = () => {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/login" element={<PageWrapper><Login /></PageWrapper>} />
+        <Route path="/join" element={<PageWrapper><JoinFamily /></PageWrapper>} />
+        <Route path="/auth/confirm" element={<PageWrapper><AuthCallback /></PageWrapper>} />
+        <Route path="/onboarding" element={<ProtectedRoute><PageWrapper><Onboarding /></PageWrapper></ProtectedRoute>} />
+        <Route path="/edit-profile" element={<ProtectedRoute><PageWrapper><EditProfile /></PageWrapper></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><PageWrapper><Profile /></PageWrapper></ProtectedRoute>} />
+        <Route path="/help" element={<ProtectedRoute><PageWrapper><Help /></PageWrapper></ProtectedRoute>} />
+        <Route path="/complete" element={<ProtectedRoute><OnboardingCheck><PageWrapper><CompleteArchive /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
+        <Route path="/tree" element={<ProtectedRoute><OnboardingCheck><PageWrapper><FamilyTree /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
+        <Route path="/" element={<ProtectedRoute><OnboardingCheck><PageWrapper><Index /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
+        <Route path="/person/:slug" element={<ProtectedRoute><OnboardingCheck><PageWrapper><PersonDetail /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><OnboardingCheck><PageWrapper><AdminDashboard /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AnimatePresence>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <FamilyProvider>
@@ -69,21 +103,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/join" element={<JoinFamily />} />
-            <Route path="/auth/confirm" element={<AuthCallback />} />
-            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
-            <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
-            <Route path="/complete" element={<ProtectedRoute><OnboardingCheck><CompleteArchive /></OnboardingCheck></ProtectedRoute>} />
-            <Route path="/tree" element={<ProtectedRoute><OnboardingCheck><FamilyTree /></OnboardingCheck></ProtectedRoute>} />
-            <Route path="/" element={<ProtectedRoute><OnboardingCheck><Index /></OnboardingCheck></ProtectedRoute>} />
-            <Route path="/person/:slug" element={<ProtectedRoute><OnboardingCheck><PersonDetail /></OnboardingCheck></ProtectedRoute>} />
-            <Route path="/admin" element={<ProtectedRoute><OnboardingCheck><AdminDashboard /></OnboardingCheck></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AnimatedRoutes />
           <DataExportButton />
         </BrowserRouter>
       </TooltipProvider>

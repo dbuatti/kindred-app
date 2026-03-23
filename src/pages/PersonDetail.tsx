@@ -43,6 +43,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { parsePersonIdFromSlug, getPersonUrl } from '@/lib/slugify';
 import { getInverseRelationship } from '@/lib/relationships';
+import { motion, useScroll, useSpring } from 'framer-motion';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
@@ -50,6 +51,12 @@ const PersonDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { people, user, relationships, updatePerson, loading } = useFamily();
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
   
   const [memorySearch, setMemorySearch] = useState('');
 
@@ -237,6 +244,11 @@ const PersonDetail = () => {
       onDragLeave={onDragLeavePage}
       onDrop={onDropPage}
     >
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-1.5 bg-amber-500 origin-left z-[100]"
+        style={{ scaleX }}
+      />
+
       {isDraggingOverPage && !isDraggingOverProfile && (
         <div className="fixed inset-0 z-50 bg-amber-600/20 backdrop-blur-sm flex items-center justify-center pointer-events-none animate-in fade-in duration-300">
           <div className="bg-white p-8 rounded-[3rem] shadow-2xl border-4 border-amber-500 flex flex-col items-center gap-4 scale-105 transition-transform">
@@ -284,7 +296,10 @@ const PersonDetail = () => {
       <main className="max-w-4xl mx-auto px-6 py-12 space-y-16">
         {/* Hero Section */}
         <section className="flex flex-col md:flex-row gap-12 items-start">
-          <div 
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
             className={cn(
               "relative w-48 h-48 md:w-64 md:h-64 rounded-[3rem] overflow-hidden shadow-2xl ring-8 transition-all duration-500 shrink-0",
               isDraggingOverProfile ? "ring-amber-500 scale-105 shadow-amber-200" : "ring-white"
@@ -308,7 +323,7 @@ const PersonDetail = () => {
             <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center group cursor-pointer">
               <Camera className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-          </div>
+          </motion.div>
 
           <div className="space-y-8 flex-1">
             <div className="space-y-4">
@@ -349,7 +364,12 @@ const PersonDetail = () => {
             </div>
 
             {person.vibeSentence && person.vibeSentence.trim() !== "" && (
-              <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-stone-100 relative overflow-hidden group">
+              <motion.div 
+                initial={{ x: 20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.3, duration: 0.6 }}
+                className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-stone-100 relative overflow-hidden group"
+              >
                 <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 blur-3xl rounded-full -mr-12 -mt-12 group-hover:bg-amber-500/10 transition-colors" />
                 <Quote className="absolute top-6 left-6 w-10 h-10 text-amber-600/5" />
                 <p className="text-2xl font-serif italic text-stone-700 leading-relaxed relative z-10 pl-4">
@@ -362,7 +382,7 @@ const PersonDetail = () => {
                     </Badge>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {!isOwnProfile && (
@@ -392,8 +412,9 @@ const PersonDetail = () => {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {photos.map((photo) => (
-                <div 
+                <motion.div 
                   key={photo.id} 
+                  whileHover={{ scale: 1.02 }}
                   className="group relative aspect-square rounded-3xl overflow-hidden border-4 border-white shadow-md hover:shadow-xl transition-all duration-500 cursor-pointer"
                 >
                   <img 
@@ -404,7 +425,7 @@ const PersonDetail = () => {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
                     <p className="text-white text-xs font-medium line-clamp-2">{photo.content}</p>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </section>
@@ -482,7 +503,14 @@ const PersonDetail = () => {
               </div>
             ) : (
               filteredMemories.map((memory, idx) => (
-                <div key={memory.id} className="relative pl-16 group animate-in fade-in slide-in-from-left-4 duration-700" style={{ animationDelay: `${idx * 100}ms` }}>
+                <motion.div 
+                  key={memory.id} 
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="relative pl-16 group"
+                >
                   <div className="absolute left-0 top-2 w-12 h-12 rounded-full bg-white border-4 border-stone-50 flex items-center justify-center z-10 shadow-sm group-hover:border-amber-100 transition-colors">
                     {memory.type === 'voice' ? <Mic className="w-5 h-5 text-amber-600" /> : memory.type === 'photo' ? <Camera className="w-5 h-5 text-stone-400" /> : <MessageSquare className="w-5 h-5 text-stone-400" />}
                   </div>
@@ -519,7 +547,7 @@ const PersonDetail = () => {
                       <p className="text-stone-700 italic">"{memory.content}"</p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))
             )}
           </div>
