@@ -4,11 +4,11 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import PersonCard from '../components/PersonCard';
-import AddMemoryDialog from '../components/AddMemoryDialog';
-import AddPersonDialog from '../components/AddPersonDialog';
 import FamilyJournal from '../components/FamilyJournal';
 import MemoryHighlight from '../components/MemoryHighlight';
 import FamilyInbox from '../components/FamilyInbox';
+import StoryStarter from '../components/StoryStarter';
+import FloatingMenu from '../components/FloatingMenu';
 import { Input } from '@/components/ui/input';
 import { Search, Share2, ScrollText, X, HelpCircle, UserCircle, Network, Users, ShieldCheck, Sparkles } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -141,8 +141,13 @@ const Index = () => {
 
       <main className="max-w-4xl mx-auto px-6 py-12 space-y-12">
         {!searchQuery && (
-          <div className="space-y-12">
-            <MemoryHighlight />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <MemoryHighlight />
+            </div>
+            <div className="lg:col-span-1">
+              <StoryStarter />
+            </div>
           </div>
         )}
 
@@ -187,10 +192,7 @@ const Index = () => {
         </Tabs>
       </main>
 
-      <div className="fixed bottom-6 left-0 right-0 flex justify-center gap-6 px-6 z-30">
-        <AddPersonDialog />
-        <AddMemoryDialog personName="the family" />
-      </div>
+      <FloatingMenu />
     </div>
   );
 };

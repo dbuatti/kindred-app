@@ -3,9 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { UserPlus, History, CheckCircle2, Users } from 'lucide-react';
+import { UserPlus, History, CheckCircle2 } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
+
+interface AddPersonDialogProps {
+  trigger?: React.ReactNode;
+}
 
 const RELATIONSHIPS = [
   "Mother", "Father", "Grandmother", "Grandfather", "Great Grandparent", "Sister", "Brother", "Aunt", "Uncle", "Cousin", "Spouse", "Daughter", "Son"
@@ -18,7 +22,7 @@ const GENDER_OPTIONS = [
   { label: "Other", value: "other" }
 ];
 
-const AddPersonDialog = () => {
+const AddPersonDialog = ({ trigger }: AddPersonDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const { addPerson, people, user } = useFamily();
   
@@ -62,10 +66,12 @@ const AddPersonDialog = () => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="h-24 px-10 rounded-full shadow-2xl bg-stone-800 hover:bg-stone-900 text-white text-xl font-bold gap-4 border-4 border-white">
-          <UserPlus className="w-8 h-8" />
-          Add Someone
-        </Button>
+        {trigger || (
+          <Button className="h-24 px-10 rounded-full shadow-2xl bg-stone-800 hover:bg-stone-900 text-white text-xl font-bold gap-4 border-4 border-white">
+            <UserPlus className="w-8 h-8" />
+            Add Someone
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg rounded-[3rem] border-none bg-white p-10">
         <DialogHeader>

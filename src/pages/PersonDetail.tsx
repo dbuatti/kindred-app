@@ -39,58 +39,6 @@ import { parsePersonIdFromSlug, getPersonUrl } from '@/lib/slugify';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
-// Helper to get the inverse of a relationship using gender
-const getInverseRelationship = (type: string, gender?: string) => {
-  const t = type.toLowerCase();
-  const g = gender?.toLowerCase();
-  
-  const isMale = g === 'male';
-  const isFemale = g === 'female';
-
-  if (t === 'father' || t === 'mother' || t === 'parent') {
-    if (isMale) return 'son';
-    if (isFemale) return 'daughter';
-    return 'child';
-  }
-  if (t === 'son' || t === 'daughter' || t === 'child') {
-    if (isMale) return 'father';
-    if (isFemale) return 'mother';
-    return 'parent';
-  }
-  if (t === 'brother' || t === 'sister' || t === 'sibling') {
-    if (isMale) return 'brother';
-    if (isFemale) return 'sister';
-    return 'sibling';
-  }
-  if (t === 'grandfather' || t === 'grandmother' || t === 'grandparent') {
-    if (isMale) return 'grandson';
-    if (isFemale) return 'granddaughter';
-    return 'grandchild';
-  }
-  if (t === 'grandson' || t === 'granddaughter' || t === 'grandchild') {
-    if (isMale) return 'grandfather';
-    if (isFemale) return 'grandmother';
-    return 'grandparent';
-  }
-  if (t === 'aunt' || t === 'uncle') {
-    if (isMale) return 'nephew';
-    if (isFemale) return 'niece';
-    return 'niece/nephew';
-  }
-  if (t === 'nephew' || t === 'niece') {
-    if (isMale) return 'uncle';
-    if (isFemale) return 'aunt';
-    return 'aunt/uncle';
-  }
-  if (t === 'spouse' || t === 'wife' || t === 'husband') {
-    if (isMale) return 'husband';
-    if (isFemale) return 'wife';
-    return 'spouse';
-  }
-  
-  return type;
-};
-
 const PersonDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -126,9 +74,7 @@ const PersonDetail = () => {
         
         if (!relative) return null;
         
-        // Use gender for more accurate inversion
-        const type = isPrimary ? r.relationship_type : getInverseRelationship(r.relationship_type, relative.gender);
-        
+        const type = isPrimary ? r.relationship_type : 'Relative';
         const key = `${relative.id}-${type}`;
         if (seen.has(key)) return null;
         seen.add(key);
@@ -429,7 +375,7 @@ const PersonDetail = () => {
           </section>
         )}
 
-        {/* Profile Completion Card (Replaces the old missing info prompt) */}
+        {/* Profile Completion Card */}
         {!isOwnProfile && <ProfileCompletionCard person={person} />}
 
         {/* Family Connections Section */}
