@@ -16,18 +16,57 @@ const FamilyTree = () => {
     return people.find(p => p.userId === user?.id) || people[0];
   }, [people, user]);
 
-  const getRelationshipLabel = (person: any) => {
-    if (person.id === me?.id) return "You";
+  // Helper to find relationship between two people (direct or indirect)
+  const getRelationshipLabel = (target: any) => {
+    if (!me || target.id === me.id) return "You";
     
-    const rel = relationships.find(r => 
-      (r.person_id === me?.id && r.related_person_id === person.id) ||
-      (r.person_id === person.id && r.related_person_id === me?.id)
+    // 1. Check direct relationship
+    const directRel = relationships.find(r => 
+      (r.person_id === me.id && r.related_person_id === target.id) ||
+      (r.person_id === target.id && r.related_person_id === me.id)
     );
 
-    if (!rel) return person.birthYear || person.personalityTags?.[0] || "Relative";
+    if (directRel) {
+      if (directRel.person_id === me.id) return directRel.relationship_type;
+      return getInverseRelationship(directRel.relationship_type, target.gender);
+    }
 
-    if (rel.person_id === me?.id) return rel.relationship_type;
-    return getInverseRelationship(rel.relationship_type, person.gender);
+    // 2. Check indirect (Uncle/Aunt/Cousin)
+    // Find my parents
+    const myParents = relationships
+      .filter(r => (r.person_id === me.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) ||
+                   (r.related_person_id === me.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase())))
+      .map(r => r.person_id === me.id ? r.related_person_id : r.person_id);
+
+    for (const parentId of myParents) {
+      // Is target a sibling of my parent? (Uncle/Aunt)
+      const isParentSibling = relationships.some(r => 
+        (r.person_id === parentId && r.related_person_id === target.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
+        (r.person_id === target.id && r.related_person_id === parentId && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
+      );
+
+      if (isParentSibling) {
+        if (target.gender === 'male') return 'Uncle';
+        if (target.gender === 'female') return 'Aunt';
+        return 'Relative';
+      }
+
+      // Is target a child of my parent's sibling? (Cousin)
+      const parentSiblings = relationships
+        .filter(r => (r.person_id === parentId && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
+                     (r.related_person_id === parentId && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())))
+        .map(r => r.person_id === parentId ? r.related_person_id : r.person_id);
+
+      for (const sibId of parentSiblings) {
+        const isCousin = relationships.some(r => 
+          (r.person_id === sibId && r.related_person_id === target.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase())) ||
+          (r.person_id === target.id && r.related_person_id === sibId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
+        );
+        if (isCousin) return 'Cousin';
+      }
+    }
+
+    return target.birthYear || target.personalityTags?.[0] || "Relative";
   };
 
   const generations = useMemo(() => {
@@ -45,20 +84,19 @@ const FamilyTree = () => {
         let neighborId: string | null = null;
         let nextDepth = depth;
 
+        const type = r.relationship_type.toLowerCase();
         if (r.person_id === id) {
           neighborId = r.related_person_id;
-          const type = r.relationship_type.toLowerCase();
-          if (type === 'father' || type === 'mother' || type === 'parent') nextDepth = depth - 1;
-          else if (type === 'son' || type === 'daughter' || type === 'child') nextDepth = depth + 1;
-          else if (type === 'grandfather' || type === 'grandmother' || type === 'grandparent') nextDepth = depth - 2;
-          else if (type === 'grandson' || type === 'granddaughter' || type === 'grandchild') nextDepth = depth + 2;
+          if (['father', 'mother', 'parent'].includes(type)) nextDepth = depth - 1;
+          else if (['son', 'daughter', 'child'].includes(type)) nextDepth = depth + 1;
+          else if (['grandfather', 'grandmother', 'grandparent'].includes(type)) nextDepth = depth - 2;
+          else if (['grandson', 'granddaughter', 'grandchild'].includes(type)) nextDepth = depth + 2;
         } else if (r.related_person_id === id) {
           neighborId = r.person_id;
-          const type = r.relationship_type.toLowerCase();
-          if (type === 'father' || type === 'mother' || type === 'parent') nextDepth = depth + 1;
-          else if (type === 'son' || type === 'daughter' || type === 'child') nextDepth = depth - 1;
-          else if (type === 'grandfather' || type === 'grandmother' || type === 'grandparent') nextDepth = depth + 2;
-          else if (type === 'grandson' || type === 'granddaughter' || type === 'grandchild') nextDepth = depth - 2;
+          if (['father', 'mother', 'parent'].includes(type)) nextDepth = depth + 1;
+          else if (['son', 'daughter', 'child'].includes(type)) nextDepth = depth - 1;
+          else if (['grandfather', 'grandmother', 'grandparent'].includes(type)) nextDepth = depth + 2;
+          else if (['grandson', 'granddaughter', 'grandchild'].includes(type)) nextDepth = depth - 2;
         }
 
         if (neighborId && !visited.has(neighborId)) {
@@ -68,49 +106,47 @@ const FamilyTree = () => {
       });
     }
 
-    const groups: Record<string, typeof people> = {
-      "Ancestors": [],
-      "Grandparents' Generation": [],
-      "Parents' Generation": [],
-      "Current Generation": [],
-      "Next Generation": [],
-      "Legacy & Unlinked": []
-    };
-
-    people.forEach(p => {
-      const depth = depthMap[p.id];
-      const year = parseInt(p.birthYear || '0');
-      
-      let gen = "Legacy & Unlinked";
-      
-      if (depth !== undefined) {
-        if (depth <= -3) gen = "Ancestors";
-        else if (depth === -2) gen = "Grandparents' Generation";
-        else if (depth === -1) gen = "Parents' Generation";
-        else if (depth === 0) gen = "Current Generation";
-        else if (depth >= 1) gen = "Next Generation";
-      } else if (year > 0) {
-        if (year < 1920) gen = "Ancestors";
-        else if (year < 1950) gen = "Grandparents' Generation";
-        else if (year < 1980) gen = "Parents' Generation";
-        else gen = "Current Generation";
-      }
-
-      groups[gen].push(p);
-    });
-
-    const order = [
-      "Ancestors", 
-      "Grandparents' Generation", 
-      "Parents' Generation", 
-      "Current Generation",
-      "Next Generation",
-      "Legacy & Unlinked"
+    const genOrder = [
+      { name: "Ancestors", depth: -3 },
+      { name: "Grandparents' Generation", depth: -2 },
+      { name: "Parents' Generation", depth: -1 },
+      { name: "Current Generation", depth: 0 },
+      { name: "Next Generation", depth: 1 }
     ];
 
-    return order
-      .map(name => [name, groups[name]])
-      .filter(([_, members]) => (members as any).length > 0);
+    return genOrder.map(gen => {
+      const members = people.filter(p => depthMap[p.id] === gen.depth || (gen.depth === -3 && depthMap[p.id] < -2));
+      
+      // Group members into "Family Units" (clusters)
+      const clusters: any[][] = [];
+      const processed = new Set();
+
+      members.forEach(p => {
+        if (processed.has(p.id)) return;
+
+        const cluster = [p];
+        processed.add(p.id);
+
+        // Find spouses or siblings in the same generation to group them
+        members.forEach(other => {
+          if (processed.has(other.id)) return;
+          
+          const isRelated = relationships.some(r => 
+            (r.person_id === p.id && r.related_person_id === other.id && ['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
+            (r.person_id === other.id && r.related_person_id === p.id && ['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
+          );
+
+          if (isRelated) {
+            cluster.push(other);
+            processed.add(other.id);
+          }
+        });
+
+        clusters.push(cluster);
+      });
+
+      return { ...gen, clusters };
+    }).filter(g => g.clusters.length > 0);
   }, [people, me, relationships]);
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the branches...</div>;
@@ -134,45 +170,51 @@ const FamilyTree = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-8 py-16">
-        <div className="relative space-y-24">
-          <div className="absolute left-1/2 top-0 bottom-0 w-px bg-stone-200 -translate-x-1/2 hidden md:block" />
+      <main className="max-w-6xl mx-auto px-8 py-16">
+        <div className="relative space-y-32">
+          {/* Vertical line connecting generations */}
+          <div className="absolute left-1/2 top-0 bottom-0 w-px bg-stone-100 -translate-x-1/2 hidden md:block" />
 
-          {generations.map(([genName, members]: any, idx) => (
-            <section key={genName} className="relative space-y-10">
+          {generations.map((gen, idx) => (
+            <section key={gen.name} className="relative space-y-12">
               <div className="flex justify-center">
-                <div className="bg-amber-50 text-amber-800 px-6 py-2 rounded-full text-xs font-bold uppercase tracking-[0.3em] shadow-sm border border-amber-100 z-10">
-                  {genName}
+                <div className="bg-amber-50 text-amber-800 px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-[0.3em] shadow-sm border border-amber-100 z-10">
+                  {gen.name}
                 </div>
               </div>
 
-              <div className="flex flex-wrap justify-center gap-8 md:gap-16">
-                {members.map((person: any) => (
-                  <div 
-                    key={person.id}
-                    onClick={() => navigate(getPersonUrl(person.id, person.name))}
-                    className="group relative flex flex-col items-center space-y-4 cursor-pointer animate-in fade-in zoom-in duration-700"
-                  >
-                    <div className="relative">
-                      <div className="h-24 w-24 md:h-32 md:w-32 rounded-full overflow-hidden border-4 border-white shadow-xl ring-1 ring-stone-100 group-hover:ring-amber-400 group-hover:scale-105 transition-all duration-500">
-                        {person.photoUrl ? (
-                          <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0" />
-                        ) : (
-                          <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300">
-                            <Users className="w-10 h-10" />
+              <div className="flex flex-wrap justify-center gap-16 md:gap-24">
+                {gen.clusters.map((cluster, cIdx) => (
+                  <div key={cIdx} className="flex gap-8 md:gap-12 p-8 rounded-[3rem] bg-white/40 border border-stone-100/50 shadow-sm relative">
+                    {/* Cluster label or connector could go here */}
+                    {cluster.map((person: any) => (
+                      <div 
+                        key={person.id}
+                        onClick={() => navigate(getPersonUrl(person.id, person.name))}
+                        className="group relative flex flex-col items-center space-y-4 cursor-pointer animate-in fade-in zoom-in duration-700"
+                      >
+                        <div className="relative">
+                          <div className="h-24 w-24 md:h-32 md:w-32 rounded-full overflow-hidden border-4 border-white shadow-xl ring-1 ring-stone-100 group-hover:ring-amber-400 group-hover:scale-105 transition-all duration-500">
+                            {person.photoUrl ? (
+                              <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0" />
+                            ) : (
+                              <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300">
+                                <Users className="w-10 h-10" />
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
+                        </div>
 
-                    <div className="text-center space-y-1">
-                      <h3 className="font-serif font-bold text-stone-800 group-hover:text-amber-700 transition-colors">
-                        {person.name.split(' ')[0]}
-                      </h3>
-                      <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
-                        {getRelationshipLabel(person)}
-                      </p>
-                    </div>
+                        <div className="text-center space-y-1">
+                          <h3 className="font-serif font-bold text-stone-800 group-hover:text-amber-700 transition-colors">
+                            {person.name.split(' ')[0]}
+                          </h3>
+                          <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                            {getRelationshipLabel(person)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
