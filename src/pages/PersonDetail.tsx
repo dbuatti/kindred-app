@@ -1,19 +1,28 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MOCK_PEOPLE } from '../data/mock';
+import { useFamily } from '../context/FamilyContext.tsx';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Quote, Mic, MessageSquare, Edit3, Play, Clock } from 'lucide-react';
+import { ArrowLeft, Quote, Mic, MessageSquare, Play, Clock, Camera } from 'lucide-react';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import SuggestionDialog from '../components/SuggestionDialog';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const PersonDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const person = MOCK_PEOPLE.find(p => p.id === id);
+  const { people } = useFamily();
+  const person = people.find(p => p.id === id);
 
-  if (!person) return <div>Person not found</div>;
+  if (!person) return (
+    <div className="min-h-screen flex items-center justify-center bg-[#FDFCF9]">
+      <div className="text-center space-y-4">
+        <p className="text-stone-400 font-serif italic">This person hasn't been found in the archive...</p>
+        <Button onClick={() => navigate('/')} variant="outline" className="rounded-full">Return Home</Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans pb-32">
@@ -28,7 +37,7 @@ const PersonDetail = () => {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <span className="font-serif text-stone-400 text-sm italic">Family Archive</span>
-        <div className="w-10" /> {/* Spacer */}
+        <div className="w-10" />
       </nav>
 
       {/* Hero Section */}
@@ -78,50 +87,55 @@ const PersonDetail = () => {
         </div>
 
         <div className="space-y-10">
-          {person.memories.map((memory, idx) => (
-            <div key={memory.id} className="group space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700" style={{ animationDelay: `${idx * 100}ms` }}>
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center shrink-0 text-stone-400">
-                  {memory.type === 'voice' ? <Mic className="w-4 h-4" /> : <MessageSquare className="w-4 h-4" />}
-                </div>
-                <div className="space-y-3 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-stone-400 uppercase tracking-wider">
-                      {memory.createdByEmail.split('@')[0]}
-                    </span>
-                    <span className="text-[10px] text-stone-300 flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {format(new Date(memory.createdAt), 'MMM d, yyyy')}
-                    </span>
+          {person.memories.length === 0 ? (
+            <div className="text-center py-12 space-y-4">
+              <p className="text-stone-400 font-serif italic">No memories shared yet. Be the first to tell a story.</p>
+            </div>
+          ) : (
+            person.memories.map((memory, idx) => (
+              <div key={memory.id} className="group space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700" style={{ animationDelay: `${idx * 100}ms` }}>
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center shrink-0 text-stone-400">
+                    {memory.type === 'voice' ? <Mic className="w-4 h-4" /> : memory.type === 'photo' ? <Camera className="w-4 h-4" /> : <MessageSquare className="w-4 h-4" />}
                   </div>
-                  
-                  <div className={cn(
-                    "p-6 rounded-2xl text-lg font-serif leading-relaxed",
-                    memory.type === 'voice' ? "bg-amber-50/50 border border-amber-100/50" : "bg-white border border-stone-100"
-                  )}>
-                    {memory.type === 'voice' && (
-                      <Button size="sm" variant="ghost" className="mb-4 h-10 w-10 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200">
-                        <Play className="w-4 h-4 fill-current" />
-                      </Button>
-                    )}
-                    <p className="text-stone-700">{memory.content}</p>
+                  <div className="space-y-3 flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-stone-400 uppercase tracking-wider">
+                        {memory.createdByEmail.split('@')[0]}
+                      </span>
+                      <span className="text-[10px] text-stone-300 flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {format(new Date(memory.createdAt), 'MMM d, yyyy')}
+                      </span>
+                    </div>
+                    
+                    <div className={cn(
+                      "p-6 rounded-2xl text-lg font-serif leading-relaxed",
+                      memory.type === 'voice' ? "bg-amber-50/50 border border-amber-100/50" : 
+                      memory.type === 'photo' ? "bg-stone-100/30 border border-stone-200/50" :
+                      "bg-white border border-stone-100"
+                    )}>
+                      {memory.type === 'voice' && (
+                        <Button size="sm" variant="ghost" className="mb-4 h-10 w-10 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200">
+                          <Play className="w-4 h-4 fill-current" />
+                        </Button>
+                      )}
+                      <p className="text-stone-700">{memory.content}</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </main>
 
       {/* Floating Action */}
       <AddMemoryDialog 
+        personId={person.id}
         personName={person.name} 
-        onAdd={(content, type) => {
-          console.log('New memory for', person.name, { content, type });
-        }} 
       />
     </div>
   );
 };
 
-import { cn } from '@/lib/utils';
 export default PersonDetail;

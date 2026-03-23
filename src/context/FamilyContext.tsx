@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { Person, Memory, Suggestion } from '../types';
+import { Person, Memory, Suggestion, MemoryType } from '../types';
 import { MOCK_PEOPLE } from '../data/mock';
 
 interface FamilyContextType {
   people: Person[];
   suggestions: Suggestion[];
   addPerson: (person: Partial<Person>) => void;
-  addMemory: (personId: string, content: string, type: 'text' | 'voice') => void;
+  addMemory: (personId: string, content: string, type: MemoryType) => void;
   addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'status'>) => void;
   resolveSuggestion: (id: string, status: 'approved' | 'rejected') => void;
 }
@@ -31,7 +31,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setPeople(prev => [person, ...prev]);
   }, []);
 
-  const addMemory = useCallback((personId: string, content: string, type: 'text' | 'voice') => {
+  const addMemory = useCallback((personId: string, content: string, type: MemoryType) => {
     const memory: Memory = {
       id: Math.random().toString(36).substr(2, 9),
       personId,

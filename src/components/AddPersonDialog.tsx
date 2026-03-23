@@ -3,25 +3,48 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { Plus, Sparkles, Mic, Camera } from 'lucide-react';
+import { Plus, Sparkles, Mic } from 'lucide-react';
 import { useVoiceInput } from '../hooks/use-voice';
+import { useFamily } from '../context/FamilyContext.tsx';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const AddPersonDialog = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { addPerson } = useFamily();
   const { isListening, transcript, setTranscript, startListening } = useVoiceInput();
-  const [step, setStep] = useState(1);
+  
+  const [name, setName] = useState('');
+  const [birthYear, setBirthYear] = useState('');
+  const [birthPlace, setBirthPlace] = useState('');
 
   const handleSave = () => {
-    // In a real app, this would call a Supabase action
+    if (!name || !transcript) {
+      toast.error("Please provide at least a name and a short description.");
+      return;
+    }
+
+    addPerson({
+      name,
+      birthYear,
+      birthPlace,
+      vibeSentence: transcript,
+      personalityTags: ["✨ new addition"],
+      photoUrl: "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&q=80&w=400" // Placeholder
+    });
+
+    toast.success(`${name} has been added to the archive.`);
     setIsOpen(false);
-    setStep(1);
+    setName('');
+    setBirthYear('');
+    setBirthPlace('');
+    setTranscript('');
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="fixed bottom-28 right-8 h-14 w-14 rounded-full shadow-xl bg-stone-800 hover:bg-stone-900 text-white">
+        <Button className="fixed bottom-28 right-8 h-14 w-14 rounded-full shadow-xl bg-stone-800 hover:bg-stone-900 text-white z-20">
           <Plus className="w-6 h-6" />
         </Button>
       </DialogTrigger>
@@ -37,6 +60,8 @@ const AddPersonDialog = () => {
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-widest text-stone-400">Their Name</label>
               <Input 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Great Aunt Martha"
                 className="bg-white border-stone-200 rounded-2xl h-14 text-lg focus-visible:ring-amber-500"
               />
@@ -44,8 +69,10 @@ const AddPersonDialog = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-widest text-stone-400">Birth Year (Fuzzy is okay)</label>
+                <label className="text-xs font-medium uppercase tracking-widest text-stone-400">Birth Year</label>
                 <Input 
+                  value={birthYear}
+                  onChange={(e) => setBirthYear(e.target.value)}
                   placeholder="e.g. Around 1920"
                   className="bg-white border-stone-200 rounded-2xl h-12 focus-visible:ring-amber-500"
                 />
@@ -53,6 +80,8 @@ const AddPersonDialog = () => {
               <div className="space-y-2">
                 <label className="text-xs font-medium uppercase tracking-widest text-stone-400">Birth Place</label>
                 <Input 
+                  value={birthPlace}
+                  onChange={(e) => setBirthPlace(e.target.value)}
                   placeholder="e.g. Dublin, Ireland"
                   className="bg-white border-stone-200 rounded-2xl h-12 focus-visible:ring-amber-500"
                 />

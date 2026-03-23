@@ -5,6 +5,8 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Edit3, Sparkles } from 'lucide-react';
 import { Person } from '../types';
+import { useFamily } from '../context/FamilyContext.tsx';
+import { toast } from 'sonner';
 
 interface SuggestionDialogProps {
   person: Person;
@@ -12,6 +14,25 @@ interface SuggestionDialogProps {
 
 const SuggestionDialog = ({ person }: SuggestionDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { addSuggestion } = useFamily();
+  const [value, setValue] = useState('');
+  const [reason, setReason] = useState('');
+
+  const handleSubmit = () => {
+    if (!value) return;
+
+    addSuggestion({
+      personId: person.id,
+      fieldName: 'vibeSentence', // Defaulting to vibe for now
+      suggestedValue: value,
+      suggestedByEmail: 'cousin@family.com'
+    });
+
+    toast.success("Your suggestion has been sent to the family inbox.");
+    setIsOpen(false);
+    setValue('');
+    setReason('');
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -38,6 +59,8 @@ const SuggestionDialog = ({ person }: SuggestionDialogProps) => {
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-wider text-stone-400">What's the correction?</label>
               <Input 
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
                 placeholder="e.g. He was born in 1927, not 1928"
                 className="bg-white border-stone-200 rounded-xl h-12 focus-visible:ring-amber-500"
               />
@@ -45,6 +68,8 @@ const SuggestionDialog = ({ person }: SuggestionDialogProps) => {
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase tracking-wider text-stone-400">The story behind it (optional)</label>
               <Textarea 
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
                 placeholder="How do you remember this?"
                 className="bg-white border-stone-200 rounded-xl min-h-[100px] focus-visible:ring-amber-500"
               />
@@ -61,7 +86,8 @@ const SuggestionDialog = ({ person }: SuggestionDialogProps) => {
             </Button>
             <Button 
               className="flex-1 rounded-xl bg-stone-800 hover:bg-stone-900 text-white"
-              onClick={() => setIsOpen(false)}
+              onClick={handleSubmit}
+              disabled={!value}
             >
               Send Suggestion
             </Button>
