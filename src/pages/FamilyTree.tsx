@@ -105,22 +105,6 @@ const FamilyTree = () => {
       </header>
 
       <div className="flex-1 relative overflow-hidden bg-stone-50/30" ref={constraintsRef}>
-        {/* Generational Sidebar - Fixed to the left */}
-        <div className="absolute left-0 top-0 bottom-0 w-24 bg-white/40 backdrop-blur-sm border-r border-stone-100 z-20 hidden lg:flex flex-col items-center py-20 gap-[300px]">
-          <div className="flex flex-col items-center gap-2 opacity-40">
-            <div className="h-px w-8 bg-stone-300" />
-            <span className="text-[10px] font-bold text-stone-500 uppercase tracking-[0.4em] vertical-text">Elders</span>
-          </div>
-          <div className="flex flex-col items-center gap-2 opacity-40">
-            <div className="h-px w-8 bg-stone-300" />
-            <span className="text-[10px] font-bold text-stone-500 uppercase tracking-[0.4em] vertical-text">Parents</span>
-          </div>
-          <div className="flex flex-col items-center gap-2 opacity-40">
-            <div className="h-px w-8 bg-stone-300" />
-            <span className="text-[10px] font-bold text-stone-500 uppercase tracking-[0.4em] vertical-text">Children</span>
-          </div>
-        </div>
-
         {/* Controls */}
         <div className="absolute bottom-8 left-8 z-30 flex flex-col gap-2">
           <Button size="icon" variant="secondary" onClick={() => setZoom(z => Math.min(z + 0.1, 2))} className="h-12 w-12 rounded-full bg-white shadow-lg"><ZoomIn className="w-5 h-5" /></Button>
@@ -149,6 +133,7 @@ const FamilyTree = () => {
                 debugMode={debugMode}
                 onSelect={(id) => { setHighlightedId(id); setSelectedPersonId(id); }}
                 getPeerCluster={getPeerCluster}
+                isFirstInRow={true}
               />
             ))}
           </motion.div>

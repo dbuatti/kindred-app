@@ -25,7 +25,6 @@ const PersonAvatar = ({ person, me, relationships, isHighlighted, isInLineage, i
   
   const isMe = me && person.id === me.id;
 
-  // Determine the relationship label relative to "Me"
   const getLabel = () => {
     if (isMe) return "You";
 
@@ -34,20 +33,28 @@ const PersonAvatar = ({ person, me, relationships, isHighlighted, isInLineage, i
       (r.person_id === me?.id && r.related_person_id === person.id) || 
       (r.person_id === person.id && r.related_person_id === me?.id)
     );
-    
     if (directRel) return directRel.relationship_type;
     
-    // 2. Indirect Relationship (e.g., Sibling of a Cousin is a Cousin)
-    const myCousins = relationships
-      .filter(r => (r.person_id === me?.id || r.related_person_id === me?.id) && r.relationship_type.toLowerCase() === 'cousin')
+    // 2. Cousin Logic (Parent -> Sibling -> Child)
+    const myParents = relationships
+      .filter(r => (r.person_id === me?.id || r.related_person_id === me?.id) && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
       .map(r => r.person_id === me?.id ? r.related_person_id : r.person_id);
-      
-    const isSiblingOfCousin = relationships.some(r => 
-      (myCousins.includes(r.person_id) && r.related_person_id === person.id || myCousins.includes(r.related_person_id) && r.person_id === person.id) &&
-      ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())
-    );
 
-    if (isSiblingOfCousin) return "Cousin";
+    const myUnclesAunts = relationships
+      .filter(r => {
+        const isSibling = ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase());
+        return isSibling && (myParents.includes(r.person_id) || myParents.includes(r.related_person_id));
+      })
+      .map(r => myParents.includes(r.person_id) ? r.related_person_id : r.person_id);
+
+    const isCousin = relationships.some(r => {
+      const isChild = ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase());
+      const isParent = ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase());
+      return (isChild && myUnclesAunts.includes(r.person_id) && r.related_person_id === person.id) ||
+             (isParent && myUnclesAunts.includes(r.related_person_id) && r.person_id === person.id);
+    });
+
+    if (isCousin) return "Cousin";
     
     return "Family";
   };
