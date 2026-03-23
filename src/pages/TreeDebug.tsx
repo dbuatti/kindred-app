@@ -32,7 +32,7 @@ const TreeDebug = () => {
   const navigate = useNavigate();
   const { people, loading, relationships } = useFamily();
   const [layout, setLayout] = useState<LayoutType>('simple');
-  const [zoom, setZoom] = useState(1.0);
+  const [zoom, setZoom] = useState(0.8); // Start slightly zoomed out to see more
   
   const roots = useMemo(() => {
     if (loading) return [];
@@ -95,10 +95,10 @@ const TreeDebug = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button size="icon" variant="ghost" onClick={() => setZoom(z => Math.max(z - 0.1, 0.2))}><ZoomOut className="w-4 h-4" /></Button>
+          <Button size="icon" variant="ghost" onClick={() => setZoom(z => Math.max(z - 0.1, 0.1))}><ZoomOut className="w-4 h-4" /></Button>
           <span className="text-[10px] font-mono w-12 text-center">{Math.round(zoom * 100)}%</span>
-          <Button size="icon" variant="ghost" onClick={() => setZoom(z => Math.min(z + 0.1, 2))}><ZoomIn className="w-4 h-4" /></Button>
-          <Button size="icon" variant="ghost" onClick={() => setZoom(1.0)}><Maximize className="w-4 h-4" /></Button>
+          <Button size="icon" variant="ghost" onClick={() => setZoom(z => Math.min(z + 0.1, 3))}><ZoomIn className="w-4 h-4" /></Button>
+          <Button size="icon" variant="ghost" onClick={() => setZoom(0.8)}><Maximize className="w-4 h-4" /></Button>
         </div>
       </div>
 
@@ -106,14 +106,16 @@ const TreeDebug = () => {
         <motion.div 
           animate={{ scale: zoom }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="origin-top-left"
+          className="origin-center inline-block min-w-full min-h-full"
         >
-          {layout === 'outline' && <OutlineLayout roots={roots} />}
-          {layout === 'traditional' && <TraditionalLayout roots={roots} />}
-          {layout === 'modern' && <ModernHorizontalLayout roots={roots} />}
-          {layout === 'compact' && <CompactVerticalLayout roots={roots} />}
-          {layout === 'flow' && <FlowLayout roots={roots} />}
-          {layout === 'simple' && <SimpleTreeLayout roots={roots} />}
+          <div className="p-[500px]"> {/* Massive padding to allow panning in all directions */}
+            {layout === 'outline' && <OutlineLayout roots={roots} />}
+            {layout === 'traditional' && <TraditionalLayout roots={roots} />}
+            {layout === 'modern' && <ModernHorizontalLayout roots={roots} />}
+            {layout === 'compact' && <CompactVerticalLayout roots={roots} />}
+            {layout === 'flow' && <FlowLayout roots={roots} />}
+            {layout === 'simple' && <SimpleTreeLayout roots={roots} />}
+          </div>
         </motion.div>
       </div>
 
