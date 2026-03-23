@@ -31,13 +31,15 @@ const FamilyJournal = () => {
 
   if (allMemories.length === 0) {
     return (
-      <div className="text-center py-24 space-y-6">
-        <div className="h-20 w-20 bg-stone-100 rounded-full flex items-center justify-center mx-auto">
-          <MessageSquare className="w-8 h-8 text-stone-300" />
+      <div className="text-center py-24 space-y-6 bg-white rounded-[3rem] border-4 border-dashed border-stone-100">
+        <div className="h-24 w-24 bg-stone-50 rounded-full flex items-center justify-center mx-auto">
+          <MessageSquare className="w-10 h-10 text-stone-200" />
         </div>
         <div className="space-y-2">
-          <p className="text-stone-800 font-serif text-xl">The journal is waiting...</p>
-          <p className="text-stone-400 text-sm italic">Share the first story to begin our family archive.</p>
+          <p className="text-stone-800 font-serif text-2xl italic">The journal is waiting...</p>
+          <p className="text-stone-400 text-lg max-w-md mx-auto leading-relaxed">
+            Every family has a story worth telling. Share the first memory to begin our collective archive.
+          </p>
         </div>
       </div>
     );

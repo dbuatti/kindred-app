@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
-import { Mic, Camera, X, Loader2, CheckCircle2, UploadCloud, Plus } from 'lucide-react';
+import { Mic, Camera, X, Loader2, CheckCircle2, UploadCloud, Plus, Sparkles, RefreshCw } from 'lucide-react';
 import { useVoiceInput } from '../hooks/use-voice';
 import { useFamily } from '../context/FamilyContext';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,17 @@ interface AddMemoryDialogProps {
   onOpenChange?: (open: boolean) => void;
 }
 
+const STORY_PROMPTS = [
+  "What was their favorite meal to cook?",
+  "Do you remember a funny thing they used to say?",
+  "What was their first job?",
+  "What's a song that always reminds you of them?",
+  "What was the best advice they ever gave you?",
+  "Describe the smell of their house.",
+  "What was their favorite hobby or pastime?",
+  "Do you remember a story they told about their own childhood?"
+];
+
 const AddMemoryDialog = ({ 
   personId, 
   personName, 
@@ -37,6 +48,8 @@ const AddMemoryDialog = ({
   const [images, setImages] = useState<{ url: string, caption: string }[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [promptIndex, setPromptIndex] = useState(0);
+  const [showPrompt, setShowPrompt] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
@@ -83,11 +96,9 @@ const AddMemoryDialog = ({
 
     setIsSaving(true);
     try {
-      // If there's a transcript but no images, save as text/voice memory
       if (transcript.trim() && images.length === 0) {
         await addMemory(personId || 'general', transcript, isListening ? 'voice' : 'text');
       } 
-      // If there are images, save each as a photo memory
       else if (images.length > 0) {
         for (const img of images) {
           await addMemory(
@@ -102,7 +113,8 @@ const AddMemoryDialog = ({
       confetti({
         particleCount: 150,
         spread: 70,
-        origin: { y: 0.6 }
+        origin: { y: 0.6 },
+        colors: ['#d97706', '#f59e0b', '#fbbf24']
       });
       
       toast.success("Stories saved! The family will love these.");
@@ -116,12 +128,8 @@ const AddMemoryDialog = ({
     }
   };
 
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const updateCaption = (index: number, caption: string) => {
-    setImages(prev => prev.map((img, i) => i === index ? { ...img, caption } : img));
+  const nextPrompt = () => {
+    setPromptIndex((prev) => (prev + 1) % STORY_PROMPTS.length);
   };
 
   return (
@@ -155,6 +163,24 @@ const AddMemoryDialog = ({
         </DialogHeader>
         
         <div className="space-y-8 py-4">
+          {/* Story Starter Prompt */}
+          {!images.length && !transcript && (
+            <div className={cn(
+              "bg-amber-50/50 border border-amber-100 rounded-3xl p-6 transition-all duration-500",
+              showPrompt ? "opacity-100 scale-100" : "opacity-0 scale-95 h-0 p-0 overflow-hidden border-none"
+            )}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 text-amber-700 text-[10px] font-bold uppercase tracking-widest">
+                  <Sparkles className="w-3 h-3" /> Need an idea?
+                </div>
+                <button onClick={nextPrompt} className="text-amber-600 hover:text-amber-800">
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-lg font-serif italic text-stone-700">"{STORY_PROMPTS[promptIndex]}"</p>
+            </div>
+          )}
+
           {isDragging ? (
             <div className="h-64 border-4 border-dashed border-amber-400 rounded-[2.5rem] flex flex-col items-center justify-center gap-4 bg-amber-50 animate-in fade-in zoom-in duration-300">
               <UploadCloud className="w-16 h-16 text-amber-600 animate-bounce" />
@@ -184,6 +210,14 @@ const AddMemoryDialog = ({
                       {isListening ? "I'm listening..." : "Tap to start talking"}
                     </p>
                     <p className="text-stone-500">Your words will appear below automatically.</p>
+                    {!transcript && (
+                      <button 
+                        onClick={() => setShowPrompt(!showPrompt)}
+                        className="text-xs font-bold text-amber-600 uppercase tracking-widest mt-2 hover:underline"
+                      >
+                        {showPrompt ? "Hide prompt" : "Need a prompt?"}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -198,12 +232,16 @@ const AddMemoryDialog = ({
                           <Input 
                             placeholder="Add a caption..." 
                             value={img.caption}
-                            onChange={(e) => updateCaption(idx, e.target.value)}
+                            onChange={(e) => {
+                              const newImages = [...images];
+                              newImages[idx].caption = e.target.value;
+                              setImages(newImages);
+                            }}
                             className="bg-white border-none rounded-xl h-10 text-sm"
                           />
                         </div>
                         <button 
-                          onClick={() => removeImage(idx)}
+                          onClick={() => setImages(images.filter((_, i) => i !== idx))}
                           className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full hover:bg-red-500 transition-colors"
                         >
                           <X className="w-4 h-4" />
