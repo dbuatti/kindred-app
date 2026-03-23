@@ -215,7 +215,6 @@ const FamilyTree = () => {
                 me={me}
                 onSelect={(id) => { setHighlightedId(id); setSelectedPersonId(id); }}
                 getPeerCluster={getPeerCluster}
-                isFirstInRow={true}
                 settings={chartSettings}
               />
             ))}
