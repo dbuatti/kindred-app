@@ -17,12 +17,15 @@ import {
   Maximize, 
   X,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Target,
+  Info
 } from 'lucide-react';
 import { getPersonUrl } from '@/lib/slugify';
 import { cn } from '@/lib/utils';
 import QuickAddMenu from '../components/QuickAddMenu';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
@@ -33,6 +36,7 @@ const FamilyTree = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const treeRef = useRef<HTMLDivElement>(null);
+  const constraintsRef = useRef<HTMLDivElement>(null);
 
   const me = useMemo(() => {
     return people.find(p => p.userId === user?.id) || people[0];
@@ -77,7 +81,18 @@ const FamilyTree = () => {
 
   const maxLevel = useMemo(() => Math.max(0, ...Object.values(personLevels)), [personLevels]);
 
-  // 2. Search & Focus Logic
+  // 2. Lineage Logic: Find direct relatives of highlighted person
+  const lineageIds = useMemo(() => {
+    if (!highlightedId) return new Set<string>();
+    const ids = new Set<string>([highlightedId]);
+    relationships.forEach(r => {
+      if (r.person_id === highlightedId) ids.add(r.related_person_id);
+      if (r.related_person_id === highlightedId) ids.add(r.person_id);
+    });
+    return ids;
+  }, [highlightedId, relationships]);
+
+  // 3. Search & Focus Logic
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     if (!query) {
@@ -87,11 +102,18 @@ const FamilyTree = () => {
     const found = people.find(p => p.name.toLowerCase().includes(query.toLowerCase()));
     if (found) {
       setHighlightedId(found.id);
-      // Scroll to person logic could go here if needed
     }
   };
 
-  // 3. Helper: Get all connected peers
+  const centerOnMe = () => {
+    if (me) {
+      setHighlightedId(me.id);
+      setZoom(1);
+      // Panning logic would go here if we had a controlled pan state
+    }
+  };
+
+  // 4. Helper: Get all connected peers
   const getPeerCluster = (startId: string, level: number, processed: Set<string>) => {
     const cluster: any[] = [];
     const queue = [startId];
@@ -117,7 +139,7 @@ const FamilyTree = () => {
     return cluster;
   };
 
-  // 4. Recursive Component
+  // 5. Recursive Component
   const ClusterNode = ({ members, level, parentProcessed = new Set() }: { members: any[], level: number, parentProcessed?: Set<string> }) => {
     const parentUnits = useMemo(() => {
       const units: { parents: any[], children: any[] }[] = [];
@@ -154,11 +176,14 @@ const FamilyTree = () => {
       return units;
     }, [members]);
 
+    const isClusterHighlighted = members.some(m => lineageIds.has(m.id));
+
     return (
       <div className="flex flex-col items-center">
         <div className={cn(
-          "flex items-center gap-4 p-6 rounded-[3.5rem] bg-white/60 backdrop-blur-sm border-2 border-stone-50 shadow-sm relative z-10 transition-all duration-500",
-          members.some(m => m.id === highlightedId) ? "border-amber-400 bg-amber-50/50 shadow-amber-100 scale-105" : ""
+          "flex items-center gap-4 p-6 rounded-[3.5rem] bg-white/60 backdrop-blur-sm border-2 border-stone-50 shadow-sm relative z-10 transition-all duration-700",
+          isClusterHighlighted ? "border-amber-400 bg-amber-50/50 shadow-amber-100" : "",
+          highlightedId && !isClusterHighlighted ? "opacity-40 grayscale-[0.5]" : ""
         )}>
           {members.map((person, idx) => {
             const next = members[idx + 1];
@@ -169,17 +194,36 @@ const FamilyTree = () => {
               <React.Fragment key={person.id}>
                 <div className="relative flex flex-col items-center">
                   {relationships.some(r => (r.person_id === person.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) || (r.related_person_id === person.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))) && (
-                    <div className="absolute -top-10 w-px h-10 bg-stone-200" />
+                    <div className={cn(
+                      "absolute -top-10 w-px h-10 transition-colors duration-500",
+                      lineageIds.has(person.id) ? "bg-amber-400 w-0.5" : "bg-stone-200"
+                    )} />
                   )}
-                  <PersonAvatar person={person} isHighlighted={person.id === highlightedId} />
+                  <PersonAvatar 
+                    person={person} 
+                    isHighlighted={person.id === highlightedId} 
+                    isInLineage={lineageIds.has(person.id)}
+                  />
                 </div>
                 {linkType && (
                   <div className="flex flex-col items-center gap-1 px-2">
-                    <div className="h-px w-8 bg-stone-200" />
-                    <div className="bg-white p-1 rounded-full shadow-sm border border-stone-100">
-                      {['spouse', 'wife', 'husband'].includes(linkType) ? <Heart className="w-3 h-3 text-red-400 fill-current" /> : <Users2 className="w-3 h-3 text-amber-400" />}
-                    </div>
-                    <div className="h-px w-8 bg-stone-200" />
+                    <div className={cn("h-px w-8 transition-colors", lineageIds.has(person.id) && lineageIds.has(next.id) ? "bg-amber-400 h-0.5" : "bg-stone-200")} />
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className={cn(
+                            "bg-white p-1 rounded-full shadow-sm border transition-all",
+                            lineageIds.has(person.id) && lineageIds.has(next.id) ? "border-amber-400 scale-110" : "border-stone-100"
+                          )}>
+                            {['spouse', 'wife', 'husband'].includes(linkType) ? <Heart className="w-3 h-3 text-red-400 fill-current" /> : <Users2 className="w-3 h-3 text-amber-400" />}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-stone-800 text-white border-none rounded-lg text-[10px] font-bold uppercase tracking-widest">
+                          {linkType}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <div className={cn("h-px w-8 transition-colors", lineageIds.has(person.id) && lineageIds.has(next.id) ? "bg-amber-400 h-0.5" : "bg-stone-200")} />
                   </div>
                 )}
               </React.Fragment>
@@ -202,9 +246,14 @@ const FamilyTree = () => {
 
               if (childClusters.length === 0) return null;
 
+              const isUnitInLineage = unit.parents.some(p => lineageIds.has(p.id));
+
               return (
                 <div key={uIdx} className="flex flex-col items-center">
-                  <div className="w-px h-10 bg-stone-200" />
+                  <div className={cn(
+                    "w-px h-10 transition-colors duration-500",
+                    isUnitInLineage ? "bg-amber-400 w-0.5" : "bg-stone-200"
+                  )} />
                   <div className="flex gap-12">
                     {childClusters.map((cc, ccIdx) => (
                       <ClusterNode key={ccIdx} members={cc} level={level + 1} parentProcessed={parentProcessed} />
@@ -219,15 +268,23 @@ const FamilyTree = () => {
     );
   };
 
-  const PersonAvatar = ({ person, isHighlighted }: { person: any, isHighlighted?: boolean }) => {
+  const PersonAvatar = ({ person, isHighlighted, isInLineage }: { person: any, isHighlighted?: boolean, isInLineage?: boolean }) => {
     const label = !me || person.id === me.id ? "You" : (relationships.find(r => (r.person_id === me.id && r.related_person_id === person.id) || (r.person_id === person.id && r.related_person_id === me.id))?.relationship_type || "Family");
     
     return (
-      <div onClick={() => navigate(getPersonUrl(person.id, person.name))} className="flex flex-col items-center space-y-3 cursor-pointer group">
+      <div 
+        onClick={(e) => {
+          e.stopPropagation();
+          setHighlightedId(person.id);
+        }} 
+        className="flex flex-col items-center space-y-3 cursor-pointer group"
+      >
         <QuickAddMenu personId={person.id} personName={person.name} />
         <div className={cn(
-          "h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 shadow-lg ring-1 transition-all duration-500",
-          isHighlighted ? "border-amber-500 ring-amber-200 scale-110" : "border-white ring-stone-100 group-hover:ring-amber-400"
+          "h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 shadow-lg ring-1 transition-all duration-500 relative",
+          isHighlighted ? "border-amber-500 ring-amber-200 scale-110 z-20" : 
+          isInLineage ? "border-amber-200 ring-amber-50 shadow-amber-100" :
+          "border-white ring-stone-100 group-hover:ring-amber-400"
         )}>
           {person.photoUrl ? (
             <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" />
@@ -236,6 +293,16 @@ const FamilyTree = () => {
               <UserCircle className="w-10 h-10" />
             </div>
           )}
+          
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(getPersonUrl(person.id, person.name));
+            }}
+            className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100"
+          >
+            <Info className="w-6 h-6 text-white" />
+          </div>
         </div>
         <div className="text-center space-y-0.5">
           <h3 className={cn(
@@ -287,7 +354,7 @@ const FamilyTree = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFCF9] flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-[#FDFCF9] flex flex-col overflow-hidden select-none">
       <header className="bg-white/80 backdrop-blur-md border-b border-stone-100 px-8 py-6 sticky top-0 z-40">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -322,7 +389,7 @@ const FamilyTree = () => {
         </div>
       </header>
 
-      <div className="flex-1 relative overflow-hidden bg-stone-50/30">
+      <div className="flex-1 relative overflow-hidden bg-stone-50/30" ref={constraintsRef}>
         {/* Generational Landmarks Sidebar */}
         <div className="absolute left-0 top-0 bottom-0 w-32 border-r border-stone-100/50 bg-white/20 backdrop-blur-sm z-20 hidden lg:flex flex-col items-center py-20 gap-48">
           {Array.from({ length: maxLevel + 1 }).map((_, i) => (
@@ -335,7 +402,7 @@ const FamilyTree = () => {
           ))}
         </div>
 
-        {/* Zoom Controls */}
+        {/* Zoom & Pan Controls */}
         <div className="absolute bottom-8 left-8 z-30 flex flex-col gap-2">
           <Button 
             size="icon" 
@@ -356,19 +423,30 @@ const FamilyTree = () => {
           <Button 
             size="icon" 
             variant="secondary" 
-            onClick={() => setZoom(1)}
+            onClick={() => { setZoom(1); setHighlightedId(null); }}
             className="h-12 w-12 rounded-full bg-white shadow-lg border border-stone-100"
           >
             <Maximize className="w-5 h-5" />
           </Button>
+          <Button 
+            size="icon" 
+            variant="secondary" 
+            onClick={centerOnMe}
+            className="h-12 w-12 rounded-full bg-amber-600 text-white shadow-lg border-2 border-white hover:bg-amber-700"
+            title="Center on Me"
+          >
+            <Target className="w-5 h-5" />
+          </Button>
         </div>
 
-        {/* Main Tree Area */}
+        {/* Main Tree Area with Drag-to-Pan */}
         <div 
-          className="w-full h-full overflow-auto p-20 cursor-grab active:cursor-grabbing"
-          ref={treeRef}
+          className="w-full h-full overflow-hidden p-20 cursor-grab active:cursor-grabbing"
+          onClick={() => setHighlightedId(null)}
         >
           <motion.div 
+            drag
+            dragConstraints={constraintsRef}
             animate={{ scale: zoom }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="flex flex-col items-center gap-32 min-w-max origin-top"
