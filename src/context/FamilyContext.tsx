@@ -1,78 +1,145 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Person, Memory, Suggestion, MemoryType } from '../types';
-import { MOCK_PEOPLE } from '../data/mock';
+import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
 
 interface FamilyContextType {
   people: Person[];
   suggestions: Suggestion[];
-  addPerson: (person: Partial<Person>) => void;
-  addMemory: (personId: string, content: string, type: MemoryType) => void;
-  addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'status'>) => void;
-  resolveSuggestion: (id: string, status: 'approved' | 'rejected') => void;
+  loading: boolean;
+  addPerson: (person: Partial<Person>) => Promise<void>;
+  addMemory: (personId: string, content: string, type: MemoryType) => Promise<void>;
+  addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'status'>) => Promise<void>;
+  resolveSuggestion: (id: string, status: 'approved' | 'rejected') => Promise<void>;
 }
 
 const FamilyContext = createContext<FamilyContextType | undefined>(undefined);
 
 export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [people, setPeople] = useState<Person[]>(MOCK_PEOPLE);
+  const [people, setPeople] = useState<Person[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const addPerson = useCallback((newPerson: Partial<Person>) => {
-    const person: Person = {
-      id: Math.random().toString(36).substr(2, 9),
-      familyId: 'fam-1',
-      name: newPerson.name || 'Unknown',
-      vibeSentence: newPerson.vibeSentence || '',
-      personalityTags: newPerson.personalityTags || [],
-      createdByEmail: 'me@family.com',
-      memories: [],
-      ...newPerson
-    };
-    setPeople(prev => [person, ...prev]);
-  }, []);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: peopleData, error: peopleError } = await supabase
+        .from('people')
+        .select('*, memories(*)');
+      
+      if (peopleError) throw peopleError;
 
-  const addMemory = useCallback((personId: string, content: string, type: MemoryType) => {
-    const memory: Memory = {
-      id: Math.random().toString(36).substr(2, 9),
-      personId,
-      content,
-      type,
-      createdByEmail: 'me@family.com',
-      createdAt: new Date().toISOString(),
-    };
-    setPeople(prev => prev.map(p => 
-      p.id === personId ? { ...p, memories: [memory, ...p.memories] } : p
-    ));
-  }, []);
+      const { data: suggestionsData, error: suggestionsError } = await supabase
+        .from('suggestions')
+        .select('*')
+        .eq('status', 'pending');
 
-  const addSuggestion = useCallback((s: Omit<Suggestion, 'id' | 'status'>) => {
-    const suggestion: Suggestion = {
-      ...s,
-      id: Math.random().toString(36).substr(2, 9),
-      status: 'pending'
-    };
-    setSuggestions(prev => [suggestion, ...prev]);
-  }, []);
+      if (suggestionsError) throw suggestionsError;
 
-  const resolveSuggestion = useCallback((id: string, status: 'approved' | 'rejected') => {
-    setSuggestions(prev => prev.map(s => s.id === id ? { ...s, status } : s));
-    
-    if (status === 'approved') {
-      const suggestion = suggestions.find(s => s.id === id);
-      if (suggestion) {
-        setPeople(prev => prev.map(p => 
-          p.id === suggestion.personId 
-            ? { ...p, [suggestion.fieldName]: suggestion.suggestedValue } 
-            : p
-        ));
-      }
+      setPeople(peopleData || []);
+      setSuggestions(suggestionsData || []);
+    } catch (error: any) {
+      console.error("Error fetching data:", error.message);
+    } finally {
+      setLoading(false);
     }
-  }, [suggestions]);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const addPerson = useCallback(async (newPerson: Partial<Person>) => {
+    try {
+      const { data, error } = await supabase
+        .from('people')
+        .insert([{
+          name: newPerson.name,
+          birth_year: newPerson.birthYear,
+          birth_place: newPerson.birthPlace,
+          vibe_sentence: newPerson.vibeSentence,
+          personality_tags: newPerson.personalityTags,
+          photo_url: newPerson.photoUrl,
+          created_by_email: 'me@family.com', // In a real app, get from auth
+          family_id: '00000000-0000-0000-0000-000000000000' // Placeholder family ID
+        }])
+        .select();
+
+      if (error) throw error;
+      fetchData();
+    } catch (error: any) {
+      toast.error("Failed to add person: " + error.message);
+    }
+  }, [fetchData]);
+
+  const addMemory = useCallback(async (personId: string, content: string, type: MemoryType) => {
+    try {
+      const { error } = await supabase
+        .from('memories')
+        .insert([{
+          person_id: personId,
+          content,
+          type,
+          created_by_email: 'me@family.com'
+        }]);
+
+      if (error) throw error;
+      fetchData();
+    } catch (error: any) {
+      toast.error("Failed to save story: " + error.message);
+    }
+  }, [fetchData]);
+
+  const addSuggestion = useCallback(async (s: Omit<Suggestion, 'id' | 'status'>) => {
+    try {
+      const { error } = await supabase
+        .from('suggestions')
+        .insert([{
+          person_id: s.personId,
+          field_name: s.fieldName,
+          suggested_value: s.suggestedValue,
+          suggested_by_email: s.suggestedByEmail
+        }]);
+
+      if (error) throw error;
+      fetchData();
+    } catch (error: any) {
+      toast.error("Failed to send suggestion: " + error.message);
+    }
+  }, [fetchData]);
+
+  const resolveSuggestion = useCallback(async (id: string, status: 'approved' | 'rejected') => {
+    try {
+      const suggestion = suggestions.find(s => s.id === id);
+      if (!suggestion) return;
+
+      const { error: updateError } = await supabase
+        .from('suggestions')
+        .update({ status })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      if (status === 'approved') {
+        const { error: personError } = await supabase
+          .from('people')
+          .update({ [suggestion.fieldName]: suggestion.suggestedValue })
+          .eq('id', suggestion.personId);
+        
+        if (personError) throw personError;
+      }
+
+      fetchData();
+    } catch (error: any) {
+      toast.error("Failed to resolve suggestion: " + error.message);
+    }
+  }, [suggestions, fetchData]);
 
   return (
     <FamilyContext.Provider value={{ 
       people, 
       suggestions, 
+      loading,
       addPerson, 
       addMemory, 
       addSuggestion, 
