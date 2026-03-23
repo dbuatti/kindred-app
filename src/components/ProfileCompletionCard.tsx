@@ -13,9 +13,11 @@ import {
   Camera, 
   Quote,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Users
 } from 'lucide-react';
 import SuggestionDialog from './SuggestionDialog';
+import { useFamily } from '../context/FamilyContext';
 import { cn } from '@/lib/utils';
 
 interface ProfileCompletionCardProps {
@@ -23,14 +25,23 @@ interface ProfileCompletionCardProps {
 }
 
 const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
+  const { relationships } = useFamily();
+
   const stats = useMemo(() => {
+    const personRels = relationships.filter(r => r.person_id === person.id || r.related_person_id === person.id);
+    
+    const hasParents = personRels.some(r => {
+      const type = r.relationship_type.toLowerCase();
+      return type === 'mother' || type === 'father' || type === 'parent';
+    });
+
     const items = [
       { label: 'Birth Year', value: person.birthYear, icon: Calendar },
       { label: 'Birth Place', value: person.birthPlace, icon: MapPin },
       { label: 'Occupation', value: person.occupation, icon: Briefcase },
-      { label: 'Gender', value: person.gender, icon: User },
       { label: 'Photo', value: person.photoUrl, icon: Camera },
       { label: 'Detailed Bio', value: person.vibeSentence && person.vibeSentence.length > 30, icon: Quote },
+      { label: 'Parents', value: hasParents, icon: Users },
     ];
 
     const completedCount = items.filter(item => item.value).length;
@@ -38,7 +49,7 @@ const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
     const missing = items.filter(item => !item.value);
 
     return { percentage, missing, completedCount, total: items.length };
-  }, [person]);
+  }, [person, relationships]);
 
   if (stats.percentage === 100) return null;
 
