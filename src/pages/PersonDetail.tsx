@@ -1,11 +1,30 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Quote, Mic, MessageSquare, Play, Clock, Camera, Edit3, Share2, ChevronRight, UploadCloud, Users, ShieldCheck } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Quote, 
+  Mic, 
+  MessageSquare, 
+  Play, 
+  Clock, 
+  Camera, 
+  Edit3, 
+  Share2, 
+  ChevronRight, 
+  UploadCloud, 
+  Users, 
+  ShieldCheck,
+  MapPin,
+  Calendar,
+  Briefcase,
+  Sparkles,
+  Plus
+} from 'lucide-react';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import SuggestionDialog from '../components/SuggestionDialog';
 import ConnectionSuggestionDialog from '../components/ConnectionSuggestionDialog';
@@ -87,10 +106,8 @@ const PersonDetail = () => {
         
         if (!relative) return null;
         
-        // Determine the correct label
         const type = isPrimary ? r.relationship_type : getInverseRelationship(r.relationship_type, relative.personalityTags);
         
-        // Create a unique key to filter duplicates
         const key = `${relative.id}-${type}`;
         if (seen.has(key)) return null;
         seen.add(key);
@@ -102,6 +119,16 @@ const PersonDetail = () => {
       })
       .filter(Boolean);
   }, [person, relationships, people]);
+
+  const missingInfo = useMemo(() => {
+    if (!person) return [];
+    const missing = [];
+    if (!person.birthYear) missing.push('Birth Year');
+    if (!person.birthPlace) missing.push('Birth Place');
+    if (!person.occupation) missing.push('Occupation');
+    if (!person.photoUrl) missing.push('Photo');
+    return missing;
+  }, [person]);
 
   const handleMemoryFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -208,7 +235,7 @@ const PersonDetail = () => {
 
   return (
     <div 
-      className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans pb-24 relative"
+      className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans pb-32 relative"
       onDragOver={onDragOverPage}
       onDragLeave={onDragLeavePage}
       onDrop={onDropPage}
@@ -222,46 +249,47 @@ const PersonDetail = () => {
         </div>
       )}
 
-      <nav className="sticky top-0 z-10 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
-        <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      <nav className="sticky top-0 z-30 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <Button 
               variant="ghost" 
               size="icon" 
               onClick={() => navigate('/')}
-              className="rounded-full text-stone-500 h-10 w-10"
+              className="rounded-full text-stone-500 h-12 w-12 hover:bg-stone-100"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-6 h-6" />
             </Button>
-            <div className="hidden md:flex items-center gap-2 text-[10px] font-medium text-stone-400 uppercase tracking-widest">
+            <div className="hidden md:flex items-center gap-2 text-[10px] font-bold text-stone-400 uppercase tracking-[0.2em]">
               <span className="cursor-pointer hover:text-stone-800 transition-colors" onClick={() => navigate('/')}>Archive</span>
               <ChevronRight className="w-3 h-3" />
-              <span className="text-stone-800">{person.name.split(' ')[0]}</span>
+              <span className="text-stone-800">{person.name}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {isAdmin && (
               <EditPersonDialog 
                 person={person} 
                 trigger={
-                  <Button variant="ghost" size="icon" className="rounded-full text-amber-600 h-10 w-10 bg-amber-50">
-                    <ShieldCheck className="w-5 h-5" />
+                  <Button variant="ghost" size="icon" className="rounded-full text-amber-600 h-12 w-12 bg-amber-50 hover:bg-amber-100">
+                    <ShieldCheck className="w-6 h-6" />
                   </Button>
                 }
               />
             )}
-            <Button variant="ghost" size="icon" onClick={handleShare} className="rounded-full text-stone-500 h-10 w-10">
-              <Share2 className="w-5 h-5" />
+            <Button variant="ghost" size="icon" onClick={handleShare} className="rounded-full text-stone-500 h-12 w-12 hover:bg-stone-100">
+              <Share2 className="w-6 h-6" />
             </Button>
           </div>
         </div>
       </nav>
 
-      <header className="max-w-4xl mx-auto px-6 pt-8 pb-6 space-y-6">
-        <div className="flex flex-col items-center text-center space-y-4">
+      <main className="max-w-4xl mx-auto px-6 py-12 space-y-16">
+        {/* Hero Section */}
+        <section className="flex flex-col md:flex-row gap-12 items-start">
           <div 
             className={cn(
-              "relative w-32 h-32 rounded-full overflow-hidden shadow-lg ring-2 transition-all duration-300",
+              "relative w-48 h-48 md:w-64 md:h-64 rounded-[3rem] overflow-hidden shadow-2xl ring-8 transition-all duration-500 shrink-0",
               isDraggingOverProfile ? "ring-amber-500 scale-105 shadow-amber-200" : "ring-white"
             )}
             onDragOver={onDragOverProfile}
@@ -269,145 +297,186 @@ const PersonDetail = () => {
             onDrop={onDropProfile}
           >
             {person.photoUrl ? (
-              <img src={person.photoUrl} alt={person.name} className="w-full h-full object-cover grayscale-[0.2]" />
+              <img src={person.photoUrl} alt={person.name} className="w-full h-full object-cover grayscale-[0.2] hover:grayscale-0 transition-all duration-700" />
             ) : (
-              <div className="w-full h-full bg-stone-200 flex items-center justify-center">
-                <Camera className="w-8 h-8 text-stone-400" />
+              <div className="w-full h-full bg-stone-100 flex items-center justify-center">
+                <Camera className="w-12 h-12 text-stone-300" />
               </div>
             )}
             {isDraggingOverProfile && (
               <div className="absolute inset-0 bg-amber-600/40 flex items-center justify-center">
-                <UploadCloud className="w-10 h-10 text-white animate-bounce" />
+                <UploadCloud className="w-12 h-12 text-white animate-bounce" />
               </div>
             )}
             <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center group cursor-pointer">
-              <Camera className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Camera className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </div>
-          
-          <div className="space-y-1">
-            <div className="flex items-center justify-center gap-2">
-              <h1 className="text-3xl font-serif font-medium text-stone-800">{person.name}</h1>
-              {isOwnProfile && (
+
+          <div className="space-y-8 flex-1">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 flex-wrap">
+                <h1 className="text-5xl font-serif font-bold text-stone-800 leading-tight">{person.name}</h1>
+                {isOwnProfile && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => navigate('/onboarding')}
+                    className="rounded-full text-stone-400 hover:text-amber-600 h-10 w-10 bg-stone-50"
+                  >
+                    <Edit3 className="w-5 h-5" />
+                  </Button>
+                )}
+              </div>
+              
+              <div className="flex flex-wrap gap-6 text-stone-500">
+                {person.birthYear && (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-amber-600" />
+                    <span className="text-lg font-medium">Born {person.birthYear}</span>
+                  </div>
+                )}
+                {person.birthPlace && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-amber-600" />
+                    <span className="text-lg font-medium">{person.birthPlace}</span>
+                  </div>
+                )}
+                {person.occupation && (
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-amber-600" />
+                    <span className="text-lg font-medium">{person.occupation}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {person.vibeSentence && person.vibeSentence.trim() !== "" && (
+              <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-stone-100 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 blur-3xl rounded-full -mr-12 -mt-12 group-hover:bg-amber-500/10 transition-colors" />
+                <Quote className="absolute top-6 left-6 w-10 h-10 text-amber-600/5" />
+                <p className="text-2xl font-serif italic text-stone-700 leading-relaxed relative z-10 pl-4">
+                  "{person.vibeSentence}"
+                </p>
+                <div className="mt-6 flex flex-wrap gap-2 relative z-10">
+                  {person.personalityTags?.map(tag => (
+                    <Badge key={tag} variant="secondary" className="bg-stone-50 text-stone-500 border-none rounded-full px-4 py-1 text-xs font-bold uppercase tracking-widest">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!isOwnProfile && (
+              <div className="flex flex-wrap gap-3 pt-4">
+                <SuggestionDialog person={person} />
+                <ConnectionSuggestionDialog person={person} />
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Missing Info Prompt */}
+        {missingInfo.length > 0 && !isOwnProfile && (
+          <section className="bg-amber-50/50 border-2 border-dashed border-amber-200 p-8 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            <div className="space-y-2 text-center md:text-left">
+              <h3 className="text-xl font-serif font-bold text-amber-900 flex items-center justify-center md:justify-start gap-2">
+                <Sparkles className="w-5 h-5" />
+                Help us complete the story
+              </h3>
+              <p className="text-amber-800/70">
+                We're missing {missingInfo.join(', ')} for {person.name.split(' ')[0]}. Do you remember?
+              </p>
+            </div>
+            <SuggestionDialog person={person} />
+          </section>
+        )}
+
+        {/* Family Connections Section */}
+        <section className="space-y-8">
+          <div className="flex items-center justify-between">
+            <h2 className="text-3xl font-serif font-bold text-stone-800 flex items-center gap-3">
+              <Users className="w-8 h-8 text-stone-300" />
+              Family Tree
+            </h2>
+            <ConnectionSuggestionDialog person={person} />
+          </div>
+          <FamilyConnections person={person} relatives={relatives} />
+        </section>
+
+        {/* Memories Section */}
+        <section className="space-y-12">
+          <div className="flex items-center justify-between border-b-4 border-stone-100 pb-6">
+            <h2 className="text-3xl font-serif font-bold text-stone-800 flex items-center gap-3">
+              <MessageSquare className="w-8 h-8 text-stone-300" />
+              The Archive
+            </h2>
+            <Button 
+              onClick={() => setIsAddMemoryOpen(true)}
+              className="rounded-full bg-stone-800 hover:bg-stone-900 text-white gap-2 px-6"
+            >
+              <Plus className="w-4 h-4" /> Add Story
+            </Button>
+          </div>
+
+          <div className="space-y-12 relative before:absolute before:left-[23px] before:top-4 before:bottom-4 before:w-1 before:bg-stone-100">
+            {person.memories.length === 0 ? (
+              <div className="text-center py-20 space-y-6 bg-white rounded-[3rem] border border-stone-100 shadow-sm">
+                <div className="h-20 w-20 bg-stone-50 rounded-full flex items-center justify-center mx-auto">
+                  <MessageSquare className="w-8 h-8 text-stone-200" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-stone-400 font-serif italic text-xl">No stories shared yet...</p>
+                  <p className="text-stone-300 text-sm">Be the first to add a memory of {person.name.split(' ')[0]}.</p>
+                </div>
                 <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => navigate('/onboarding')}
-                  className="rounded-full text-stone-400 hover:text-amber-600 h-8 w-8"
+                  onClick={() => setIsAddMemoryOpen(true)}
+                  variant="outline"
+                  className="rounded-full border-stone-200 text-stone-500"
                 >
-                  <Edit3 className="w-4 h-4" />
+                  Tell a Story
                 </Button>
-              )}
-            </div>
-            <p className="text-stone-500 font-light tracking-wide uppercase text-[10px]">
-              {person.birthYear} {person.birthPlace && `• ${person.birthPlace}`}
-            </p>
-            <p className="text-amber-700 font-medium text-xs">{person.occupation}</p>
-          </div>
-        </div>
-
-        {relatives.length > 0 && (
-          <div className="space-y-3">
-            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.2em] text-center">Family Circle</p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {relatives.map((rel: any) => (
-                <button
-                  key={`${rel.id}-${rel.type}`}
-                  onClick={() => navigate(getPersonUrl(rel.id, rel.name))}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-white border border-stone-100 rounded-full shadow-sm hover:border-amber-200 hover:bg-amber-50/30 transition-all group"
-                >
-                  <div className="h-5 w-5 rounded-full overflow-hidden bg-stone-100 shrink-0">
-                    {rel.photoUrl ? (
-                      <img src={rel.photoUrl} className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-stone-300">
-                        <Users className="w-2.5 h-2.5" />
-                      </div>
-                    )}
+              </div>
+            ) : (
+              person.memories.map((memory, idx) => (
+                <div key={memory.id} className="relative pl-16 group animate-in fade-in slide-in-from-left-4 duration-700" style={{ animationDelay: `${idx * 100}ms` }}>
+                  <div className="absolute left-0 top-2 w-12 h-12 rounded-full bg-white border-4 border-stone-50 flex items-center justify-center z-10 shadow-sm group-hover:border-amber-100 transition-colors">
+                    {memory.type === 'voice' ? <Mic className="w-5 h-5 text-amber-600" /> : memory.type === 'photo' ? <Camera className="w-5 h-5 text-stone-400" /> : <MessageSquare className="w-5 h-5 text-stone-400" />}
                   </div>
-                  <span className="text-[11px] font-medium text-stone-600 group-hover:text-amber-900">{rel.name.split(' ')[0]}</span>
-                  <span className="text-[9px] text-stone-300 italic">{rel.type}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {person.vibeSentence && person.vibeSentence.trim() !== "" && (
-          <div className="bg-stone-100/50 rounded-2xl p-6 relative">
-            <Quote className="absolute top-3 left-3 w-6 h-6 text-amber-600/10" />
-            <p className="text-lg font-serif italic text-stone-700 leading-relaxed text-center">
-              "{person.vibeSentence}"
-            </p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              {person.personalityTags?.map(tag => (
-                <Badge key={tag} variant="secondary" className="bg-white/80 text-stone-600 border-none rounded-full px-3 py-0.5 text-[10px]">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex flex-col items-center gap-3">
-          {!isOwnProfile && (
-            <div className="flex flex-wrap justify-center gap-2">
-              <SuggestionDialog person={person} />
-              <ConnectionSuggestionDialog person={person} />
-            </div>
-          )}
-        </div>
-      </header>
-
-      <FamilyConnections person={person} relatives={relatives} />
-
-      <main className="max-w-4xl mx-auto px-6 space-y-8 mt-8">
-        <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-          <h2 className="font-serif text-xl text-stone-800">Memories</h2>
-          <span className="text-stone-400 text-xs">{person.memories.length} stories shared</span>
-        </div>
-
-        <div className="space-y-8">
-          {person.memories.length === 0 ? (
-            <div className="text-center py-8 space-y-3">
-              <p className="text-stone-400 font-serif italic text-sm">No memories shared yet. Be the first to tell a story.</p>
-            </div>
-          ) : (
-            person.memories.map((memory, idx) => (
-              <div key={memory.id} className="group space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700" style={{ animationDelay: `${idx * 100}ms` }}>
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center shrink-0 text-stone-400">
-                    {memory.type === 'voice' ? <Mic className="w-3.5 h-3.5" /> : memory.type === 'photo' ? <Camera className="w-3.5 h-3.5" /> : <MessageSquare className="w-3.5 h-3.5" />}
-                  </div>
-                  <div className="space-y-2 flex-1">
+                  
+                  <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">
-                        {memory.authorName || memory.createdByEmail.split('@')[0]}
-                      </span>
-                      <span className="text-[9px] text-stone-300 flex items-center gap-1">
-                        <Clock className="w-2.5 h-2.5" /> {format(new Date(memory.createdAt), 'MMM d, yyyy')}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-stone-800 uppercase tracking-widest">
+                          {memory.authorName || memory.createdByEmail.split('@')[0]}
+                        </span>
+                        <span className="text-stone-200">•</span>
+                        <span className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em]">
+                          {format(new Date(memory.createdAt), 'MMMM d, yyyy')}
+                        </span>
+                      </div>
                     </div>
                     
                     <div className={cn(
-                      "p-4 rounded-xl text-base font-serif leading-relaxed",
-                      memory.type === 'voice' ? "bg-amber-50/50 border border-amber-100/50" : 
-                      memory.type === 'photo' ? "bg-stone-100/30 border border-stone-200/50" :
-                      "bg-white border border-stone-100"
+                      "p-8 rounded-[2.5rem] text-xl font-serif leading-relaxed shadow-sm transition-all duration-500",
+                      memory.type === 'voice' ? "bg-amber-50/40 border border-amber-100/50" : 
+                      memory.type === 'photo' ? "bg-stone-50/50 border border-stone-100" :
+                      "bg-white border border-stone-100 group-hover:shadow-md"
                     )}>
                       {memory.type === 'voice' && (
-                        <Button size="sm" variant="ghost" className="mb-3 h-8 w-8 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 p-0">
-                          <Play className="w-3 h-3 fill-current" />
+                        <Button size="icon" variant="ghost" className="mb-6 h-14 w-14 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 shadow-sm">
+                          <Play className="w-6 h-6 fill-current" />
                         </Button>
                       )}
-                      <p className="text-stone-700">{memory.content}</p>
+                      <p className="text-stone-700 italic">"{memory.content}"</p>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
+              ))
+            )}
+          </div>
+        </section>
       </main>
 
       <AddMemoryDialog 
