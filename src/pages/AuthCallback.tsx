@@ -12,6 +12,7 @@ const AuthCallback = () => {
     const handleAuth = async () => {
       const token_hash = searchParams.get('token_hash');
       const type = searchParams.get('type');
+      const inviteToken = searchParams.get('token');
 
       if (token_hash && type) {
         console.log("[auth-callback] Verifying token...", { type });
@@ -35,7 +36,23 @@ const AuthCallback = () => {
         toast.error("Authentication failed: " + sessionError.message);
         navigate('/login');
       } else if (data.session) {
-        console.log("[auth-callback] Success! Redirecting home.");
+        console.log("[auth-callback] Success! Checking for invite token...");
+        
+        // If we have an invite token, link the user to the person record
+        if (inviteToken) {
+          const { error: linkError } = await supabase
+            .from('people')
+            .update({ user_id: data.session.user.id })
+            .eq('invite_token', inviteToken)
+            .is('user_id', null);
+
+          if (linkError) {
+            console.error("[auth-callback] Error linking profile:", linkError.message);
+          } else {
+            console.log("[auth-callback] Profile linked successfully.");
+          }
+        }
+
         toast.success("Welcome back!");
         navigate('/');
       } else {

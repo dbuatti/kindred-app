@@ -1,4 +1,7 @@
+"use client";
+
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Heart, ArrowRight, Mail, Loader2 } from 'lucide-react';
@@ -6,6 +9,8 @@ import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 
 const JoinFamily = () => {
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
   const [email, setEmail] = useState('');
   const [isSent, setIsSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -16,11 +21,15 @@ const JoinFamily = () => {
 
     setIsLoading(true);
     try {
+      // Append the token to the redirect URL so AuthCallback can process it
+      const redirectTo = token 
+        ? `${window.location.origin}/auth/confirm?token=${token}`
+        : `${window.location.origin}/auth/confirm`;
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          // Fixed: Added /auth/confirm to the redirect path
-          emailRedirectTo: `${window.location.origin}/auth/confirm`,
+          emailRedirectTo: redirectTo,
         },
       });
 
@@ -52,7 +61,9 @@ const JoinFamily = () => {
           <form onSubmit={handleJoin} className="space-y-8 bg-white p-10 rounded-[3rem] shadow-sm border border-stone-100">
             <div className="space-y-4">
               <p className="text-stone-600 leading-relaxed">
-                Enter your email address to see our family stories and photos.
+                {token 
+                  ? "You've been invited to join our family archive. Enter your email to step inside."
+                  : "Enter your email address to see our family stories and photos."}
               </p>
               <Input 
                 type="email"

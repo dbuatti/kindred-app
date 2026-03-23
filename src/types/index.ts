@@ -60,6 +60,7 @@ export interface Person {
   isLiving?: boolean;
   relationshipType?: string;
   gender?: string;
+  inviteToken?: string;
 }
 
 export interface StoryPrompt {

@@ -16,7 +16,9 @@ import {
   ChevronRight,
   Edit3,
   Trash2,
-  UserPlus
+  UserPlus,
+  Link as LinkIcon,
+  Copy
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -32,6 +34,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { getPersonUrl } from '@/lib/slugify';
 import EditPersonDialog from '../components/EditPersonDialog';
 import AddPersonDialog from '../components/AddPersonDialog';
+import { toast } from 'sonner';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
@@ -44,16 +47,20 @@ const AdminDashboard = () => {
     return <Navigate to="/" />;
   }
 
+  const handleCopyInvite = (person: any) => {
+    const inviteUrl = `${window.location.origin}/join?token=${person.inviteToken}`;
+    navigator.clipboard.writeText(inviteUrl);
+    toast.success(`Invite link for ${person.name} copied!`);
+  };
+
   const totalMemories = people.reduce((acc, p) => acc + p.memories.length, 0);
   const pendingSuggestions = suggestions.filter(s => s.status === 'pending').length;
   
-  // Get recent activity (last 5 memories)
   const recentMemories = people
     .flatMap(p => p.memories.map(m => ({ ...m, personName: p.name, personId: p.id })))
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 
-  // Prepare data for a simple chart: Memories per person
   const chartData = people.map(p => ({
     name: p.name.split(' ')[0],
     memories: p.memories.length
@@ -89,7 +96,6 @@ const AdminDashboard = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-12 space-y-10">
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="p-6 bg-white border-stone-100 shadow-sm rounded-[2rem] space-y-2">
             <div className="h-10 w-10 rounded-2xl bg-stone-50 flex items-center justify-center text-stone-400">
@@ -121,7 +127,6 @@ const AdminDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Activity Chart */}
           <Card className="p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
@@ -154,7 +159,6 @@ const AdminDashboard = () => {
             </div>
           </Card>
 
-          {/* Recent Activity Feed */}
           <Card className="p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
             <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
               <Clock className="w-5 h-5 text-stone-400" />
@@ -184,7 +188,6 @@ const AdminDashboard = () => {
           </Card>
         </div>
 
-        {/* Manage People */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
@@ -214,6 +217,17 @@ const AdminDashboard = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {!person.userId && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleCopyInvite(person)}
+                      className="rounded-full text-amber-600 hover:bg-amber-50"
+                      title="Copy Invite Link"
+                    >
+                      <LinkIcon className="w-4 h-4" />
+                    </Button>
+                  )}
                   <EditPersonDialog person={person} />
                   <Button 
                     variant="ghost" 
@@ -229,7 +243,6 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Family Profiles */}
         <div className="space-y-6">
           <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
             <UserCircle className="w-5 h-5 text-stone-400" />

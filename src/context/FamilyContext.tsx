@@ -97,6 +97,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         photoUrl: p.photo_url,
         createdByEmail: p.created_by_email,
         userId: p.user_id,
+        inviteToken: p.invite_token,
         memories: (p.memories || []).map((m: any) => ({
           id: m.id,
           personId: m.person_id,
