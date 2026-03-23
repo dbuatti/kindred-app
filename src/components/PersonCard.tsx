@@ -2,15 +2,42 @@ import React from 'react';
 import { Person } from '../types';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
-import { Quote, Mic, MessageSquare, History, MapPin, Calendar } from 'lucide-react';
+import { Quote, MessageSquare, History, MapPin, Calendar, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface PersonCardProps {
   person: Person;
   onClick?: () => void;
+  searchQuery?: string;
 }
 
-const PersonCard = ({ person, onClick }: PersonCardProps) => {
+const PersonCard = ({ person, onClick, searchQuery }: PersonCardProps) => {
+  const highlightText = (text: string, query: string) => {
+    if (!query) return text;
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return (
+      <span>
+        {parts.map((part, i) => 
+          part.toLowerCase() === query.toLowerCase() ? (
+            <mark key={i} className="bg-amber-100 text-amber-900 rounded-sm px-0.5">{part}</mark>
+          ) : part
+        )}
+      </span>
+    );
+  };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/person/${person.id}`;
+    if (navigator.share) {
+      navigator.share({ title: person.name, url });
+    } else {
+      navigator.clipboard.writeText(url);
+      toast.success("Link copied to clipboard!");
+    }
+  };
+
   return (
     <Card 
       onClick={onClick}
@@ -34,26 +61,34 @@ const PersonCard = ({ person, onClick }: PersonCardProps) => {
 
         <div className="p-8 flex-1 flex flex-col justify-between space-y-6">
           <div className="space-y-4">
-            <div className="space-y-1">
-              <h3 className="text-2xl font-serif font-medium text-stone-800 group-hover:text-amber-900 transition-colors">
-                {person.name}
-              </h3>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-400 font-medium uppercase tracking-widest">
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="w-3 h-3" /> {person.birthYear || 'Unknown'}
-                </span>
-                {person.birthPlace && (
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <h3 className="text-2xl font-serif font-medium text-stone-800 group-hover:text-amber-900 transition-colors">
+                  {highlightText(person.name, searchQuery || '')}
+                </h3>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-400 font-medium uppercase tracking-widest">
                   <span className="flex items-center gap-1.5">
-                    <MapPin className="w-3 h-3" /> {person.birthPlace}
+                    <Calendar className="w-3 h-3" /> {person.birthYear || 'Unknown'}
                   </span>
-                )}
+                  {person.birthPlace && (
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="w-3 h-3" /> {person.birthPlace}
+                    </span>
+                  )}
+                </div>
               </div>
+              <button 
+                onClick={handleShare}
+                className="p-2 rounded-full hover:bg-stone-50 text-stone-300 hover:text-amber-600 transition-colors"
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
             </div>
 
             <div className="relative">
               <Quote className="absolute -left-2 -top-2 w-8 h-8 text-amber-600/5" />
               <p className="text-stone-600 italic font-serif leading-relaxed line-clamp-2 pl-4 border-l-2 border-amber-100">
-                {person.vibeSentence}
+                {highlightText(person.vibeSentence, searchQuery || '')}
               </p>
             </div>
           </div>

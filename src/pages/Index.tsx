@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
@@ -22,6 +24,7 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('people');
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
   
   const filteredPeople = people.filter(p => 
@@ -31,9 +34,23 @@ const Index = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+K for search
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         searchInputRef.current?.focus();
+      }
+
+      // Arrow navigation for results
+      if (activeTab === 'people' && filteredPeople.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setSelectedIndex(prev => (prev < filteredPeople.length - 1 ? prev + 1 : prev));
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setSelectedIndex(prev => (prev > 0 ? prev - 1 : 0));
+        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+          navigate(`/person/${filteredPeople[selectedIndex].id}`);
+        }
       }
     };
     
@@ -47,7 +64,12 @@ const Index = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('scroll', handleScroll);
     };
-  }, []);
+  }, [activeTab, filteredPeople, selectedIndex, navigate]);
+
+  // Reset selection when search changes
+  useEffect(() => {
+    setSelectedIndex(-1);
+  }, [searchQuery]);
 
   const handleInvite = async () => {
     const inviteUrl = window.location.origin + '/join?code=KINDRED2024';
@@ -193,12 +215,20 @@ const Index = () => {
                   </Button>
                 </div>
               ) : (
-                filteredPeople.map((person) => (
-                  <PersonCard 
+                filteredPeople.map((person, idx) => (
+                  <div 
                     key={person.id}
-                    person={person} 
-                    onClick={() => navigate(`/person/${person.id}`)}
-                  />
+                    className={cn(
+                      "transition-all duration-300 rounded-[2.5rem]",
+                      selectedIndex === idx ? "ring-4 ring-amber-500/20 scale-[1.02]" : ""
+                    )}
+                  >
+                    <PersonCard 
+                      person={person} 
+                      searchQuery={searchQuery}
+                      onClick={() => navigate(`/person/${person.id}`)}
+                    />
+                  </div>
                 ))
               )}
             </div>

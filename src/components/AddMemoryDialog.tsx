@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Button } from './ui/button';
@@ -27,6 +29,25 @@ const AddMemoryDialog = ({ personId, personName, initialContent, trigger, onAdd 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Load draft on mount
+  useEffect(() => {
+    const draftKey = `story_draft_${personId || 'general'}`;
+    const savedDraft = localStorage.getItem(draftKey);
+    if (savedDraft && !transcript) {
+      setTranscript(savedDraft);
+    }
+  }, [personId]);
+
+  // Save draft on change
+  useEffect(() => {
+    const draftKey = `story_draft_${personId || 'general'}`;
+    if (transcript) {
+      localStorage.setItem(draftKey, transcript);
+    } else {
+      localStorage.removeItem(draftKey);
+    }
+  }, [transcript, personId]);
+
   useEffect(() => {
     if (isOpen) {
       if (initialContent && !transcript) {
@@ -54,7 +75,6 @@ const AddMemoryDialog = ({ personId, personName, initialContent, trigger, onAdd 
       if (personId) {
         await addMemory(personId, transcript, imagePreview ? 'photo' : (isListening ? 'voice' : 'text'));
         
-        // Celebrate!
         confetti({
           particleCount: 100,
           spread: 70,
@@ -63,6 +83,8 @@ const AddMemoryDialog = ({ personId, personName, initialContent, trigger, onAdd 
         });
         
         toast.success("Your story has been saved to the archive!");
+        // Clear draft on success
+        localStorage.removeItem(`story_draft_${personId}`);
       } else if (onAdd) {
         onAdd(transcript, imagePreview ? 'photo' : 'text');
       }
