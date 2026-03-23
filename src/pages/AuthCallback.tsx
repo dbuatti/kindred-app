@@ -13,35 +13,34 @@ const AuthCallback = () => {
       const token_hash = searchParams.get('token_hash');
       const type = searchParams.get('type');
 
-      // If we have a token_hash (Option 2 from the docs), verify it manually
       if (token_hash && type) {
+        console.log("[auth-callback] Verifying token...", { type });
         const { error } = await supabase.auth.verifyOtp({
           token_hash,
           type: type as any,
         });
 
         if (error) {
+          console.error("[auth-callback] Verification error:", error.message);
           toast.error("Verification failed: " + error.message);
           navigate('/login');
           return;
         }
       }
 
-      // Check if we have a session now
       const { data, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
+        console.error("[auth-callback] Session error:", sessionError.message);
         toast.error("Authentication failed: " + sessionError.message);
         navigate('/login');
       } else if (data.session) {
+        console.log("[auth-callback] Success! Redirecting home.");
         toast.success("Welcome back!");
         navigate('/');
       } else {
-        // Fallback for slow redirects
-        const timeout = setTimeout(() => {
-          navigate('/login');
-        }, 5000);
-        return () => clearTimeout(timeout);
+        console.warn("[auth-callback] No session found, redirecting to login.");
+        navigate('/login');
       }
     };
 
