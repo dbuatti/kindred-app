@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
-import { Sparkles, Check, X, CheckCircle2, Loader2 } from 'lucide-react';
+import { Sparkles, Check, X, CheckCircle2, Loader2, User } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext';
 import { cn } from '@/lib/utils';
 
@@ -32,57 +32,78 @@ const FamilyInbox = () => {
             <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
           </span>
           <Sparkles className="w-3 h-3" />
-          {pending.length} new {pending.length === 1 ? 'suggestion' : 'suggestions'}
+          {pending.length} {pending.length === 1 ? 'suggestion' : 'suggestions'}
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none bg-stone-50 p-8">
-        <DialogHeader>
-          <div className="flex items-center justify-between mb-2">
+      <DialogContent className="sm:max-w-2xl rounded-[2.5rem] border-none bg-stone-50 p-8">
+        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-6 border-b border-stone-200/60">
+          <div className="space-y-1">
             <DialogTitle className="font-serif text-2xl text-stone-800">Family Inbox</DialogTitle>
-            {isAdmin && pending.length > 1 && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleApproveAll}
-                disabled={isProcessing}
-                className="text-amber-600 hover:bg-amber-100 rounded-full gap-2 h-8 px-3"
-              >
-                {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                Approve All
-              </Button>
-            )}
+            <DialogDescription className="text-stone-500 text-sm">
+              Review suggestions from the family.
+            </DialogDescription>
           </div>
-          <DialogDescription className="text-stone-500">
-            Review and approve suggestions from other family members.
-          </DialogDescription>
+          {isAdmin && pending.length > 1 && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleApproveAll}
+              disabled={isProcessing}
+              className="text-amber-700 border-amber-200 hover:bg-amber-50 rounded-full gap-2 h-10 px-4 font-bold text-xs uppercase tracking-widest"
+            >
+              {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+              Approve All
+            </Button>
+          )}
         </DialogHeader>
-        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+        
+        <div className="space-y-3 py-6 max-h-[65vh] overflow-y-auto pr-2 custom-scrollbar">
           {pending.map(s => {
             const person = people.find(p => p.id === s.personId);
+            const isLink = s.fieldName === 'link_existing' || s.fieldName === 'new_relationship';
+            
             return (
-              <div key={s.id} className="bg-white p-6 rounded-3xl border border-stone-100 space-y-4 shadow-sm animate-in fade-in slide-in-from-right-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Edit for {person?.name}</span>
-                  <span className="text-[10px] text-stone-300 italic">from {s.suggestedByEmail.split('@')[0]}</span>
+              <div key={s.id} className="bg-white p-5 rounded-2xl border border-stone-200/60 flex items-center gap-6 shadow-sm hover:shadow-md transition-all animate-in fade-in slide-in-from-right-4">
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-full bg-stone-100 flex items-center justify-center">
+                        <User className="w-3 h-3 text-stone-400" />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">
+                        For {person?.name}
+                      </span>
+                    </div>
+                    <span className="text-[9px] text-stone-300 font-medium">
+                      from {s.suggestedByEmail.split('@')[0]}
+                    </span>
+                  </div>
+                  
+                  <p className={cn(
+                    "text-stone-700 font-serif leading-relaxed",
+                    isLink ? "text-sm italic text-stone-500" : "text-lg italic"
+                  )}>
+                    "{s.suggestedValue}"
+                  </p>
                 </div>
-                <p className="text-stone-700 font-serif italic text-lg leading-relaxed">
-                  "{s.suggestedValue}"
-                </p>
-                <div className="flex gap-3 pt-2">
-                  <Button 
-                    size="sm" 
-                    className="flex-1 bg-stone-800 hover:bg-stone-900 text-white rounded-2xl h-12"
-                    onClick={() => resolveSuggestion(s.id, 'approved')}
-                  >
-                    <Check className="w-4 h-4 mr-2" /> Approve
-                  </Button>
+
+                <div className="flex items-center gap-2 shrink-0">
                   <Button 
                     size="sm" 
                     variant="ghost" 
-                    className="flex-1 text-stone-400 hover:text-stone-600 rounded-2xl h-12"
+                    className="h-10 w-10 rounded-full text-stone-400 hover:text-red-500 hover:bg-red-50"
                     onClick={() => resolveSuggestion(s.id, 'rejected')}
+                    title="Skip"
                   >
-                    <X className="w-4 h-4 mr-2" /> Skip
+                    <X className="w-5 h-5" />
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    className="h-10 px-5 bg-stone-800 hover:bg-stone-900 text-white rounded-full font-bold text-xs uppercase tracking-widest gap-2"
+                    onClick={() => resolveSuggestion(s.id, 'approved')}
+                  >
+                    <Check className="w-4 h-4" />
+                    Approve
                   </Button>
                 </div>
               </div>
