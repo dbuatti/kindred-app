@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { TreeNode } from '@/lib/tree-utils';
-import { formatDisplayName } from '@/lib/utils';
+import { formatDisplayName, copyPersonDebugInfo } from '@/lib/utils';
 import { useFamily } from '@/context/FamilyContext';
-import { Users, Heart } from 'lucide-react';
+import { Users, Heart, Bug } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const SimpleNode = ({ node }: { node: TreeNode }) => {
@@ -23,13 +23,22 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
   return (
     <div className="flex flex-col items-center">
       <div className="relative flex flex-col items-center">
-        {/* Family Group Container */}
         <div className="flex items-center gap-6 p-10 bg-white/20 rounded-[4rem] border border-stone-200/30 backdrop-blur-[1px] shadow-sm">
           
-          {/* Main Person Box */}
           <div className="px-8 py-8 bg-white border-2 border-stone-200 rounded-[3rem] min-w-[220px] text-center shadow-md relative z-10 group hover:border-amber-300 transition-all duration-1000">
             
-            {/* Incoming line from parent - Anchored directly to the person */}
+            {/* Debug Copy Button */}
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                copyPersonDebugInfo(node.person, relationships);
+              }}
+              className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-stone-800 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-20"
+              title="Copy Debug Info"
+            >
+              <Bug className="w-4 h-4" />
+            </button>
+
             {node.level > 0 && (
               <div className="absolute -top-28 left-1/2 w-0.5 h-28 bg-stone-200 -translate-x-1/2 pointer-events-none" />
             )}
@@ -60,7 +69,6 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
             )}
           </div>
 
-          {/* Spouses */}
           {node.spouses.map(spouse => (
             <React.Fragment key={spouse.id}>
               <div className="w-16 h-px bg-stone-200 relative">
@@ -68,7 +76,17 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
                   <Heart className="w-3 h-3 text-red-300 fill-current" />
                 </div>
               </div>
-              <div className="px-8 py-8 bg-stone-50/60 border-2 border-stone-200 rounded-[3rem] min-w-[220px] text-center italic shadow-sm group hover:border-amber-200 transition-all duration-1000">
+              <div className="px-8 py-8 bg-stone-50/60 border-2 border-stone-200 rounded-[3rem] min-w-[220px] text-center italic shadow-sm group hover:border-amber-200 transition-all duration-1000 relative">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    copyPersonDebugInfo(spouse, relationships);
+                  }}
+                  className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-stone-800 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-20"
+                  title="Copy Debug Info"
+                >
+                  <Bug className="w-4 h-4" />
+                </button>
                 <div className="w-16 h-16 rounded-full overflow-hidden bg-white mx-auto mb-4 border-2 border-white shadow-inner ring-1 ring-stone-100">
                   {spouse.photoUrl ? (
                     <img src={spouse.photoUrl} className="w-full h-full object-cover grayscale-[0.4] group-hover:grayscale-0 transition-all duration-1000" />
@@ -88,7 +106,6 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
         </div>
       </div>
 
-      {/* Downward line to children - Anchored to the center of the union */}
       {node.children.length > 0 && (
         <div className="flex flex-col items-center">
           <div className="w-0.5 h-16 bg-stone-200" />
