@@ -50,7 +50,7 @@ const PersonCard = ({ person, onClick, searchQuery }: PersonCardProps) => {
             <img 
               src={person.photoUrl} 
               alt={person.name}
-              className="w-full h-full object-cover grayscale-[0.4] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-1000"
+              className="w-full h-full object-cover grayscale-[0.4] group-hover:grayscale-0 group-hover:scale-110 transition-all duration-1000"
             />
           ) : (
             <div className="w-full h-full bg-stone-100 flex items-center justify-center">

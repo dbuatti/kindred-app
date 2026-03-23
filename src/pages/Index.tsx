@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
 import { Card } from '@/components/ui/card';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
@@ -43,7 +44,6 @@ const Index = () => {
       .slice(0, 4);
   }, [recentlyViewed, people]);
 
-  // Flashback Memory
   const flashback = useMemo(() => {
     const all = people.flatMap(p => p.memories.map(m => ({ ...m, personName: p.name, personId: p.id })));
     if (all.length < 2) return null;
@@ -81,7 +81,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-stone-900 pb-32">
-      <header className="bg-white border-b-4 border-stone-100 px-6 py-8">
+      <header className="bg-white/80 backdrop-blur-md border-b-4 border-stone-100 px-6 py-8 sticky top-0 z-30">
         <div className="max-w-4xl mx-auto space-y-8">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
@@ -152,7 +152,11 @@ const Index = () => {
 
       <main className="max-w-4xl mx-auto px-6 py-12 space-y-12">
         {!searchQuery && !loading && (
-          <div className="space-y-12">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-12"
+          >
             {recentPeople.length > 0 && (
               <section className="space-y-4">
                 <div className="flex items-center gap-2 text-stone-400 text-[10px] font-bold uppercase tracking-widest">
@@ -202,7 +206,7 @@ const Index = () => {
                 )}
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
         <Tabs defaultValue="people" className="w-full" onValueChange={setActiveTab}>
@@ -233,14 +237,22 @@ const Index = () => {
                 </div>
               </div>
             ) : (
-              filteredPeople.map((person) => (
-                <PersonCard 
-                  key={person.id}
-                  person={person} 
-                  onClick={() => navigate(getPersonUrl(person.id, person.name))}
-                  searchQuery={searchQuery}
-                />
-              ))
+              <div className="space-y-8">
+                {filteredPeople.map((person, idx) => (
+                  <motion.div
+                    key={person.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <PersonCard 
+                      person={person} 
+                      onClick={() => navigate(getPersonUrl(person.id, person.name))}
+                      searchQuery={searchQuery}
+                    />
+                  </motion.div>
+                ))}
+              </div>
             )}
           </TabsContent>
 
