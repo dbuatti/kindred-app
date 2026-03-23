@@ -1,25 +1,49 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext.tsx';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Quote, Mic, MessageSquare, Play, Clock, Camera, Edit3, Share2, ChevronRight, UploadCloud } from 'lucide-react';
+import { ArrowLeft, Quote, Mic, MessageSquare, Play, Clock, Camera, Edit3, Share2, ChevronRight, UploadCloud, Users } from 'lucide-react';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import SuggestionDialog from '../components/SuggestionDialog';
 import ConnectionSuggestionDialog from '../components/ConnectionSuggestionDialog';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { parsePersonId, getPersonUrl } from '@/lib/slugify';
 
 const PersonDetail = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
-  const { people, user } = useFamily();
+  const { people, user, relationships } = useFamily();
+  
+  const id = parsePersonId(slug);
   const person = people.find(p => p.id === id);
 
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
   const [droppedImage, setDroppedImage] = useState<string | null>(null);
   const [isDraggingOverPage, setIsDraggingOverPage] = useState(false);
+
+  // Find relatives
+  const relatives = useMemo(() => {
+    if (!person || !relationships.length) return [];
+    
+    return relationships
+      .filter(r => r.person_id === person.id || r.related_person_id === person.id)
+      .map(r => {
+        const isPrimary = r.person_id === person.id;
+        const relativeId = isPrimary ? r.related_person_id : r.person_id;
+        const relative = people.find(p => p.id === relativeId);
+        
+        if (!relative) return null;
+        
+        return {
+          ...relative,
+          type: r.relationship_type
+        };
+      })
+      .filter(Boolean);
+  }, [person, relationships, people]);
 
   const handleFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -41,7 +65,6 @@ const PersonDetail = () => {
 
   const onDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    // Only set to false if we're leaving the main container
     if (e.currentTarget === e.target) {
       setIsDraggingOverPage(false);
     }
@@ -75,9 +98,7 @@ const PersonDetail = () => {
     if (navigator.share) {
       try {
         await navigator.share(shareData);
-      } catch (err) {
-        // User cancelled
-      }
+      } catch (err) {}
     } else {
       navigator.clipboard.writeText(window.location.href);
       toast.success("Link copied to clipboard!");
@@ -156,6 +177,34 @@ const PersonDetail = () => {
             <p className="text-amber-700 font-medium text-sm">{person.occupation}</p>
           </div>
         </div>
+
+        {/* Family Circle Pills */}
+        {relatives.length > 0 && (
+          <div className="space-y-4">
+            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.2em] text-center">Family Circle</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {relatives.map((rel: any) => (
+                <button
+                  key={rel.id}
+                  onClick={() => navigate(getPersonUrl(rel.id, rel.name))}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-stone-100 rounded-full shadow-sm hover:border-amber-200 hover:bg-amber-50/30 transition-all group"
+                >
+                  <div className="h-6 w-6 rounded-full overflow-hidden bg-stone-100 shrink-0">
+                    {rel.photoUrl ? (
+                      <img src={rel.photoUrl} className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-stone-300">
+                        <Users className="w-3 h-3" />
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-xs font-medium text-stone-600 group-hover:text-amber-900">{rel.name.split(' ')[0]}</span>
+                  <span className="text-[10px] text-stone-300 italic">{rel.type}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="bg-stone-100/50 rounded-3xl p-8 relative">
           <Quote className="absolute top-4 left-4 w-8 h-8 text-amber-600/10" />

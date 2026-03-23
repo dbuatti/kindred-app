@@ -3,11 +3,19 @@ import { Person, Memory, Suggestion, MemoryType, Profile } from '../types';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 
+interface Relationship {
+  id: string;
+  person_id: string;
+  related_person_id: string;
+  relationship_type: string;
+}
+
 interface FamilyContextType {
   people: Person[];
   suggestions: Suggestion[];
   profiles: Record<string, Profile>;
   reactions: Record<string, string[]>; // memoryId -> array of userIds
+  relationships: Relationship[];
   loading: boolean;
   user: any;
   addPerson: (person: Partial<Person>) => Promise<void>;
@@ -25,6 +33,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [reactions, setReactions] = useState<Record<string, string[]>>({});
+  const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
@@ -68,6 +77,12 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         reactionMap[r.memory_id].push(r.user_id);
       });
       setReactions(reactionMap);
+
+      // Fetch Relationships
+      const { data: relData } = await supabase
+        .from('relationships')
+        .select('*');
+      setRelationships(relData || []);
 
       const mappedPeople = (peopleData || []).map((p: any) => ({
         id: p.id,
@@ -244,6 +259,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       suggestions, 
       profiles,
       reactions,
+      relationships,
       loading,
       user,
       addPerson, 

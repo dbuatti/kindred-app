@@ -5,6 +5,7 @@ import { Badge } from './ui/badge';
 import { Quote, MessageSquare, History, MapPin, Calendar, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { getPersonUrl } from '@/lib/slugify';
 
 interface PersonCardProps {
   person: Person;
@@ -29,7 +30,7 @@ const PersonCard = ({ person, onClick, searchQuery }: PersonCardProps) => {
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const url = `${window.location.origin}/person/${person.id}`;
+    const url = `${window.location.origin}${getPersonUrl(person.id, person.name)}`;
     if (navigator.share) {
       navigator.share({ title: person.name, url });
     } else {

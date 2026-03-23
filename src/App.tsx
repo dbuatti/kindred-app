@@ -79,7 +79,7 @@ const App = () => (
             <Route path="/complete" element={<ProtectedRoute><OnboardingCheck><CompleteArchive /></OnboardingCheck></ProtectedRoute>} />
             <Route path="/tree" element={<ProtectedRoute><OnboardingCheck><FamilyTree /></OnboardingCheck></ProtectedRoute>} />
             <Route path="/" element={<ProtectedRoute><OnboardingCheck><Index /></OnboardingCheck></ProtectedRoute>} />
-            <Route path="/person/:id" element={<ProtectedRoute><OnboardingCheck><PersonDetail /></OnboardingCheck></ProtectedRoute>} />
+            <Route path="/person/:slug" element={<ProtectedRoute><OnboardingCheck><PersonDetail /></OnboardingCheck></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><OnboardingCheck><AdminDashboard /></OnboardingCheck></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
