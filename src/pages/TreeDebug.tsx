@@ -12,26 +12,26 @@ import {
   Terminal,
   ZoomIn,
   ZoomOut,
-  Maximize
+  Maximize,
+  AlignVerticalSpaceAround
 } from 'lucide-react';
 import { buildTree } from '@/lib/tree-utils';
 import { OutlineLayout } from '@/components/tree/OutlineLayout';
 import { TraditionalLayout } from '@/components/tree/TraditionalLayout';
 import { ModernHorizontalLayout } from '@/components/tree/ModernHorizontalLayout';
+import { CompactVerticalLayout } from '@/components/tree/CompactVerticalLayout';
 import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
 
-type LayoutType = 'outline' | 'traditional' | 'modern';
+type LayoutType = 'outline' | 'traditional' | 'modern' | 'compact';
 
 const TreeDebug = () => {
   const navigate = useNavigate();
   const { people, loading, relationships } = useFamily();
-  const [layout, setLayout] = useState<LayoutType>('traditional');
+  const [layout, setLayout] = useState<LayoutType>('compact');
   const [zoom, setZoom] = useState(1.0);
   
   const roots = useMemo(() => {
     if (loading) return [];
-    console.log("[TreeDebug] Building logical tree structure...");
     return buildTree(people, relationships);
   }, [people, relationships, loading]);
 
@@ -39,7 +39,6 @@ const TreeDebug = () => {
 
   return (
     <div className="fixed inset-0 bg-[#0c0a09] overflow-hidden flex flex-col text-white">
-      {/* Top Control Bar */}
       <div className="bg-stone-900/90 backdrop-blur-md border-b border-stone-800 p-4 flex items-center justify-between z-50">
         <div className="flex items-center gap-4">
           <Button 
@@ -52,18 +51,18 @@ const TreeDebug = () => {
           </Button>
           <div className="flex items-center gap-2 px-3 py-1 bg-stone-800 rounded-lg border border-stone-700">
             <Terminal className="w-3 h-3 text-amber-500" />
-            <span className="text-[10px] font-mono font-bold uppercase tracking-tighter">Tree_Engine_v2.0</span>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-tighter">Tree_Engine</span>
           </div>
         </div>
 
         <div className="flex items-center gap-1 bg-stone-800 p-1 rounded-xl border border-stone-700">
           <Button 
             size="sm" 
-            variant={layout === 'outline' ? 'secondary' : 'ghost'}
-            onClick={() => setLayout('outline')}
+            variant={layout === 'compact' ? 'secondary' : 'ghost'}
+            onClick={() => setLayout('compact')}
             className="rounded-lg gap-2 text-xs"
           >
-            <List className="w-4 h-4" /> Outline
+            <AlignVerticalSpaceAround className="w-4 h-4" /> Compact
           </Button>
           <Button 
             size="sm" 
@@ -71,7 +70,7 @@ const TreeDebug = () => {
             onClick={() => setLayout('traditional')}
             className="rounded-lg gap-2 text-xs"
           >
-            <Layout className="w-4 h-4" /> Traditional
+            <Layout className="w-4 h-4" /> Classic
           </Button>
           <Button 
             size="sm" 
@@ -80,6 +79,14 @@ const TreeDebug = () => {
             className="rounded-lg gap-2 text-xs"
           >
             <Columns className="w-4 h-4" /> Modern
+          </Button>
+          <Button 
+            size="sm" 
+            variant={layout === 'outline' ? 'secondary' : 'ghost'}
+            onClick={() => setLayout('outline')}
+            className="rounded-lg gap-2 text-xs"
+          >
+            <List className="w-4 h-4" /> List
           </Button>
         </div>
 
@@ -91,7 +98,6 @@ const TreeDebug = () => {
         </div>
       </div>
 
-      {/* Main Canvas */}
       <div className="flex-1 relative overflow-auto bg-stone-950 custom-scrollbar">
         <motion.div 
           animate={{ scale: zoom }}
@@ -101,17 +107,16 @@ const TreeDebug = () => {
           {layout === 'outline' && <OutlineLayout roots={roots} />}
           {layout === 'traditional' && <TraditionalLayout roots={roots} />}
           {layout === 'modern' && <ModernHorizontalLayout roots={roots} />}
+          {layout === 'compact' && <CompactVerticalLayout roots={roots} />}
         </motion.div>
       </div>
 
-      {/* Status Bar */}
       <div className="bg-stone-900 border-t border-stone-800 px-4 py-2 flex items-center justify-between text-[9px] font-mono text-stone-500">
         <div className="flex gap-4">
           <span>NODES: {people.length}</span>
           <span>RELATIONSHIPS: {relationships.length}</span>
-          <span>ROOTS: {roots.length}</span>
         </div>
-        <div className="text-amber-500/50 animate-pulse">SYSTEM_READY // RENDER_MODE: {layout.toUpperCase()}</div>
+        <div className="text-amber-500/50">RENDER_MODE: {layout.toUpperCase()}</div>
       </div>
     </div>
   );
