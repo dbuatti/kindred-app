@@ -22,7 +22,8 @@ export interface Memory {
   createdAt: string;
   voiceUrl?: string;
   imageUrl?: string;
-  authorName?: string; // Derived from profile
+  authorName?: string;
+  reactions?: Record<string, number>; // e.g., { '❤️': 5, '🕯️': 2 }
 }
 
 export interface Suggestion {

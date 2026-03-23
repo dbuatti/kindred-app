@@ -7,21 +7,19 @@ import AddPersonDialog from '../components/AddPersonDialog';
 import FamilyInbox from '../components/FamilyInbox';
 import StoryStarter from '../components/StoryStarter';
 import ProfileDialog from '../components/ProfileDialog';
+import FamilyJournal from '../components/FamilyJournal';
 import { Input } from '@/components/ui/input';
-import { Search, Mic, Share2, Sparkles, BookOpen, Heart } from 'lucide-react';
+import { Search, Mic, Share2, Sparkles, BookOpen, Heart, Users, ScrollText } from 'lucide-react';
 import { MadeWithDyad } from '@/components/made-with-dyad';
-import { format } from 'date-fns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
 const Index = () => {
   const navigate = useNavigate();
   const { people, loading } = useFamily();
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('people');
   
-  const allMemories = people.flatMap(p => 
-    p.memories.map(m => ({ ...m, personName: p.name, personId: p.id }))
-  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
   const filteredPeople = people.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.vibeSentence.toLowerCase().includes(searchQuery.toLowerCase())
@@ -70,7 +68,7 @@ const Index = () => {
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
             <Input 
-              placeholder="Search for a family member..."
+              placeholder="Search the archive..."
               className="pl-12 h-14 bg-stone-100/50 border-none rounded-2xl text-lg placeholder:text-stone-400 focus-visible:ring-amber-500/20"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -79,68 +77,56 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-6 py-12 space-y-16">
-        {!searchQuery && (
-          <section className="space-y-8">
-            <StoryStarter />
-            
-            {allMemories.length > 0 && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-serif text-xl text-stone-800">Recent Stories</h2>
-                </div>
-                <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 no-scrollbar">
-                  {allMemories.slice(0, 5).map((memory) => (
-                    <div 
-                      key={memory.id}
-                      onClick={() => navigate(`/person/${memory.personId}`)}
-                      className="min-w-[280px] bg-white border border-stone-100 p-6 rounded-3xl shadow-sm hover:shadow-md transition-all cursor-pointer space-y-3"
-                    >
-                      <div className="flex items-center justify-between text-[10px] text-stone-400 uppercase tracking-wider">
-                        <span className="flex items-center gap-1">
-                          {memory.type === 'voice' ? <Mic className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
-                          {memory.personName.split(' ')[0]}
-                        </span>
-                        <span>{format(new Date(memory.createdAt), 'MMM d')}</span>
-                      </div>
-                      <p className="text-stone-700 font-serif italic line-clamp-3 leading-relaxed text-lg">
-                        "{memory.content}"
-                      </p>
-                      <div className="pt-2 text-xs text-stone-400">
-                        Shared by {memory.authorName || memory.createdByEmail.split('@')[0]}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-        )}
+      <main className="max-w-2xl mx-auto px-6 py-12 space-y-12">
+        {!searchQuery && <StoryStarter />}
 
-        <section className="space-y-8">
-          <div className="flex items-center justify-between">
-            <h2 className="font-serif text-xl text-stone-800">
-              {searchQuery ? 'Search Results' : 'Our Family'}
-            </h2>
+        <Tabs defaultValue="people" className="w-full" onValueChange={setActiveTab}>
+          <div className="flex items-center justify-between mb-8">
+            <TabsList className="bg-stone-100/50 p-1 rounded-2xl border-none h-12">
+              <TabsTrigger 
+                value="people" 
+                className="rounded-xl px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-stone-800 text-stone-400 gap-2"
+              >
+                <Users className="w-4 h-4" />
+                People
+              </TabsTrigger>
+              <TabsTrigger 
+                value="journal" 
+                className="rounded-xl px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-stone-800 text-stone-400 gap-2"
+              >
+                <ScrollText className="w-4 h-4" />
+                Journal
+              </TabsTrigger>
+            </TabsList>
+            
+            <div className="text-xs font-medium text-stone-400 uppercase tracking-widest">
+              {activeTab === 'people' ? `${people.length} Members` : 'Chronological Feed'}
+            </div>
           </div>
-          
-          {filteredPeople.length === 0 ? (
-            <div className="text-center py-20 space-y-4">
-              <p className="text-stone-400 font-serif italic">No one found in the archive yet.</p>
-            </div>
-          ) : (
+
+          <TabsContent value="people" className="mt-0 focus-visible:ring-0">
             <div className="grid gap-10">
-              {filteredPeople.map((person) => (
-                <div key={person.id} className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                  <PersonCard 
-                    person={person} 
-                    onClick={() => navigate(`/person/${person.id}`)}
-                  />
+              {filteredPeople.length === 0 ? (
+                <div className="text-center py-20 space-y-4">
+                  <p className="text-stone-400 font-serif italic">No one found in the archive yet.</p>
                 </div>
-              ))}
+              ) : (
+                filteredPeople.map((person) => (
+                  <div key={person.id} className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <PersonCard 
+                      person={person} 
+                      onClick={() => navigate(`/person/${person.id}`)}
+                    />
+                  </div>
+                ))
+              )}
             </div>
-          )}
-        </section>
+          </TabsContent>
+
+          <TabsContent value="journal" className="mt-0 focus-visible:ring-0">
+            <FamilyJournal />
+          </TabsContent>
+        </Tabs>
       </main>
 
       <AddPersonDialog />
