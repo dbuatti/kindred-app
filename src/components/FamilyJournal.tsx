@@ -1,6 +1,6 @@
 import React from 'react';
 import { useFamily } from '../context/FamilyContext';
-import { format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { Mic, MessageSquare, Heart, Clock, ArrowRight, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -35,7 +35,6 @@ const FamilyJournal = () => {
           className="group relative pl-12 animate-in fade-in slide-in-from-left-4 duration-1000"
           style={{ animationDelay: `${idx * 150}ms` }}
         >
-          {/* Timeline Dot */}
           <div className="absolute left-0 top-1 w-10 h-10 rounded-full bg-[#FDFCF9] border border-stone-200 flex items-center justify-center z-10 shadow-sm group-hover:border-amber-200 transition-colors">
             {memory.type === 'voice' ? (
               <Mic className="w-4 h-4 text-amber-600" />
@@ -50,7 +49,7 @@ const FamilyJournal = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-700">
-                  {format(new Date(memory.createdAt), 'MMMM d, yyyy')}
+                  {formatDistanceToNow(new Date(memory.createdAt), { addSuffix: true })}
                 </span>
                 <span className="text-stone-200">/</span>
                 <button 
@@ -69,7 +68,6 @@ const FamilyJournal = () => {
                 ? "bg-amber-50/40 border border-amber-100/50" 
                 : "bg-white border border-stone-100 shadow-[0_4px_20px_-5px_rgba(0,0,0,0.05)] group-hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)]"
             )}>
-              {/* Decorative corner */}
               <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-stone-50/50 to-transparent pointer-events-none" />
               
               <div className="space-y-6">

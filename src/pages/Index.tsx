@@ -11,7 +11,7 @@ import FamilyJournal from '../components/FamilyJournal';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Share2, Heart, Users, ScrollText, Command as CommandIcon, X } from 'lucide-react';
+import { Search, Share2, Heart, Users, ScrollText, Command as CommandIcon, X, ArrowUp } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
@@ -20,6 +20,7 @@ const Index = () => {
   const { people, loading } = useFamily();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('people');
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   
   const filteredPeople = people.filter(p => 
@@ -27,7 +28,6 @@ const Index = () => {
     p.vibeSentence.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Keyboard shortcut for search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -35,13 +35,40 @@ const Index = () => {
         searchInputRef.current?.focus();
       }
     };
+    
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 500);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
-  const copyInvite = () => {
-    navigator.clipboard.writeText(window.location.origin + '/join?code=KINDRED2024');
-    toast.success("Invite link copied! Send it to your family.");
+  const handleInvite = async () => {
+    const inviteUrl = window.location.origin + '/join?code=KINDRED2024';
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join our Family Archive',
+          text: 'I invited you to join Kindred, our private family storybook.',
+          url: inviteUrl,
+        });
+      } catch (err) {
+        // User cancelled or error
+      }
+    } else {
+      navigator.clipboard.writeText(inviteUrl);
+      toast.success("Invite link copied! Send it to your family.");
+    }
+  };
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (loading) {
@@ -88,7 +115,7 @@ const Index = () => {
             </div>
             <div className="flex gap-2">
               <button 
-                onClick={copyInvite}
+                onClick={handleInvite}
                 className="h-12 px-4 rounded-full bg-stone-100 flex items-center gap-2 text-stone-600 hover:text-amber-600 transition-colors text-sm font-medium"
               >
                 <Share2 className="w-4 h-4" />
@@ -181,6 +208,19 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Scroll to Top Button */}
+      <Button
+        onClick={scrollToTop}
+        className={cn(
+          "fixed bottom-8 left-8 h-12 w-12 rounded-full bg-white shadow-lg border border-stone-100 text-stone-400 hover:text-amber-600 transition-all duration-500 z-30",
+          showScrollTop ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0"
+        )}
+        variant="ghost"
+        size="icon"
+      >
+        <ArrowUp className="w-5 h-5" />
+      </Button>
 
       <AddPersonDialog />
       <AddMemoryDialog personName="the family" />

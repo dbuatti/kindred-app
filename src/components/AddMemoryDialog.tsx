@@ -7,6 +7,7 @@ import { useVoiceInput } from '../hooks/use-voice';
 import { useFamily } from '../context/FamilyContext.tsx';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import confetti from 'canvas-confetti';
 
 interface AddMemoryDialogProps {
   personId?: string;
@@ -31,7 +32,6 @@ const AddMemoryDialog = ({ personId, personName, initialContent, trigger, onAdd 
       if (initialContent && !transcript) {
         setTranscript(initialContent + "\n\n");
       }
-      // Auto-focus the textarea when dialog opens
       setTimeout(() => textareaRef.current?.focus(), 100);
     }
   }, [isOpen, initialContent]);
@@ -47,19 +47,32 @@ const AddMemoryDialog = ({ personId, personName, initialContent, trigger, onAdd 
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!transcript.trim() && !imagePreview) return;
 
-    if (personId) {
-      addMemory(personId, transcript, imagePreview ? 'photo' : (isListening ? 'voice' : 'text'));
-      toast.success("Your story has been saved!");
-    } else if (onAdd) {
-      onAdd(transcript, imagePreview ? 'photo' : 'text');
-    }
+    try {
+      if (personId) {
+        await addMemory(personId, transcript, imagePreview ? 'photo' : (isListening ? 'voice' : 'text'));
+        
+        // Celebrate!
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#d97706', '#f59e0b', '#fbbf24']
+        });
+        
+        toast.success("Your story has been saved to the archive!");
+      } else if (onAdd) {
+        onAdd(transcript, imagePreview ? 'photo' : 'text');
+      }
 
-    setTranscript('');
-    setImagePreview(null);
-    setIsOpen(false);
+      setTranscript('');
+      setImagePreview(null);
+      setIsOpen(false);
+    } catch (error: any) {
+      toast.error("Failed to save story: " + error.message);
+    }
   };
 
   return (
