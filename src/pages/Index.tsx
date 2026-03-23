@@ -158,7 +158,7 @@ const Index = () => {
               className="flex-1 rounded-xl text-lg data-[state=active]:bg-white data-[state=active]:shadow-md gap-3"
             >
               <Users className="w-6 h-6" />
-              Family Tree
+              Family Members
             </TabsTrigger>
             <TabsTrigger 
               value="journal" 

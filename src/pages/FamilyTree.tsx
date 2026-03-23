@@ -18,110 +18,94 @@ const FamilyTree = () => {
     return people.find(p => p.userId === user?.id) || people[0];
   }, [people, user]);
 
-  // Helper to get children of a person
-  const getChildren = (personId: string) => {
+  // Helper to get parents of a person
+  const getParents = (personId: string) => {
     return relationships
-      .filter(r => r.related_person_id === personId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
-      .map(r => r.person_id)
+      .filter(r => r.person_id === personId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
+      .map(r => r.related_person_id)
       .concat(
         relationships
-          .filter(r => r.person_id === personId && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
-          .map(r => r.related_person_id)
+          .filter(r => r.related_person_id === personId && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
+          .map(r => r.person_id)
       );
   };
 
-  // 1. Calculate Generations (Levels) with robust alignment
+  // 1. Calculate Generations (Levels)
   const generations = useMemo(() => {
     if (!people.length) return {};
     
     const levels: Record<string, number> = {};
     people.forEach(p => levels[p.id] = 0);
 
-    // Run relaxation multiple times to settle the tree
+    // Relaxation algorithm to settle levels
     for (let i = 0; i < 30; i++) {
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         
-        // Parent -> Child (related_person_id is parent, person_id is child)
         if (['mother', 'father', 'parent'].includes(type)) {
           levels[r.person_id] = Math.max(levels[r.person_id], levels[r.related_person_id] + 1);
         }
         
-        // Child -> Parent (person_id is parent, related_person_id is child)
         if (['son', 'daughter', 'child'].includes(type)) {
           levels[r.related_person_id] = Math.max(levels[r.related_person_id], levels[r.person_id] + 1);
         }
         
-        // Sibling/Spouse alignment
         if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
           const max = Math.max(levels[r.person_id], levels[r.related_person_id]);
           levels[r.person_id] = max;
           levels[r.related_person_id] = max;
         }
       });
-
-      // Align co-parents (people who share the same child)
-      people.forEach(p => {
-        const children = getChildren(p.id);
-        if (children.length > 0) {
-          const otherParents = people.filter(other => 
-            other.id !== p.id && getChildren(other.id).some(cid => children.includes(cid))
-          );
-          otherParents.forEach(op => {
-            const max = Math.max(levels[p.id], levels[op.id]);
-            levels[p.id] = max;
-            levels[op.id] = max;
-          });
-        }
-      });
     }
 
-    // Normalize levels
     const minLevel = Math.min(...Object.values(levels));
     Object.keys(levels).forEach(id => levels[id] -= minLevel);
 
     return levels;
   }, [people, relationships]);
 
-  // 2. Group people by generation and identify couples
+  // 2. Group and Sort people by generation and lineage
   const treeData = useMemo(() => {
     const gens: Record<number, { couples: any[][], singles: any[] }> = {};
     const processed = new Set();
 
-    Object.entries(generations)
-      .sort(([, a], [, b]) => a - b)
-      .forEach(([id, level]) => {
-        if (processed.has(id)) return;
-        
-        if (!gens[level]) gens[level] = { couples: [], singles: [] };
-        
-        const person = people.find(p => p.id === id);
-        if (!person) return;
+    // Sort levels
+    const sortedLevels = Array.from(new Set(Object.values(generations))).sort((a, b) => a - b);
 
-        // Find spouse or co-parent in the same generation
-        const children = getChildren(id);
-        const coParent = people.find(other => 
-          other.id !== id && 
-          generations[other.id] === level && 
-          !processed.has(other.id) &&
-          (
-            relationships.some(r => 
-              (r.person_id === id && r.related_person_id === other.id || r.person_id === other.id && r.related_person_id === id) &&
-              ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
-            ) ||
-            getChildren(other.id).some(cid => children.includes(cid))
-          )
+    sortedLevels.forEach(level => {
+      if (!gens[level]) gens[level] = { couples: [], singles: [] };
+      
+      const peopleInLevel = people
+        .filter(p => generations[p.id] === level)
+        .sort((a, b) => {
+          // Sort by parent ID to group siblings
+          const aParents = getParents(a.id).sort().join(',');
+          const bParents = getParents(b.id).sort().join(',');
+          return aParents.localeCompare(bParents);
+        });
+
+      peopleInLevel.forEach(person => {
+        if (processed.has(person.id)) return;
+
+        // Find spouse in the same generation
+        const spouseRel = relationships.find(r => 
+          (r.person_id === person.id || r.related_person_id === person.id) && 
+          ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
         );
 
-        if (coParent) {
-          gens[level].couples.push([person, coParent]);
-          processed.add(id);
-          processed.add(coParent.id);
+        const spouseId = spouseRel ? (spouseRel.person_id === person.id ? spouseRel.related_person_id : spouseRel.person_id) : null;
+        const spouse = spouseId ? people.find(p => p.id === spouseId) : null;
+
+        if (spouse && generations[spouse.id] === level && !processed.has(spouse.id)) {
+          gens[level].couples.push([person, spouse]);
+          processed.add(person.id);
+          processed.add(spouse.id);
         } else {
           gens[level].singles.push(person);
-          processed.add(id);
+          processed.add(person.id);
         }
       });
+    });
 
     return Object.entries(gens)
       .sort(([a], [b]) => Number(a) - Number(b))
