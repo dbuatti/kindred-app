@@ -33,7 +33,7 @@
   }
   body {
     @apply bg-[#FDFCF9] text-stone-900 antialiased;
-    font-size: 18px; /* Larger base font for seniors */
+    font-size: 20px; /* Significantly larger base font for seniors */
   }
   h1, h2, h3 {
     @apply font-serif;
