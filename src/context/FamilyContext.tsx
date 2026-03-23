@@ -296,7 +296,21 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (updateError) throw updateError;
 
       if (status === 'approved') {
-        if (suggestion.fieldName === 'new_relationship') {
+        if (suggestion.fieldName === 'link_existing') {
+          // Format: LINK_EXISTING: [targetId] as [rel] to [personId]
+          const match = suggestion.suggestedValue.match(/LINK_EXISTING: (.+) as (.+) to (.+)/);
+          if (match) {
+            const targetId = match[1];
+            const relType = match[2].toLowerCase();
+            const personId = match[3];
+
+            await supabase.from('relationships').insert({
+              person_id: personId,
+              related_person_id: targetId,
+              relationship_type: relType
+            });
+          }
+        } else if (suggestion.fieldName === 'new_relationship') {
           const match = suggestion.suggestedValue.match(/^(.+)\s\((.+)\)/);
           if (match) {
             const name = match[1];
