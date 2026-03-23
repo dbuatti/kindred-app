@@ -45,153 +45,49 @@ const FamilyTree = () => {
       return getInverseRelationship(directRel.relationship_type, target.gender);
     }
 
-    // Indirect logic (Uncle/Aunt/Cousin)
-    const myParents = getParents(me.id);
-    for (const parentId of myParents) {
-      const isParentSibling = relationships.some(r => 
-        (r.person_id === parentId && r.related_person_id === target.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
-        (r.person_id === target.id && r.related_person_id === parentId && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
-      );
-
-      if (isParentSibling) {
-        if (target.gender === 'male') return 'Uncle';
-        if (target.gender === 'female') return 'Aunt';
-        return 'Relative';
-      }
-
-      const parentSiblings = relationships
-        .filter(r => (r.person_id === parentId && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
-                     (r.related_person_id === parentId && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())))
-        .map(r => r.person_id === parentId ? r.related_person_id : r.person_id);
-
-      for (const sibId of parentSiblings) {
-        const isCousin = relationships.some(r => 
-          (r.person_id === sibId && r.related_person_id === target.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase())) ||
-          (r.person_id === target.id && r.related_person_id === sibId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
-        );
-        if (isCousin) return 'Cousin';
-      }
-    }
-
     return target.birthYear || "Family Member";
   };
 
   const branches = useMemo(() => {
     if (!people.length || !me) return [];
 
-    const couples: any[][] = [];
-    const processedParents = new Set();
+    // 1. Identify all unique "Parent Units"
+    // A unit is defined by a set of parents who share children
+    const units: Map<string, { parents: any[], children: any[] }> = new Map();
+    const processedAsParent = new Set();
 
     people.forEach(p => {
-      if (processedParents.has(p.id)) return;
+      const childrenIds = getChildren(p.id);
+      if (childrenIds.length === 0) return;
 
-      const spouseRel = relationships.find(r => 
-        (r.person_id === p.id && ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())) ||
-        (r.related_person_id === p.id && ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase()))
-      );
-
-      let spouseId = spouseRel ? (spouseRel.person_id === p.id ? spouseRel.related_person_id : spouseRel.person_id) : null;
-
-      if (!spouseId) {
-        const myChildren = getChildren(p.id);
-        if (myChildren.length > 0) {
-          const otherParent = people.find(other => {
-            if (other.id === p.id) return false;
-            const otherChildren = getChildren(other.id);
-            return myChildren.some(childId => otherChildren.includes(childId));
-          });
-          if (otherParent) spouseId = otherParent.id;
-        }
-      }
-
-      if (spouseId) {
-        const spouse = people.find(m => m.id === spouseId);
-        if (spouse) {
-          couples.push([p, spouse]);
-          processedParents.add(p.id);
-          processedParents.add(spouse.id);
-        }
-      } else {
-        const children = getChildren(p.id);
-        if (children.length > 0) {
-          couples.push([p]);
-          processedParents.add(p.id);
-        }
-      }
-    });
-
-    const initialBranches = couples.map(parents => {
-      const parentIds = parents.map(p => p.id);
-      const children = people.filter(p => {
-        const myParents = getParents(p.id);
-        if (myParents.some(pid => parentIds.includes(pid))) return true;
-        const mySiblings = relationships
-          .filter(r => (r.person_id === p.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
-                       (r.related_person_id === p.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())))
-          .map(r => r.person_id === p.id ? r.related_person_id : r.person_id);
-        return mySiblings.some(sibId => getParents(sibId).some(pid => parentIds.includes(pid)));
+      // Find all other parents of these children
+      const coParents = people.filter(other => {
+        if (other.id === p.id) return false;
+        const otherChildren = getChildren(other.id);
+        return childrenIds.some(cid => otherChildren.includes(cid));
       });
 
-      return {
-        id: parents.map(p => p.id).join('-'),
-        parents,
-        children: children.sort((a, b) => (a.birthYear || '').localeCompare(b.birthYear || ''))
-      };
-    }).filter(b => b.parents.length > 0);
+      const parentGroup = [p, ...coParents].sort((a, b) => a.id.localeCompare(b.id));
+      const unitKey = parentGroup.map(pg => pg.id).join('|');
 
-    // Reorder parents within branches to put siblings closer to each other
-    return initialBranches.map((branch, idx) => {
-      const isLeft = idx % 2 === 0;
-      const otherBranchIdx = isLeft ? idx + 1 : idx - 1;
-      const otherBranch = initialBranches[otherBranchIdx];
-
-      if (!otherBranch) return branch;
-
-      const siblingInThisBranch = branch.parents.find(p => 
-        otherBranch.parents.some(otherP => 
-          relationships.some(r => 
-            (r.person_id === p.id && r.related_person_id === otherP.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
-            (r.person_id === otherP.id && r.related_person_id === p.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
-          )
-        )
-      );
-
-      if (siblingInThisBranch && branch.parents.length === 2) {
-        const otherParent = branch.parents.find(p => p.id !== siblingInThisBranch.id);
-        const newParents = isLeft 
-          ? [otherParent, siblingInThisBranch] 
-          : [siblingInThisBranch, otherParent];
-        return { ...branch, parents: newParents };
+      if (!units.has(unitKey)) {
+        units.set(unitKey, {
+          parents: parentGroup,
+          children: people.filter(child => childrenIds.includes(child.id))
+        });
       }
+    });
 
-      return branch;
+    // 2. Convert Map to Array and sort by "depth" (roughly)
+    // We want units with parents who are children of other units to appear lower
+    return Array.from(units.values()).sort((a, b) => {
+      const aParentsAreChildren = a.parents.some(p => getParents(p.id).length > 0);
+      const bParentsAreChildren = b.parents.some(p => getParents(p.id).length > 0);
+      if (aParentsAreChildren && !bParentsAreChildren) return 1;
+      if (!aParentsAreChildren && bParentsAreChildren) return -1;
+      return 0;
     });
   }, [people, me, relationships]);
-
-  // Identify sibling links between branches
-  const siblingLinks = useMemo(() => {
-    const links: { from: string; to: string }[] = [];
-    for (let i = 0; i < branches.length; i++) {
-      for (let j = i + 1; j < branches.length; j++) {
-        const branchA = branches[i];
-        const branchB = branches[j];
-        
-        const hasSiblingLink = branchA.parents.some(pA => 
-          branchB.parents.some(pB => 
-            relationships.some(r => 
-              (r.person_id === pA.id && r.related_person_id === pB.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
-              (r.person_id === pB.id && r.related_person_id === pA.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
-            )
-          )
-        );
-
-        if (hasSiblingLink) {
-          links.push({ from: branchA.id, to: branchB.id });
-        }
-      }
-    }
-    return links;
-  }, [branches, relationships]);
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the branches...</div>;
 
@@ -214,21 +110,18 @@ const FamilyTree = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-8 py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-24 gap-y-32 relative">
-          {/* Sibling Bridges */}
-          <div className="absolute inset-0 pointer-events-none hidden lg:block">
-            {siblingLinks.map((link, idx) => (
-              <div key={idx} className="absolute top-24 left-1/2 -translate-x-1/2 w-24 border-t-2 border-dashed border-stone-200 flex items-center justify-center">
-                <div className="bg-[#FDFCF9] px-2 -mt-3">
-                  <span className="text-[8px] font-bold text-stone-300 uppercase tracking-widest">Siblings</span>
-                </div>
+      <main className="max-w-5xl mx-auto px-8 py-16 space-y-24">
+        {branches.map((branch, bIdx) => (
+          <div key={bIdx} className="relative">
+            {/* Generation Link (Line from previous branch if applicable) */}
+            {bIdx > 0 && (
+              <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                <div className="h-24 w-px bg-gradient-to-b from-stone-100 to-stone-300" />
+                <div className="w-2 h-2 rounded-full bg-stone-300 -mt-1" />
               </div>
-            ))}
-          </div>
+            )}
 
-          {branches.map((branch, bIdx) => (
-            <div key={branch.id} className="space-y-12 relative">
+            <div className="space-y-12">
               {/* Parent Unit */}
               <div className="flex justify-center">
                 <div className={cn(
@@ -268,44 +161,40 @@ const FamilyTree = () => {
                 </div>
               </div>
 
-              {/* Connector Line */}
-              {branch.children.length > 0 && (
-                <div className="flex flex-col items-center -my-6">
-                  <div className="h-12 w-px bg-stone-200" />
-                  <ChevronDown className="w-4 h-4 text-stone-300 -mt-1" />
-                </div>
-              )}
+              {/* Connector Line to Children */}
+              <div className="flex flex-col items-center -my-6">
+                <div className="h-12 w-px bg-stone-200" />
+                <ChevronDown className="w-4 h-4 text-stone-300 -mt-1" />
+              </div>
 
               {/* Children Unit */}
-              {branch.children.length > 0 && (
-                <div className="flex flex-wrap justify-center gap-6 md:gap-10">
-                  {branch.children.map((child: any) => (
-                    <div 
-                      key={child.id}
-                      onClick={() => navigate(getPersonUrl(child.id, child.name))}
-                      className="group relative flex flex-col items-center space-y-3 cursor-pointer animate-in fade-in slide-in-from-bottom-4 duration-700"
-                    >
-                      <QuickAddMenu personId={child.id} personName={child.name} />
-                      <div className="h-16 w-16 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-md ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
-                        {child.photoUrl ? (
-                          <img src={child.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0" />
-                        ) : (
-                          <div className="w-full h-full bg-stone-50 flex items-center justify-center text-stone-300">
-                            <UserCircle className="w-8 h-8" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-center">
-                        <h3 className="font-serif font-bold text-stone-800 text-xs md:text-sm">{child.name.split(' ')[0]}</h3>
-                        <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{getRelationshipLabel(child)}</p>
-                      </div>
+              <div className="flex flex-wrap justify-center gap-6 md:gap-10">
+                {branch.children.map((child: any) => (
+                  <div 
+                    key={child.id}
+                    onClick={() => navigate(getPersonUrl(child.id, child.name))}
+                    className="group relative flex flex-col items-center space-y-3 cursor-pointer animate-in fade-in slide-in-from-bottom-4 duration-700"
+                  >
+                    <QuickAddMenu personId={child.id} personName={child.name} />
+                    <div className="h-16 w-16 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-md ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
+                      {child.photoUrl ? (
+                        <img src={child.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0" />
+                      ) : (
+                        <div className="w-full h-full bg-stone-50 flex items-center justify-center text-stone-300">
+                          <UserCircle className="w-8 h-8" />
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div className="text-center">
+                      <h3 className="font-serif font-bold text-stone-800 text-xs md:text-sm">{child.name.split(' ')[0]}</h3>
+                      <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{getRelationshipLabel(child)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </main>
     </div>
   );
