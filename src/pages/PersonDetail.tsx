@@ -12,25 +12,24 @@ import ConnectionSuggestionDialog from '../components/ConnectionSuggestionDialog
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { parsePersonId, getPersonUrl } from '@/lib/slugify';
+import { parsePersonIdFromSlug, getPersonUrl } from '@/lib/slugify';
 
 const PersonDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { people, user, relationships, updatePerson, loading } = useFamily();
   
-  const id = useMemo(() => {
-    const parsed = parsePersonId(slug);
-    console.log("[PersonDetail] Route slug:", slug, "-> Parsed ID:", parsed);
-    return parsed;
+  const shortId = useMemo(() => {
+    return parsePersonIdFromSlug(slug);
   }, [slug]);
 
   const person = useMemo(() => {
-    if (!id || loading) return null;
-    const found = people.find(p => p.id === id);
-    console.log("[PersonDetail] Searching for person with ID:", id, found ? "Found: " + found.name : "Not found");
+    if (!shortId || loading) return null;
+    // Find the person whose ID starts with our short identifier
+    const found = people.find(p => p.id.startsWith(shortId));
+    console.log("[PersonDetail] Searching for person with short ID:", shortId, found ? "Found: " + found.name : "Not found");
     return found;
-  }, [id, people, loading]);
+  }, [shortId, people, loading]);
 
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
   const [droppedImage, setDroppedImage] = useState<string | null>(null);

@@ -9,16 +9,19 @@ export const slugify = (text: string) => {
 };
 
 export const getPersonUrl = (id: string, name: string) => {
-  const slug = slugify(name);
-  const url = `/person/${id}-${slug}`;
-  console.log(`[slugify] Generated URL for ${name}:`, url);
+  // Use only the first name for a much shorter, cleaner URL
+  const firstName = name.split(' ')[0];
+  const nameSlug = slugify(firstName);
+  const shortId = id.substring(0, 8);
+  const url = `/person/${shortId}-${nameSlug}`;
+  console.log(`[slugify] Generated short URL for ${name}:`, url);
   return url;
 };
 
-export const parsePersonId = (slug: string | undefined) => {
+export const parsePersonIdFromSlug = (slug: string | undefined) => {
   if (!slug) return null;
-  // Extract UUID (first 36 chars)
-  const id = slug.substring(0, 36);
-  console.log(`[slugify] Parsed ID from slug "${slug}":`, id);
-  return id;
+  // Extract the short ID (first 8 chars)
+  const shortId = slug.split('-')[0];
+  console.log(`[slugify] Parsed short ID from slug "${slug}":`, shortId);
+  return shortId;
 };
