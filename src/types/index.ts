@@ -9,7 +9,12 @@ export interface Profile {
   id: string;
   first_name: string;
   last_name: string;
+  middle_name?: string;
   avatar_url?: string;
+  birth_date?: string;
+  birth_place?: string;
+  bio?: string;
+  onboarding_completed?: boolean;
 }
 
 export interface Memory {
@@ -23,7 +28,7 @@ export interface Memory {
   voiceUrl?: string;
   imageUrl?: string;
   authorName?: string;
-  reactions?: Record<string, number>; // e.g., { '❤️': 5, '🕯️': 2 }
+  reactions?: Record<string, number>;
 }
 
 export interface Suggestion {
@@ -47,6 +52,7 @@ export interface Person {
   photoUrl?: string;
   createdByEmail: string;
   memories: Memory[];
+  userId?: string;
 }
 
 export interface StoryPrompt {
