@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
@@ -17,25 +19,20 @@ import {
   Users,
   Check,
   Loader2,
-  ChevronsUpDown
+  ChevronsUpDown,
+  UserPlus,
+  Search
 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-const COMMON_PLACES = [
-  "London, UK",
-  "New York, USA",
-  "Dublin, Ireland",
-  "Sicily, Italy",
-  "Paris, France",
-  "Berlin, Germany",
-  "Rome, Italy",
-  "Madrid, Spain",
-  "Sydney, Australia",
-  "Toronto, Canada",
-  "Brooklyn, NY",
-  "Chicago, IL"
+const RELATIONSHIP_TYPES = [
+  { label: "Parent", value: "parent" },
+  { label: "Sibling", value: "sibling" },
+  { label: "Grandparent", value: "grandparent" },
+  { label: "Child", value: "child" },
+  { label: "Spouse", value: "spouse" }
 ];
 
 const Onboarding = () => {
@@ -43,48 +40,33 @@ const Onboarding = () => {
   const { user, people, profiles, loading: contextLoading } = useFamily();
   const [step, setStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
-  const [placePopoverOpen, setPlacePopoverOpen] = useState(false);
   
   // Form State
   const [formData, setFormData] = useState({
     firstName: '',
-    middleName: '',
     lastName: '',
     birthDate: '',
     birthPlace: '',
     bio: '',
-    relatedTo: [] as string[]
+    claimedPersonId: null as string | null,
+    newRelatives: [] as { name: string, type: string }[]
   });
 
-  // Pre-fill data if it exists
-  useEffect(() => {
-    if (user && profiles[user.id]) {
-      const profile = profiles[user.id];
-      const person = people.find(p => p.userId === user.id);
-      
-      setFormData({
-        firstName: profile.first_name || '',
-        middleName: profile.middle_name || '',
-        lastName: profile.last_name || '',
-        birthDate: profile.birth_date || '',
-        birthPlace: profile.birth_place || '',
-        bio: profile.bio || person?.vibeSentence || '',
-        relatedTo: [] 
-      });
-    }
-  }, [user, profiles, people]);
+  const [relativeName, setRelativeName] = useState('');
+  const [relativeType, setRelativeType] = useState('parent');
 
   const updateField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const toggleRelation = (personId: string) => {
+  const addRelative = () => {
+    if (!relativeName) return;
     setFormData(prev => ({
       ...prev,
-      relatedTo: prev.relatedTo.includes(personId) 
-        ? prev.relatedTo.filter(id => id !== personId)
-        : [...prev.relatedTo, personId].slice(0, 2)
+      newRelatives: [...prev.newRelatives, { name: relativeName, type: relativeType }]
     }));
+    setRelativeName('');
+    toast.success(`Added ${relativeName} to your list.`);
   };
 
   const handleComplete = async () => {
@@ -98,7 +80,6 @@ const Onboarding = () => {
         .upsert({
           id: user.id,
           first_name: formData.firstName,
-          middle_name: formData.middleName,
           last_name: formData.lastName,
           birth_date: formData.birthDate || null,
           birth_place: formData.birthPlace,
@@ -109,36 +90,63 @@ const Onboarding = () => {
 
       if (profileError) throw profileError;
 
-      // 2. Create/Update Person record for the user
-      const fullName = [formData.firstName, formData.middleName, formData.lastName].filter(Boolean).join(' ');
-      const { data: personData, error: personError } = await supabase
-        .from('people')
-        .upsert({
-          user_id: user.id,
-          name: fullName || user.email?.split('@')[0],
-          birth_year: formData.birthDate ? formData.birthDate.split('-')[0] : '',
-          birth_place: formData.birthPlace,
-          vibe_sentence: formData.bio || "A member of the family archive.",
-          personality_tags: ["✨ Family Member"],
-          created_by_email: user.email,
-        }, { onConflict: 'user_id' })
-        .select()
-        .single();
+      // 2. Handle Person Record (Claim or Create)
+      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+      let myPersonId = formData.claimedPersonId;
 
-      if (personError) throw personError;
-
-      // 3. Create Relationships
-      if (formData.relatedTo.length > 0 && personData) {
-        const relations = formData.relatedTo.map(relatedId => ({
-          person_id: personData.id,
-          related_person_id: relatedId,
-          relationship_type: 'family'
-        }));
-
-        await supabase.from('relationships').insert(relations);
+      if (myPersonId) {
+        // Claim existing
+        await supabase
+          .from('people')
+          .update({ 
+            user_id: user.id,
+            name: fullName,
+            birth_year: formData.birthDate ? formData.birthDate.split('-')[0] : undefined,
+            birth_place: formData.birthPlace
+          })
+          .eq('id', myPersonId);
+      } else {
+        // Create new
+        const { data: newPerson, error: pErr } = await supabase
+          .from('people')
+          .insert({
+            user_id: user.id,
+            name: fullName,
+            birth_year: formData.birthDate ? formData.birthDate.split('-')[0] : '',
+            birth_place: formData.birthPlace,
+            vibe_sentence: formData.bio || "A member of the family archive.",
+            personality_tags: ["✨ Family Member"],
+            created_by_email: user.email,
+          })
+          .select()
+          .single();
+        if (pErr) throw pErr;
+        myPersonId = newPerson.id;
       }
 
-      toast.success("Profile updated successfully!");
+      // 3. Add New Relatives
+      for (const rel of formData.newRelatives) {
+        const { data: relPerson, error: relErr } = await supabase
+          .from('people')
+          .insert({
+            name: rel.name,
+            vibe_sentence: `A beloved ${rel.type} in our family.`,
+            personality_tags: [rel.type],
+            created_by_email: user.email
+          })
+          .select()
+          .single();
+
+        if (!relErr && relPerson && myPersonId) {
+          await supabase.from('relationships').insert({
+            person_id: myPersonId,
+            related_person_id: relPerson.id,
+            relationship_type: rel.type
+          });
+        }
+      }
+
+      toast.success("Welcome to the family archive!");
       navigate('/');
     } catch (error: any) {
       toast.error("Something went wrong: " + error.message);
@@ -149,52 +157,58 @@ const Onboarding = () => {
 
   if (contextLoading) return null;
 
-  const steps = [
-    { title: "Your Identity", description: "How should the family address you?", icon: <User className="w-6 h-6" /> },
-    { title: "Your Roots", description: "Where and when did your story begin?", icon: <Calendar className="w-6 h-6" /> },
-    { title: "Connections", description: "Who are you closest to in this archive?", icon: <Users className="w-6 h-6" /> }
-  ];
+  const unclaimedPeople = people.filter(p => !p.userId);
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] flex flex-col items-center justify-center p-6">
       <div className="max-w-xl w-full space-y-12">
-        <div className="flex items-center justify-between px-2">
-          {steps.map((s, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div className={cn(
-                "h-10 w-10 rounded-full flex items-center justify-center transition-all duration-500",
-                step > i + 1 ? "bg-amber-600 text-white" : 
-                step === i + 1 ? "bg-stone-800 text-white shadow-lg scale-110" : 
-                "bg-stone-100 text-stone-400"
-              )}>
-                {step > i + 1 ? <Check className="w-5 h-5" /> : s.icon}
-              </div>
-              {i < steps.length - 1 && (
-                <div className={cn("h-[2px] w-12 rounded-full", step > i + 1 ? "bg-amber-200" : "bg-stone-100")} />
-              )}
-            </div>
-          ))}
-        </div>
-
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-serif font-medium text-stone-800">{steps[step-1].title}</h1>
-          <p className="text-stone-500 italic text-lg">{steps[step-1].description}</p>
+          <div className="h-16 w-16 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 mx-auto mb-6">
+            <Heart className="w-8 h-8 fill-current" />
+          </div>
+          <h1 className="text-4xl font-serif font-medium text-stone-800">
+            {step === 1 ? "Who are you?" : step === 2 ? "Your Roots" : "Your Connections"}
+          </h1>
+          <p className="text-stone-500 italic text-lg">
+            {step === 1 ? "Let's find your place in the archive." : step === 2 ? "Tell us a bit about your beginning." : "Who else should be in our storybook?"}
+          </p>
         </div>
 
-        <div className="bg-white p-10 rounded-[3rem] shadow-sm border border-stone-100 min-h-[400px] flex flex-col">
+        <div className="bg-white p-10 rounded-[3rem] shadow-sm border border-stone-100 min-h-[450px] flex flex-col">
           {step === 1 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-widest text-stone-400">First Name</label>
-                <Input value={formData.firstName} onChange={(e) => updateField('firstName', e.target.value)} placeholder="e.g. Elizabeth" className="h-14 bg-stone-50 border-none rounded-2xl text-lg focus-visible:ring-amber-500/20" />
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="space-y-4">
+                <p className="text-sm text-stone-400 uppercase tracking-widest font-bold">Search for yourself</p>
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-300" />
+                  <Input 
+                    placeholder="Has someone already added you?" 
+                    className="h-14 pl-12 bg-stone-50 border-none rounded-2xl text-lg"
+                    onChange={(e) => {
+                      const found = unclaimedPeople.find(p => p.name.toLowerCase() === e.target.value.toLowerCase());
+                      if (found) {
+                        updateField('claimedPersonId', found.id);
+                        const names = found.name.split(' ');
+                        updateField('firstName', names[0]);
+                        updateField('lastName', names.slice(1).join(' '));
+                        toast.success(`Found you! We've linked your profile to ${found.name}.`);
+                      }
+                    }}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-widest text-stone-400">Middle Name(s)</label>
-                <Input value={formData.middleName} onChange={(e) => updateField('middleName', e.target.value)} placeholder="e.g. Rose" className="h-14 bg-stone-50 border-none rounded-2xl text-lg focus-visible:ring-amber-500/20" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-widest text-stone-400">Last Name</label>
-                <Input value={formData.lastName} onChange={(e) => updateField('lastName', e.target.value)} placeholder="e.g. Bennett" className="h-14 bg-stone-50 border-none rounded-2xl text-lg focus-visible:ring-amber-500/20" />
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-stone-400 uppercase">First Name</label>
+                    <Input value={formData.firstName} onChange={(e) => updateField('firstName', e.target.value)} className="h-14 bg-stone-50 border-none rounded-2xl text-lg" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-stone-400 uppercase">Last Name</label>
+                    <Input value={formData.lastName} onChange={(e) => updateField('lastName', e.target.value)} className="h-14 bg-stone-50 border-none rounded-2xl text-lg" />
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -202,80 +216,53 @@ const Onboarding = () => {
           {step === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-widest text-stone-400">Birth Date</label>
-                <Input type="date" value={formData.birthDate} onChange={(e) => updateField('birthDate', e.target.value)} className="h-14 bg-stone-50 border-none rounded-2xl text-lg focus-visible:ring-amber-500/20" />
+                <label className="text-xs font-bold text-stone-400 uppercase">Birth Date</label>
+                <Input type="date" value={formData.birthDate} onChange={(e) => updateField('birthDate', e.target.value)} className="h-14 bg-stone-50 border-none rounded-2xl text-lg" />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-widest text-stone-400">Birth Place</label>
-                <Popover open={placePopoverOpen} onOpenChange={setPlacePopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={placePopoverOpen}
-                      className="w-full justify-between bg-stone-50 border-none rounded-2xl h-14 text-lg font-normal text-stone-600 hover:bg-stone-100 focus:ring-amber-500/20"
-                    >
-                      {formData.birthPlace || "Select or type..."}
-                      <ChevronsUpDown className="ml-2 h-5 w-5 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0 rounded-2xl border-stone-100 shadow-xl">
-                    <Command className="rounded-2xl">
-                      <CommandInput 
-                        placeholder="Search or type place..." 
-                        value={formData.birthPlace}
-                        onValueChange={(val) => updateField('birthPlace', val)}
-                      />
-                      <CommandList>
-                        <CommandEmpty>No common place found. Keep typing...</CommandEmpty>
-                        <CommandGroup heading="Suggestions">
-                          {COMMON_PLACES.map((place) => (
-                            <CommandItem
-                              key={place}
-                              value={place}
-                              onSelect={() => {
-                                updateField('birthPlace', place);
-                                setPlacePopoverOpen(false);
-                              }}
-                              className="rounded-xl"
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.birthPlace === place ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {place}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <label className="text-xs font-bold text-stone-400 uppercase">Birth Place</label>
+                <Input value={formData.birthPlace} onChange={(e) => updateField('birthPlace', e.target.value)} placeholder="City, Country" className="h-14 bg-stone-50 border-none rounded-2xl text-lg" />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium uppercase tracking-widest text-stone-400">A short bio or "vibe"</label>
-                <Textarea value={formData.bio} onChange={(e) => updateField('bio', e.target.value)} placeholder="e.g. Lover of old books and strong tea..." className="min-h-[120px] bg-stone-50 border-none rounded-2xl text-lg font-serif focus-visible:ring-amber-500/20" />
+                <label className="text-xs font-bold text-stone-400 uppercase">A short bio</label>
+                <Textarea value={formData.bio} onChange={(e) => updateField('bio', e.target.value)} placeholder="Lover of books, keeper of secrets..." className="min-h-[120px] bg-stone-50 border-none rounded-2xl text-lg font-serif" />
               </div>
             </div>
           )}
 
           {step === 3 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-              <p className="text-stone-400 text-sm text-center">Select up to 2 people you are related to.</p>
-              <div className="grid grid-cols-1 gap-3 max-h-[300px] overflow-y-auto pr-2">
-                {people.filter(p => p.userId !== user?.id).map(p => (
-                  <button key={p.id} onClick={() => toggleRelation(p.id)} className={cn("flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left", formData.relatedTo.includes(p.id) ? "border-amber-500 bg-amber-50" : "border-stone-50 bg-stone-50 hover:border-stone-200")}>
-                    <div className="h-10 w-10 rounded-full overflow-hidden bg-stone-200 shrink-0">
-                      {p.photoUrl && <img src={p.photoUrl} className="w-full h-full object-cover" />}
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="space-y-4">
+                <p className="text-sm text-stone-400 font-medium">Add relatives who aren't here yet:</p>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="Relative's Name" 
+                    value={relativeName}
+                    onChange={(e) => setRelativeName(e.target.value)}
+                    className="h-14 bg-stone-50 border-none rounded-2xl flex-1"
+                  />
+                  <select 
+                    value={relativeType}
+                    onChange={(e) => setRelativeType(e.target.value)}
+                    className="h-14 bg-stone-50 border-none rounded-2xl px-4 text-stone-600 outline-none"
+                  >
+                    {RELATIONSHIP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                  <Button onClick={addRelative} className="h-14 w-14 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white">
+                    <UserPlus className="w-6 h-6" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2">
+                {formData.newRelatives.map((rel, i) => (
+                  <div key={i} className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl border border-stone-100">
+                    <div>
+                      <p className="font-medium text-stone-800">{rel.name}</p>
+                      <p className="text-xs text-stone-400 uppercase tracking-widest">{rel.type}</p>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-stone-800">{p.name}</p>
-                      <p className="text-xs text-stone-400">{p.birthYear}</p>
-                    </div>
-                    {formData.relatedTo.includes(p.id) && <Check className="w-5 h-5 text-amber-600" />}
-                  </button>
+                    <Check className="w-5 h-5 text-green-500" />
+                  </div>
                 ))}
               </div>
             </div>
@@ -289,18 +276,17 @@ const Onboarding = () => {
             )}
             <Button 
               onClick={() => step < 3 ? setStep(s => s + 1) : handleComplete()}
-              disabled={isSaving}
+              disabled={isSaving || (step === 1 && !formData.firstName)}
               className="flex-1 h-14 bg-stone-800 hover:bg-stone-900 text-white rounded-2xl text-lg font-medium group"
             >
               {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                 step < 3 ? (
                   <>Next Step <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" /></>
-                ) : "Save Profile"
+                ) : "Finish & Enter Archive"
               )}
             </Button>
           </div>
         </div>
-        <p className="text-center text-stone-300 text-xs uppercase tracking-widest">All information is optional. You can skip anything.</p>
       </div>
     </div>
   );
