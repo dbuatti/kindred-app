@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Users, Share2, Heart, UserCircle, ChevronDown, Link2 } from 'lucide-react';
+import { ArrowLeft, Share2, Heart, UserCircle, ChevronDown } from 'lucide-react';
 import { getPersonUrl } from '@/lib/slugify';
 import { getInverseRelationship } from '@/lib/relationships';
 import { cn } from '@/lib/utils';
@@ -18,19 +18,73 @@ const FamilyTree = () => {
     return people.find(p => p.userId === user?.id) || people[0];
   }, [people, user]);
 
-  // Helper to get parents of a person
-  const getParents = (personId: string) => {
-    return relationships
-      .filter(r => r.person_id === personId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
-      .map(r => r.related_person_id);
-  };
+  // 1. Calculate Generations (Levels)
+  const generations = useMemo(() => {
+    if (!people.length) return {};
+    
+    const levels: Record<string, number> = {};
+    people.forEach(p => levels[p.id] = 0);
 
-  // Helper to get children of a person
-  const getChildren = (personId: string) => {
-    return relationships
-      .filter(r => r.related_person_id === personId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
-      .map(r => r.person_id);
-  };
+    // Simple relaxation algorithm to settle levels based on relationships
+    // We run it multiple times to ensure deep trees settle correctly
+    for (let i = 0; i < 15; i++) {
+      relationships.forEach(r => {
+        const type = r.relationship_type.toLowerCase();
+        
+        // Parent -> Child link
+        if (['mother', 'father', 'parent'].includes(type)) {
+          // r.related_person_id is parent, r.person_id is child
+          levels[r.person_id] = Math.max(levels[r.person_id], levels[r.related_person_id] + 1);
+        }
+        
+        // Spouse/Sibling links (should be on same level)
+        if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
+          const max = Math.max(levels[r.person_id], levels[r.related_person_id]);
+          levels[r.person_id] = max;
+          levels[r.related_person_id] = max;
+        }
+      });
+    }
+    return levels;
+  }, [people, relationships]);
+
+  // 2. Group people by generation and identify couples
+  const treeData = useMemo(() => {
+    const gens: Record<number, { couples: any[][], singles: any[] }> = {};
+    const processed = new Set();
+
+    // Sort people into generations
+    Object.entries(generations).forEach(([id, level]) => {
+      if (processed.has(id)) return;
+      
+      if (!gens[level]) gens[level] = { couples: [], singles: [] };
+      
+      const person = people.find(p => p.id === id);
+      if (!person) return;
+
+      // Find spouse in the same generation
+      const spouseRel = relationships.find(r => 
+        (r.person_id === id || r.related_person_id === id) && 
+        ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
+      );
+
+      const spouseId = spouseRel ? (spouseRel.person_id === id ? spouseRel.related_person_id : spouseRel.person_id) : null;
+      const spouse = spouseId ? people.find(p => p.id === spouseId) : null;
+
+      if (spouse && generations[spouse.id] === level) {
+        gens[level].couples.push([person, spouse]);
+        processed.add(id);
+        processed.add(spouse.id);
+      } else {
+        gens[level].singles.push(person);
+        processed.add(id);
+      }
+    });
+
+    return Object.entries(gens)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([level, data]) => ({ level: Number(level), ...data }));
+  }, [people, generations, relationships]);
 
   const getRelationshipLabel = (target: any) => {
     if (!me || target.id === me.id) return "You";
@@ -47,47 +101,6 @@ const FamilyTree = () => {
 
     return target.birthYear || "Family Member";
   };
-
-  const branches = useMemo(() => {
-    if (!people.length || !me) return [];
-
-    // 1. Identify all unique "Parent Units"
-    // A unit is defined by a set of parents who share children
-    const units: Map<string, { parents: any[], children: any[] }> = new Map();
-    const processedAsParent = new Set();
-
-    people.forEach(p => {
-      const childrenIds = getChildren(p.id);
-      if (childrenIds.length === 0) return;
-
-      // Find all other parents of these children
-      const coParents = people.filter(other => {
-        if (other.id === p.id) return false;
-        const otherChildren = getChildren(other.id);
-        return childrenIds.some(cid => otherChildren.includes(cid));
-      });
-
-      const parentGroup = [p, ...coParents].sort((a, b) => a.id.localeCompare(b.id));
-      const unitKey = parentGroup.map(pg => pg.id).join('|');
-
-      if (!units.has(unitKey)) {
-        units.set(unitKey, {
-          parents: parentGroup,
-          children: people.filter(child => childrenIds.includes(child.id))
-        });
-      }
-    });
-
-    // 2. Convert Map to Array and sort by "depth" (roughly)
-    // We want units with parents who are children of other units to appear lower
-    return Array.from(units.values()).sort((a, b) => {
-      const aParentsAreChildren = a.parents.some(p => getParents(p.id).length > 0);
-      const bParentsAreChildren = b.parents.some(p => getParents(p.id).length > 0);
-      if (aParentsAreChildren && !bParentsAreChildren) return 1;
-      if (!aParentsAreChildren && bParentsAreChildren) return -1;
-      return 0;
-    });
-  }, [people, me, relationships]);
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the branches...</div>;
 
@@ -110,26 +123,23 @@ const FamilyTree = () => {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-8 py-16 space-y-24">
-        {branches.map((branch, bIdx) => (
-          <div key={bIdx} className="relative">
-            {/* Generation Link (Line from previous branch if applicable) */}
-            {bIdx > 0 && (
+      <main className="max-w-6xl mx-auto px-8 py-16 space-y-24">
+        {treeData.map((gen, gIdx) => (
+          <div key={gen.level} className="relative">
+            {/* Generation Connector Line */}
+            {gIdx > 0 && (
               <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex flex-col items-center">
                 <div className="h-24 w-px bg-gradient-to-b from-stone-100 to-stone-300" />
-                <div className="w-2 h-2 rounded-full bg-stone-300 -mt-1" />
+                <ChevronDown className="w-4 h-4 text-stone-300 -mt-1" />
               </div>
             )}
 
-            <div className="space-y-12">
-              {/* Parent Unit */}
-              <div className="flex justify-center">
-                <div className={cn(
-                  "flex gap-6 md:gap-10 p-8 rounded-[3rem] bg-white shadow-sm border-2 relative transition-all hover:shadow-md",
-                  branch.parents.length > 1 ? "border-amber-100 bg-amber-50/10" : "border-stone-100"
-                )}>
-                  {branch.parents.map((parent: any, pIdx: number) => (
-                    <React.Fragment key={parent.id}>
+            <div className="flex flex-wrap justify-center gap-12">
+              {/* Render Couples */}
+              {gen.couples.map((couple, cIdx) => (
+                <div key={cIdx} className="flex gap-4 p-6 rounded-[3rem] bg-white shadow-sm border-2 border-amber-100 bg-amber-50/10 relative group hover:shadow-md transition-all">
+                  {couple.map((person, pIdx) => (
+                    <React.Fragment key={person.id}>
                       {pIdx > 0 && (
                         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
                           <div className="bg-white p-1.5 rounded-full shadow-sm border border-amber-100">
@@ -138,13 +148,13 @@ const FamilyTree = () => {
                         </div>
                       )}
                       <div 
-                        onClick={() => navigate(getPersonUrl(parent.id, parent.name))}
-                        className="group relative flex flex-col items-center space-y-3 cursor-pointer"
+                        onClick={() => navigate(getPersonUrl(person.id, person.name))}
+                        className="relative flex flex-col items-center space-y-3 cursor-pointer"
                       >
-                        <QuickAddMenu personId={parent.id} personName={parent.name} />
-                        <div className="h-20 w-20 md:h-28 md:w-28 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
-                          {parent.photoUrl ? (
-                            <img src={parent.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0" />
+                        <QuickAddMenu personId={person.id} personName={person.name} />
+                        <div className="h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
+                          {person.photoUrl ? (
+                            <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0" />
                           ) : (
                             <div className="w-full h-full bg-stone-50 flex items-center justify-center text-stone-300">
                               <UserCircle className="w-10 h-10" />
@@ -152,46 +162,38 @@ const FamilyTree = () => {
                           )}
                         </div>
                         <div className="text-center">
-                          <h3 className="font-serif font-bold text-stone-800 text-sm md:text-base">{parent.name.split(' ')[0]}</h3>
-                          <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest">{getRelationshipLabel(parent)}</p>
+                          <h3 className="font-serif font-bold text-stone-800 text-xs md:text-sm">{person.name.split(' ')[0]}</h3>
+                          <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{getRelationshipLabel(person)}</p>
                         </div>
                       </div>
                     </React.Fragment>
                   ))}
                 </div>
-              </div>
+              ))}
 
-              {/* Connector Line to Children */}
-              <div className="flex flex-col items-center -my-6">
-                <div className="h-12 w-px bg-stone-200" />
-                <ChevronDown className="w-4 h-4 text-stone-300 -mt-1" />
-              </div>
-
-              {/* Children Unit */}
-              <div className="flex flex-wrap justify-center gap-6 md:gap-10">
-                {branch.children.map((child: any) => (
-                  <div 
-                    key={child.id}
-                    onClick={() => navigate(getPersonUrl(child.id, child.name))}
-                    className="group relative flex flex-col items-center space-y-3 cursor-pointer animate-in fade-in slide-in-from-bottom-4 duration-700"
-                  >
-                    <QuickAddMenu personId={child.id} personName={child.name} />
-                    <div className="h-16 w-16 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-md ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
-                      {child.photoUrl ? (
-                        <img src={child.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0" />
-                      ) : (
-                        <div className="w-full h-full bg-stone-50 flex items-center justify-center text-stone-300">
-                          <UserCircle className="w-8 h-8" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-center">
-                      <h3 className="font-serif font-bold text-stone-800 text-xs md:text-sm">{child.name.split(' ')[0]}</h3>
-                      <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{getRelationshipLabel(child)}</p>
-                    </div>
+              {/* Render Singles */}
+              {gen.singles.map((person) => (
+                <div 
+                  key={person.id}
+                  onClick={() => navigate(getPersonUrl(person.id, person.name))}
+                  className="group relative flex flex-col items-center space-y-3 cursor-pointer p-6 rounded-[3rem] bg-white shadow-sm border-2 border-stone-100 hover:border-amber-200 transition-all"
+                >
+                  <QuickAddMenu personId={person.id} personName={person.name} />
+                  <div className="h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
+                    {person.photoUrl ? (
+                      <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0" />
+                    ) : (
+                      <div className="w-full h-full bg-stone-50 flex items-center justify-center text-stone-300">
+                        <UserCircle className="w-10 h-10" />
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
+                  <div className="text-center">
+                    <h3 className="font-serif font-bold text-stone-800 text-xs md:text-sm">{person.name.split(' ')[0]}</h3>
+                    <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{getRelationshipLabel(person)}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}
