@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Edit3, Sparkles } from 'lucide-react';
 import { Person } from '../types';
-import { useFamily } from '../context/FamilyContext.tsx';
+import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
 
 interface SuggestionDialogProps {

@@ -7,7 +7,7 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { UserPlus, Sparkles, Heart } from 'lucide-react';
 import { Person } from '../types';
-import { useFamily } from '../context/FamilyContext.tsx';
+import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
 
 interface ConnectionSuggestionDialogProps {

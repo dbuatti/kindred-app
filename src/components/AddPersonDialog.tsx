@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { UserPlus, History, CheckCircle2 } from 'lucide-react';
-import { useFamily } from '../context/FamilyContext.tsx';
+import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
 
 const RELATIONSHIPS = [
