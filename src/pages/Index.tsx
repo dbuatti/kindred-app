@@ -10,18 +10,22 @@ import FamilyJournal from '../components/FamilyJournal';
 import MemoryHighlight from '../components/MemoryHighlight';
 import FamilyInbox from '../components/FamilyInbox';
 import { Input } from '@/components/ui/input';
-import { Search, Share2, ScrollText, X, HelpCircle, UserCircle, Network, Users } from 'lucide-react';
+import { Search, Share2, ScrollText, X, HelpCircle, UserCircle, Network, Users, ShieldCheck } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
 
+const ADMIN_EMAIL = "daniele.buatti@gmail.com";
+
 const Index = () => {
   const navigate = useNavigate();
-  const { people, loading } = useFamily();
+  const { people, loading, user } = useFamily();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('people');
   const searchInputRef = useRef<HTMLInputElement>(null);
   
+  const isAdmin = user?.email === ADMIN_EMAIL;
+
   const filteredPeople = people.filter(p => {
     const nameMatch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
     const memoryMatch = p.memories.some(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -55,6 +59,17 @@ const Index = () => {
               <p className="text-stone-500 text-lg italic">Our Family Storybook</p>
             </div>
             <div className="flex gap-4">
+              {isAdmin && (
+                <button 
+                  onClick={() => navigate('/admin')}
+                  className="flex flex-col items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors"
+                >
+                  <div className="h-12 w-12 rounded-full bg-amber-50 flex items-center justify-center">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Admin</span>
+                </button>
+              )}
               <button 
                 onClick={() => navigate('/tree')}
                 className="flex flex-col items-center gap-1 text-stone-500 hover:text-amber-600 transition-colors"
