@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
@@ -8,12 +8,13 @@ import {
   ArrowLeft, 
   List, 
   Layout, 
-  ZoomIn,
-  ZoomOut,
+  ZoomIn, 
+  ZoomOut, 
   Maximize,
   AlignVerticalSpaceAround,
   GitBranch,
-  Heart
+  Heart,
+  Focus
 } from 'lucide-react';
 import { buildTree } from '@/lib/tree-utils';
 import { OutlineLayout } from '@/components/tree/OutlineLayout';
@@ -31,11 +32,38 @@ const TreeDebug = () => {
   const { people, loading, relationships } = useFamily();
   const [layout, setLayout] = useState<LayoutType>('simple');
   const [zoom, setZoom] = useState(0.8);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   
   const roots = useMemo(() => {
     if (loading) return [];
     return buildTree(people, relationships);
   }, [people, relationships, loading]);
+
+  const centerView = () => {
+    if (scrollContainerRef.current && contentRef.current) {
+      const container = scrollContainerRef.current;
+      const content = contentRef.current;
+      
+      const scrollLeft = (content.scrollWidth - container.clientWidth) / 2;
+      const scrollTop = (content.scrollHeight - container.clientHeight) / 2;
+      
+      container.scrollTo({
+        left: scrollLeft,
+        top: scrollTop,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Center view on initial load and layout change
+  useEffect(() => {
+    if (!loading && roots.length > 0) {
+      // Small timeout to allow the new layout to render before measuring
+      const timer = setTimeout(centerView, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [layout, loading, roots.length]);
 
   if (loading) return <div className="min-h-screen bg-[#FDFCF9] flex items-center justify-center text-stone-400 font-serif italic text-2xl">Opening the archive...</div>;
 
@@ -97,6 +125,14 @@ const TreeDebug = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={centerView}
+            className="rounded-full border-stone-200 text-stone-500 hover:text-amber-600 gap-2 h-10 px-4"
+          >
+            <Focus className="w-4 h-4" /> Center
+          </Button>
           <div className="flex items-center gap-1 bg-stone-50 rounded-full px-2 py-1 border border-stone-100">
             <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => setZoom(z => Math.max(z - 0.1, 0.1))}><ZoomOut className="w-4 h-4" /></Button>
             <span className="text-[10px] font-bold w-10 text-center text-stone-400">{Math.round(zoom * 100)}%</span>
@@ -106,13 +142,17 @@ const TreeDebug = () => {
         </div>
       </div>
 
-      <div className="flex-1 relative overflow-auto custom-scrollbar">
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 relative overflow-auto custom-scrollbar"
+      >
         <motion.div 
+          ref={contentRef}
           animate={{ scale: zoom }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="origin-center inline-block min-w-full min-h-full"
         >
-          <div className="p-[800px]"> {/* Massive padding for panning */}
+          <div className="p-[1000px]"> {/* Large padding for panning */}
             {layout === 'outline' && <OutlineLayout roots={roots} />}
             {layout === 'traditional' && <TraditionalLayout roots={roots} />}
             {layout === 'modern' && <ModernHorizontalLayout roots={roots} />}
