@@ -15,7 +15,7 @@ import { parsePersonId, getPersonUrl } from '@/lib/slugify';
 const PersonDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { people, user, relationships } = useFamily();
+  const { people, user, relationships, updatePerson } = useFamily();
   
   const id = parsePersonId(slug);
   const person = people.find(p => p.id === id);
@@ -23,6 +23,7 @@ const PersonDetail = () => {
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
   const [droppedImage, setDroppedImage] = useState<string | null>(null);
   const [isDraggingOverPage, setIsDraggingOverPage] = useState(false);
+  const [isDraggingOverProfile, setIsDraggingOverProfile] = useState(false);
 
   // Find relatives
   const relatives = useMemo(() => {
@@ -45,7 +46,7 @@ const PersonDetail = () => {
       .filter(Boolean);
   }, [person, relationships, people]);
 
-  const handleFile = useCallback((file: File) => {
+  const handleMemoryFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) {
       toast.error("Please upload an image file.");
       return;
@@ -58,23 +59,60 @@ const PersonDetail = () => {
     reader.readAsDataURL(file);
   }, []);
 
-  const onDragOver = (e: React.DragEvent) => {
+  const handleProfilePhotoUpdate = useCallback((file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file.");
+      return;
+    }
+    if (!person) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      await updatePerson(person.id, { photoUrl: base64 });
+      toast.success("Profile photo updated!");
+    };
+    reader.readAsDataURL(file);
+  }, [person, updatePerson]);
+
+  const onDragOverPage = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggingOverPage(true);
   };
 
-  const onDragLeave = (e: React.DragEvent) => {
+  const onDragLeavePage = (e: React.DragEvent) => {
     e.preventDefault();
     if (e.currentTarget === e.target) {
       setIsDraggingOverPage(false);
     }
   };
 
-  const onDrop = (e: React.DragEvent) => {
+  const onDropPage = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggingOverPage(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
+    if (file) handleMemoryFile(file);
+  };
+
+  const onDragOverProfile = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOverProfile(true);
+  };
+
+  const onDragLeaveProfile = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOverProfile(false);
+  };
+
+  const onDropProfile = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOverProfile(false);
+    setIsDraggingOverPage(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleProfilePhotoUpdate(file);
   };
 
   if (!person) return (
@@ -108,12 +146,12 @@ const PersonDetail = () => {
   return (
     <div 
       className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans pb-32 relative"
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
+      onDragOver={onDragOverPage}
+      onDragLeave={onDragLeavePage}
+      onDrop={onDropPage}
     >
-      {/* Drag Overlay */}
-      {isDraggingOverPage && (
+      {/* Drag Overlay for Memories */}
+      {isDraggingOverPage && !isDraggingOverProfile && (
         <div className="fixed inset-0 z-50 bg-amber-600/20 backdrop-blur-sm flex items-center justify-center pointer-events-none animate-in fade-in duration-300">
           <div className="bg-white p-12 rounded-[4rem] shadow-2xl border-8 border-amber-500 flex flex-col items-center gap-6 scale-110 transition-transform">
             <UploadCloud className="w-24 h-24 text-amber-600 animate-bounce" />
@@ -149,12 +187,30 @@ const PersonDetail = () => {
       {/* Hero Section */}
       <header className="max-w-2xl mx-auto px-6 pt-12 pb-8 space-y-8">
         <div className="flex flex-col items-center text-center space-y-6">
-          <div className="relative w-40 h-40 rounded-full overflow-hidden shadow-xl ring-4 ring-white">
+          <div 
+            className={cn(
+              "relative w-40 h-40 rounded-full overflow-hidden shadow-xl ring-4 transition-all duration-300",
+              isDraggingOverProfile ? "ring-amber-500 scale-110 shadow-amber-200" : "ring-white"
+            )}
+            onDragOver={onDragOverProfile}
+            onDragLeave={onDragLeaveProfile}
+            onDrop={onDropProfile}
+          >
             {person.photoUrl ? (
               <img src={person.photoUrl} alt={person.name} className="w-full h-full object-cover grayscale-[0.2]" />
             ) : (
-              <div className="w-full h-full bg-stone-200 flex items-center justify-center" />
+              <div className="w-full h-full bg-stone-200 flex items-center justify-center">
+                <Camera className="w-10 h-10 text-stone-400" />
+              </div>
             )}
+            {isDraggingOverProfile && (
+              <div className="absolute inset-0 bg-amber-600/40 flex items-center justify-center">
+                <UploadCloud className="w-12 h-12 text-white animate-bounce" />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center group cursor-pointer">
+              <Camera className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
           </div>
           
           <div className="space-y-2">

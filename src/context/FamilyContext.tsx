@@ -19,6 +19,7 @@ interface FamilyContextType {
   loading: boolean;
   user: any;
   addPerson: (person: Partial<Person>) => Promise<void>;
+  updatePerson: (id: string, updates: Partial<Person>) => Promise<void>;
   addMemory: (personId: string, content: string, type: MemoryType) => Promise<void>;
   addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'status'>) => Promise<void>;
   resolveSuggestion: (id: string, status: 'approved' | 'rejected') => Promise<void>;
@@ -162,6 +163,29 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [fetchData, user]);
 
+  const updatePerson = useCallback(async (id: string, updates: Partial<Person>) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('people')
+        .update({
+          name: updates.name,
+          birth_year: updates.birthYear,
+          birth_place: updates.birthPlace,
+          occupation: updates.occupation,
+          vibe_sentence: updates.vibeSentence,
+          personality_tags: updates.personalityTags,
+          photo_url: updates.photoUrl,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      fetchData();
+    } catch (error: any) {
+      toast.error("Failed to update: " + error.message);
+    }
+  }, [fetchData, user]);
+
   const addMemory = useCallback(async (personId: string, content: string, type: MemoryType) => {
     if (!user) return;
     try {
@@ -263,6 +287,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loading,
       user,
       addPerson, 
+      updatePerson,
       addMemory, 
       addSuggestion, 
       resolveSuggestion,
