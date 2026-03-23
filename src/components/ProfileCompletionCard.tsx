@@ -36,19 +36,19 @@ const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
     });
 
     const items = [
-      { label: 'Birth Year', value: person.birthYear, icon: Calendar },
-      { label: 'Birth Place', value: person.birthPlace, icon: MapPin },
-      { label: 'Occupation', value: person.occupation, icon: Briefcase },
-      { label: 'Photo', value: person.photoUrl, icon: Camera },
-      { label: 'Detailed Bio', value: person.vibeSentence && person.vibeSentence.length > 30, icon: Quote },
-      { label: 'Parents', value: hasParents, icon: Users },
+      { id: 'birth_year', label: 'Birth Year', value: person.birthYear, icon: Calendar },
+      { id: 'birth_place', label: 'Birth Place', value: person.birthPlace, icon: MapPin },
+      { id: 'occupation', label: 'Occupation', value: person.occupation, icon: Briefcase },
+      { id: 'gender', label: 'Gender', value: person.gender, icon: User },
+      { id: 'photo_url', label: 'Photo', value: person.photoUrl, icon: Camera },
+      { id: 'vibe_sentence', label: 'Detailed Bio', value: person.vibeSentence && person.vibeSentence.length > 30, icon: Quote },
     ];
 
     const completedCount = items.filter(item => item.value).length;
     const percentage = Math.round((completedCount / items.length) * 100);
     const missing = items.filter(item => !item.value);
 
-    return { percentage, missing, completedCount, total: items.length };
+    return { percentage, missing, completedCount, total: items.length, allItems: items };
   }, [person, relationships]);
 
   if (stats.percentage === 100) return null;
@@ -65,7 +65,7 @@ const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
             <h3 className="text-2xl font-serif font-bold text-stone-800">A Piece of the Puzzle</h3>
           </div>
           <p className="text-stone-500 text-lg leading-relaxed max-w-md">
-            Our archive of <span className="font-bold text-stone-800">{person.name.split(' ')[0]}</span> is <span className="text-amber-700 font-bold">{stats.percentage}%</span> complete. Help us fill in the missing branches of our history.
+            Our archive of <span className="font-bold text-stone-800">{person.name.split(' ')[0]}</span> is <span className="text-amber-700 font-bold">{stats.percentage}%</span> complete. Tap a missing piece to help us fill it in.
           </p>
         </div>
 
@@ -101,25 +101,43 @@ const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-10">
-        {stats.missing.map((item) => (
-          <div 
-            key={item.label}
-            className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-stone-50 border border-stone-100 group hover:bg-amber-50 hover:border-amber-100 transition-all duration-300"
-          >
-            <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-stone-300 group-hover:text-amber-600 shadow-sm transition-colors">
-              <item.icon className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest text-center group-hover:text-amber-700">
-              {item.label}
-            </span>
-          </div>
+        {stats.allItems.map((item) => (
+          <SuggestionDialog 
+            key={item.id}
+            person={person}
+            initialField={item.id}
+            trigger={
+              <button 
+                disabled={!!item.value}
+                className={cn(
+                  "flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all duration-300 group",
+                  item.value 
+                    ? "bg-stone-50 border-stone-100 opacity-50 cursor-default" 
+                    : "bg-white border-stone-200 hover:bg-amber-50 hover:border-amber-200 hover:scale-105 shadow-sm"
+                )}
+              >
+                <div className={cn(
+                  "h-10 w-10 rounded-full flex items-center justify-center shadow-sm transition-colors",
+                  item.value ? "bg-stone-100 text-stone-400" : "bg-stone-50 text-stone-300 group-hover:text-amber-600 group-hover:bg-white"
+                )}>
+                  {item.value ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <item.icon className="w-5 h-5" />}
+                </div>
+                <span className={cn(
+                  "text-[10px] font-bold uppercase tracking-widest text-center",
+                  item.value ? "text-stone-400" : "text-stone-500 group-hover:text-amber-700"
+                )}>
+                  {item.label}
+                </span>
+              </button>
+            }
+          />
         ))}
       </div>
 
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-4 border-t border-stone-50 relative z-10">
         <div className="flex items-center gap-2 text-stone-400 italic">
           <AlertCircle className="w-4 h-4" />
-          <p className="text-sm">Do you remember any of these details?</p>
+          <p className="text-sm">Every detail helps preserve our family history.</p>
         </div>
         <SuggestionDialog 
           person={person} 
