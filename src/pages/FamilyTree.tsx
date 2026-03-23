@@ -1,30 +1,49 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Share2, Heart, UserCircle, Users2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { 
+  ArrowLeft, 
+  Share2, 
+  Heart, 
+  UserCircle, 
+  Users2, 
+  Search, 
+  ZoomIn, 
+  ZoomOut, 
+  Maximize, 
+  X,
+  ChevronRight,
+  Sparkles
+} from 'lucide-react';
 import { getPersonUrl } from '@/lib/slugify';
-import { getInverseRelationship } from '@/lib/relationships';
 import { cn } from '@/lib/utils';
 import QuickAddMenu from '../components/QuickAddMenu';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
   const { people, loading, user, relationships } = useFamily();
+  
+  // State for Zoom/Pan
+  const [zoom, setZoom] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const treeRef = useRef<HTMLDivElement>(null);
 
   const me = useMemo(() => {
     return people.find(p => p.userId === user?.id) || people[0];
   }, [people, user]);
 
-  // 1. Calculate Generational Levels (Multi-pass for stability)
+  // 1. Calculate Generational Levels
   const personLevels = useMemo(() => {
     if (!people.length) return {};
     const levels: Record<string, number> = {};
     people.forEach(p => levels[p.id] = 0);
 
-    // Run multiple passes to propagate levels through the graph
     for (let i = 0; i < 50; i++) {
       let changed = false;
       relationships.forEach(r => {
@@ -33,19 +52,16 @@ const FamilyTree = () => {
         const p2 = r.related_person_id;
 
         if (['mother', 'father', 'parent'].includes(type)) {
-          // p2 is parent of p1
           if (levels[p1] !== levels[p2] + 1) {
             levels[p1] = levels[p2] + 1;
             changed = true;
           }
         } else if (['son', 'daughter', 'child'].includes(type)) {
-          // p2 is child of p1
           if (levels[p2] !== levels[p1] + 1) {
             levels[p2] = levels[p1] + 1;
             changed = true;
           }
         } else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
-          // Same level
           if (levels[p1] !== levels[p2]) {
             const max = Math.max(levels[p1], levels[p2]);
             levels[p1] = max;
@@ -56,11 +72,26 @@ const FamilyTree = () => {
       });
       if (!changed) break;
     }
-
     return levels;
   }, [people, relationships]);
 
-  // 2. Helper: Get all connected peers (spouses/siblings) on the same level
+  const maxLevel = useMemo(() => Math.max(0, ...Object.values(personLevels)), [personLevels]);
+
+  // 2. Search & Focus Logic
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (!query) {
+      setHighlightedId(null);
+      return;
+    }
+    const found = people.find(p => p.name.toLowerCase().includes(query.toLowerCase()));
+    if (found) {
+      setHighlightedId(found.id);
+      // Scroll to person logic could go here if needed
+    }
+  };
+
+  // 3. Helper: Get all connected peers
   const getPeerCluster = (startId: string, level: number, processed: Set<string>) => {
     const cluster: any[] = [];
     const queue = [startId];
@@ -83,39 +114,10 @@ const FamilyTree = () => {
         }
       });
     }
-
-    return sortClusterChain(cluster);
+    return cluster;
   };
 
-  const sortClusterChain = (cluster: any[]) => {
-    if (cluster.length <= 1) return cluster;
-    const sorted: any[] = [];
-    const remaining = new Set(cluster.map(p => p.id));
-    
-    let currentId = cluster.find(p => {
-      const peers = relationships.filter(r => 
-        (r.person_id === p.id || r.related_person_id === p.id) &&
-        ['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()) &&
-        cluster.some(cp => cp.id === (r.person_id === p.id ? r.related_person_id : r.person_id))
-      );
-      return peers.length === 1;
-    })?.id || cluster[0].id;
-
-    while (currentId && remaining.size > 0) {
-      const p = cluster.find(p => p.id === currentId);
-      if (p) { sorted.push(p); remaining.delete(currentId); }
-      const next = relationships.find(r => {
-        const otherId = r.person_id === currentId ? r.related_person_id : r.person_id;
-        return (r.person_id === currentId || r.related_person_id === currentId) &&
-               ['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()) &&
-               remaining.has(otherId);
-      });
-      currentId = next ? (next.person_id === currentId ? next.related_person_id : next.person_id) : Array.from(remaining)[0];
-    }
-    return sorted;
-  };
-
-  // 3. Recursive Component to render a Cluster and its children
+  // 4. Recursive Component
   const ClusterNode = ({ members, level, parentProcessed = new Set() }: { members: any[], level: number, parentProcessed?: Set<string> }) => {
     const parentUnits = useMemo(() => {
       const units: { parents: any[], children: any[] }[] = [];
@@ -154,7 +156,10 @@ const FamilyTree = () => {
 
     return (
       <div className="flex flex-col items-center">
-        <div className="flex items-center gap-4 p-6 rounded-[3.5rem] bg-white/40 border-2 border-stone-50 shadow-sm relative z-10">
+        <div className={cn(
+          "flex items-center gap-4 p-6 rounded-[3.5rem] bg-white/60 backdrop-blur-sm border-2 border-stone-50 shadow-sm relative z-10 transition-all duration-500",
+          members.some(m => m.id === highlightedId) ? "border-amber-400 bg-amber-50/50 shadow-amber-100 scale-105" : ""
+        )}>
           {members.map((person, idx) => {
             const next = members[idx + 1];
             const rel = next ? relationships.find(r => (r.person_id === person.id && r.related_person_id === next.id) || (r.person_id === next.id && r.related_person_id === person.id)) : null;
@@ -166,7 +171,7 @@ const FamilyTree = () => {
                   {relationships.some(r => (r.person_id === person.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) || (r.related_person_id === person.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))) && (
                     <div className="absolute -top-10 w-px h-10 bg-stone-200" />
                   )}
-                  <PersonAvatar person={person} />
+                  <PersonAvatar person={person} isHighlighted={person.id === highlightedId} />
                 </div>
                 {linkType && (
                   <div className="flex flex-col items-center gap-1 px-2">
@@ -214,17 +219,31 @@ const FamilyTree = () => {
     );
   };
 
-  const PersonAvatar = ({ person }: { person: any }) => {
+  const PersonAvatar = ({ person, isHighlighted }: { person: any, isHighlighted?: boolean }) => {
     const label = !me || person.id === me.id ? "You" : (relationships.find(r => (r.person_id === me.id && r.related_person_id === person.id) || (r.person_id === person.id && r.related_person_id === me.id))?.relationship_type || "Family");
     
     return (
       <div onClick={() => navigate(getPersonUrl(person.id, person.name))} className="flex flex-col items-center space-y-3 cursor-pointer group">
         <QuickAddMenu personId={person.id} personName={person.name} />
-        <div className="h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all duration-500">
-          {person.photoUrl ? <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" /> : <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300"><UserCircle className="w-10 h-10" /></div>}
+        <div className={cn(
+          "h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 shadow-lg ring-1 transition-all duration-500",
+          isHighlighted ? "border-amber-500 ring-amber-200 scale-110" : "border-white ring-stone-100 group-hover:ring-amber-400"
+        )}>
+          {person.photoUrl ? (
+            <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" />
+          ) : (
+            <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300">
+              <UserCircle className="w-10 h-10" />
+            </div>
+          )}
         </div>
         <div className="text-center space-y-0.5">
-          <h3 className="font-serif font-bold text-stone-800 text-xs md:text-sm">{person.name.split(' ')[0]}</h3>
+          <h3 className={cn(
+            "font-serif font-bold text-xs md:text-sm transition-colors",
+            isHighlighted ? "text-amber-700" : "text-stone-800"
+          )}>
+            {person.name.split(' ')[0]}
+          </h3>
           <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{label}</p>
         </div>
       </div>
@@ -260,30 +279,113 @@ const FamilyTree = () => {
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the branches...</div>;
 
+  const getLevelLabel = (level: number) => {
+    if (level === 0) return "Elders";
+    if (level === 1) return "Parents";
+    if (level === 2) return "Children";
+    return `Generation ${level + 1}`;
+  };
+
   return (
-    <div className="min-h-screen bg-[#FDFCF9] pb-32 overflow-x-auto flex flex-col">
-      <header className="bg-white/80 backdrop-blur-md border-b border-stone-100 px-8 py-6 sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-[#FDFCF9] flex flex-col overflow-hidden">
+      <header className="bg-white/80 backdrop-blur-md border-b border-stone-100 px-8 py-6 sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full text-stone-500"><ArrowLeft className="w-6 h-6" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full text-stone-500">
+              <ArrowLeft className="w-6 h-6" />
+            </Button>
             <div>
               <h1 className="text-3xl font-serif font-bold text-stone-800">Family Tree</h1>
               <p className="text-stone-400 text-sm uppercase tracking-widest font-medium">Our Living History</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" className="rounded-full border-stone-200 text-stone-600 gap-2"><Share2 className="w-4 h-4" /> Share Tree</Button>
+
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+              <Input 
+                placeholder="Find a relative..." 
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10 h-12 bg-stone-50 border-none rounded-xl text-sm"
+              />
+              {searchQuery && (
+                <button onClick={() => handleSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <Button variant="outline" className="rounded-full border-stone-200 text-stone-600 gap-2 hidden md:flex">
+              <Share2 className="w-4 h-4" /> Share Tree
+            </Button>
           </div>
         </div>
       </header>
 
-      <main className="p-20 flex-1 flex flex-col items-center justify-start min-w-max">
-        <div className="flex flex-col items-center gap-24">
-          {rootClusters.map((cluster, idx) => (
-            <ClusterNode key={idx} members={cluster} level={personLevels[cluster[0].id]} />
+      <div className="flex-1 relative overflow-hidden bg-stone-50/30">
+        {/* Generational Landmarks Sidebar */}
+        <div className="absolute left-0 top-0 bottom-0 w-32 border-r border-stone-100/50 bg-white/20 backdrop-blur-sm z-20 hidden lg:flex flex-col items-center py-20 gap-48">
+          {Array.from({ length: maxLevel + 1 }).map((_, i) => (
+            <div key={i} className="flex flex-col items-center gap-2">
+              <div className="h-px w-8 bg-stone-200" />
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.3em] vertical-text">
+                {getLevelLabel(i)}
+              </span>
+            </div>
           ))}
         </div>
-      </main>
+
+        {/* Zoom Controls */}
+        <div className="absolute bottom-8 left-8 z-30 flex flex-col gap-2">
+          <Button 
+            size="icon" 
+            variant="secondary" 
+            onClick={() => setZoom(z => Math.min(z + 0.1, 2))}
+            className="h-12 w-12 rounded-full bg-white shadow-lg border border-stone-100"
+          >
+            <ZoomIn className="w-5 h-5" />
+          </Button>
+          <Button 
+            size="icon" 
+            variant="secondary" 
+            onClick={() => setZoom(z => Math.max(z - 0.1, 0.5))}
+            className="h-12 w-12 rounded-full bg-white shadow-lg border border-stone-100"
+          >
+            <ZoomOut className="w-5 h-5" />
+          </Button>
+          <Button 
+            size="icon" 
+            variant="secondary" 
+            onClick={() => setZoom(1)}
+            className="h-12 w-12 rounded-full bg-white shadow-lg border border-stone-100"
+          >
+            <Maximize className="w-5 h-5" />
+          </Button>
+        </div>
+
+        {/* Main Tree Area */}
+        <div 
+          className="w-full h-full overflow-auto p-20 cursor-grab active:cursor-grabbing"
+          ref={treeRef}
+        >
+          <motion.div 
+            animate={{ scale: zoom }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="flex flex-col items-center gap-32 min-w-max origin-top"
+          >
+            {rootClusters.map((cluster, idx) => (
+              <ClusterNode key={idx} members={cluster} level={personLevels[cluster[0].id]} />
+            ))}
+          </motion.div>
+        </div>
+      </div>
+
+      <style>{`
+        .vertical-text {
+          writing-mode: vertical-rl;
+          text-orientation: mixed;
+        }
+      `}</style>
     </div>
   );
 };
