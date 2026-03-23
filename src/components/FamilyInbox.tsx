@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Sparkles, Check, X } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext';
@@ -29,6 +29,9 @@ const FamilyInbox = () => {
       <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none bg-stone-50 p-8">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl text-stone-800">Family Inbox</DialogTitle>
+          <DialogDescription className="text-stone-500">
+            Review and approve suggestions from other family members.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
           {pending.map(s => {

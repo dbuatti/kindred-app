@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -28,7 +28,7 @@ const AddPersonDialog = () => {
       name,
       relationshipType: relationship,
       vibeSentence: `A beloved ${relationship.toLowerCase()} in our family.`,
-      personalityTags: [relationship],
+      personality_tags: [relationship],
       photoUrl: "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&q=80&w=400"
     });
 
@@ -56,6 +56,9 @@ const AddPersonDialog = () => {
               Add to Family
             </DialogTitle>
           </div>
+          <DialogDescription className="text-stone-500">
+            Enter the details of the family member you'd like to add to the archive.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-8 py-6">

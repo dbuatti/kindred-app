@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -47,6 +47,9 @@ const SuggestionDialog = ({ person }: SuggestionDialogProps) => {
             <Sparkles className="w-5 h-5 text-amber-500" />
             Help us get it right
           </DialogTitle>
+          <DialogDescription className="text-stone-500">
+            Suggest a correction or additional detail for {person.name.split(' ')[0]}.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6 py-4">

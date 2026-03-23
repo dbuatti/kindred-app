@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -55,6 +55,9 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
             <Sparkles className="w-6 h-6 text-amber-500" />
             Grow the Tree
           </DialogTitle>
+          <DialogDescription className="text-stone-500">
+            Suggest a new family connection for {person.name.split(' ')[0]}.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-8 py-6">

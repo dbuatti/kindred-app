@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { User, Settings, LogOut, ShieldCheck, Edit3 } from 'lucide-react';
@@ -69,6 +69,9 @@ const ProfileDialog = () => {
           <DialogTitle className="font-serif text-3xl text-stone-800 text-center">
             Your Profile
           </DialogTitle>
+          <DialogDescription className="text-center text-stone-500">
+            Manage your personal information and account settings.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6 py-4">

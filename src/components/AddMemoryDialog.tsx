@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Mic, Camera, X, Loader2, CheckCircle2, UploadCloud } from 'lucide-react';
@@ -113,9 +113,12 @@ const AddMemoryDialog = ({
         onDrop={onDrop}
       >
         <DialogHeader>
-          <DialogTitle className="text-2xl text-stone-800 text-center mb-4">
+          <DialogTitle className="text-2xl text-stone-800 text-center mb-2">
             {initialContent ? "Share your memory" : `Tell a story about ${personName.split(' ')[0]}`}
           </DialogTitle>
+          <DialogDescription className="text-center text-stone-500">
+            Use your voice or type to share a memory with the family.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-8 py-2">
