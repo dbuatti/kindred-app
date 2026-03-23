@@ -19,7 +19,7 @@ interface ClusterNodeProps {
   debugMode?: boolean;
   onSelect: (id: string) => void;
   getPeerCluster: (id: string, level: number, processed: Set<string>) => any[];
-  globalProcessed?: Set<string>; // Track everyone rendered so far
+  globalProcessed?: Set<string>;
 }
 
 const ClusterNode = ({ 
@@ -38,10 +38,7 @@ const ClusterNode = ({
   globalProcessed = new Set() 
 }: ClusterNodeProps) => {
   
-  // Filter out members who have already been rendered elsewhere in the tree
   const uniqueMembers = members.filter(m => !globalProcessed.has(m.id));
-  
-  // Mark these members as processed immediately
   uniqueMembers.forEach(m => globalProcessed.add(m.id));
 
   const parentUnits = useMemo(() => {
@@ -51,7 +48,6 @@ const ClusterNode = ({
     uniqueMembers.forEach(m => {
       if (processedInThisCluster.has(m.id)) return;
 
-      // Find spouse within the same cluster
       const spouseRel = relationships.find(r => 
         (r.person_id === m.id || r.related_person_id === m.id) &&
         ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
@@ -63,15 +59,14 @@ const ClusterNode = ({
       const unitParents = spouse ? [m, spouse] : [m];
       unitParents.forEach(p => processedInThisCluster.add(p.id));
 
-      // Find all children of these parents
       const childIds = new Set<string>();
       unitParents.forEach(p => {
         relationships.forEach(r => {
           const type = r.relationship_type.toLowerCase();
-          // p is parent of someone
-          if (['mother', 'father', 'parent'].includes(type) && r.person_id === p.id) childIds.add(r.related_person_id);
-          // someone is child of p
-          if (['son', 'daughter', 'child'].includes(type) && r.related_person_id === p.id) childIds.add(r.person_id);
+          // p has a child r.related_person_id
+          if (['son', 'daughter', 'child'].includes(type) && r.person_id === p.id) childIds.add(r.related_person_id);
+          // r.person_id has a parent p
+          if (['mother', 'father', 'parent'].includes(type) && r.related_person_id === p.id) childIds.add(r.person_id);
         });
       });
 
@@ -110,10 +105,10 @@ const ClusterNode = ({
           return (
             <React.Fragment key={person.id}>
               <div className="relative flex flex-col items-center">
-                {/* Vertical line to parents */}
+                {/* Vertical line UP to parents */}
                 {relationships.some(r => 
-                  (r.related_person_id === person.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) || 
-                  (r.person_id === person.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
+                  (r.person_id === person.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) || 
+                  (r.related_person_id === person.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
                 ) && (
                   <div className={cn(
                     "absolute -top-10 w-px h-10 transition-colors duration-500",
@@ -164,9 +159,8 @@ const ClusterNode = ({
             const childClusters: any[][] = [];
             
             unit.children.forEach(c => {
-              // Only process children who haven't been rendered yet
               if (!globalProcessed.has(c.id)) {
-                const cluster = getPeerCluster(c.id, level + 1, new Set()); // Temporary set for peer finding
+                const cluster = getPeerCluster(c.id, level + 1, new Set());
                 if (cluster.length > 0) {
                   childClusters.push(cluster);
                 }
@@ -179,6 +173,7 @@ const ClusterNode = ({
 
             return (
               <div key={uIdx} className="flex flex-col items-center relative">
+                {/* Vertical line DOWN from parents */}
                 <div className={cn(
                   "w-px h-10 transition-colors duration-500",
                   isUnitInLineage ? "bg-amber-400 w-0.5" : "bg-stone-200"
