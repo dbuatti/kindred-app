@@ -4,9 +4,10 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Users, Share2, Network } from 'lucide-react';
+import { ArrowLeft, Users, Share2, Heart, UserCircle } from 'lucide-react';
 import { getPersonUrl } from '@/lib/slugify';
 import { getInverseRelationship } from '@/lib/relationships';
+import { cn } from '@/lib/utils';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
@@ -16,11 +17,9 @@ const FamilyTree = () => {
     return people.find(p => p.userId === user?.id) || people[0];
   }, [people, user]);
 
-  // Helper to find relationship between two people (direct or indirect)
   const getRelationshipLabel = (target: any) => {
     if (!me || target.id === me.id) return "You";
     
-    // 1. Check direct relationship
     const directRel = relationships.find(r => 
       (r.person_id === me.id && r.related_person_id === target.id) ||
       (r.person_id === target.id && r.related_person_id === me.id)
@@ -31,15 +30,12 @@ const FamilyTree = () => {
       return getInverseRelationship(directRel.relationship_type, target.gender);
     }
 
-    // 2. Check indirect (Uncle/Aunt/Cousin)
-    // Find my parents
     const myParents = relationships
       .filter(r => (r.person_id === me.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) ||
                    (r.related_person_id === me.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase())))
       .map(r => r.person_id === me.id ? r.related_person_id : r.person_id);
 
     for (const parentId of myParents) {
-      // Is target a sibling of my parent? (Uncle/Aunt)
       const isParentSibling = relationships.some(r => 
         (r.person_id === parentId && r.related_person_id === target.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
         (r.person_id === target.id && r.related_person_id === parentId && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
@@ -51,7 +47,6 @@ const FamilyTree = () => {
         return 'Relative';
       }
 
-      // Is target a child of my parent's sibling? (Cousin)
       const parentSiblings = relationships
         .filter(r => (r.person_id === parentId && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
                      (r.related_person_id === parentId && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())))
@@ -116,32 +111,48 @@ const FamilyTree = () => {
 
     return genOrder.map(gen => {
       const members = people.filter(p => depthMap[p.id] === gen.depth || (gen.depth === -3 && depthMap[p.id] < -2));
-      
-      // Group members into "Family Units" (clusters)
       const clusters: any[][] = [];
       const processed = new Set();
 
+      // 1. Prioritize Spouse Grouping
       members.forEach(p => {
         if (processed.has(p.id)) return;
+        
+        const spouseRel = relationships.find(r => 
+          (r.person_id === p.id && ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())) ||
+          (r.related_person_id === p.id && ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase()))
+        );
 
+        if (spouseRel) {
+          const otherId = spouseRel.person_id === p.id ? spouseRel.related_person_id : spouseRel.person_id;
+          const other = members.find(m => m.id === otherId);
+          if (other && !processed.has(other.id)) {
+            clusters.push([p, other]);
+            processed.add(p.id);
+            processed.add(other.id);
+            return;
+          }
+        }
+      });
+
+      // 2. Group Remaining Siblings
+      members.forEach(p => {
+        if (processed.has(p.id)) return;
+        
         const cluster = [p];
         processed.add(p.id);
-
-        // Find spouses or siblings in the same generation to group them
+        
         members.forEach(other => {
           if (processed.has(other.id)) return;
-          
-          const isRelated = relationships.some(r => 
-            (r.person_id === p.id && r.related_person_id === other.id && ['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
-            (r.person_id === other.id && r.related_person_id === p.id && ['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
+          const isSibling = relationships.some(r => 
+            (r.person_id === p.id && r.related_person_id === other.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
+            (r.person_id === other.id && r.related_person_id === p.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
           );
-
-          if (isRelated) {
+          if (isSibling) {
             cluster.push(other);
             processed.add(other.id);
           }
         });
-
         clusters.push(cluster);
       });
 
@@ -172,7 +183,6 @@ const FamilyTree = () => {
 
       <main className="max-w-6xl mx-auto px-8 py-16">
         <div className="relative space-y-32">
-          {/* Vertical line connecting generations */}
           <div className="absolute left-1/2 top-0 bottom-0 w-px bg-stone-100 -translate-x-1/2 hidden md:block" />
 
           {generations.map((gen, idx) => (
@@ -184,39 +194,56 @@ const FamilyTree = () => {
               </div>
 
               <div className="flex flex-wrap justify-center gap-16 md:gap-24">
-                {gen.clusters.map((cluster, cIdx) => (
-                  <div key={cIdx} className="flex gap-8 md:gap-12 p-8 rounded-[3rem] bg-white/40 border border-stone-100/50 shadow-sm relative">
-                    {/* Cluster label or connector could go here */}
-                    {cluster.map((person: any) => (
-                      <div 
-                        key={person.id}
-                        onClick={() => navigate(getPersonUrl(person.id, person.name))}
-                        className="group relative flex flex-col items-center space-y-4 cursor-pointer animate-in fade-in zoom-in duration-700"
-                      >
-                        <div className="relative">
-                          <div className="h-24 w-24 md:h-32 md:w-32 rounded-full overflow-hidden border-4 border-white shadow-xl ring-1 ring-stone-100 group-hover:ring-amber-400 group-hover:scale-105 transition-all duration-500">
-                            {person.photoUrl ? (
-                              <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0" />
-                            ) : (
-                              <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300">
-                                <Users className="w-10 h-10" />
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                {gen.clusters.map((cluster, cIdx) => {
+                  const isCouple = cluster.length === 2 && relationships.some(r => 
+                    (r.person_id === cluster[0].id && r.related_person_id === cluster[1].id && ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())) ||
+                    (r.person_id === cluster[1].id && r.related_person_id === cluster[0].id && ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase()))
+                  );
 
-                        <div className="text-center space-y-1">
-                          <h3 className="font-serif font-bold text-stone-800 group-hover:text-amber-700 transition-colors">
-                            {person.name.split(' ')[0]}
-                          </h3>
-                          <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
-                            {getRelationshipLabel(person)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
+                  return (
+                    <div key={cIdx} className={cn(
+                      "flex gap-8 md:gap-12 p-8 rounded-[3rem] bg-white/40 border border-stone-100/50 shadow-sm relative transition-all hover:shadow-md",
+                      isCouple ? "border-amber-100 bg-amber-50/10" : ""
+                    )}>
+                      {cluster.map((person: any, pIdx: number) => (
+                        <React.Fragment key={person.id}>
+                          {pIdx > 0 && isCouple && (
+                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+                              <div className="bg-white p-1.5 rounded-full shadow-sm border border-amber-100">
+                                <Heart className="w-3 h-3 text-red-400 fill-current" />
+                              </div>
+                            </div>
+                          )}
+                          <div 
+                            onClick={() => navigate(getPersonUrl(person.id, person.name))}
+                            className="group relative flex flex-col items-center space-y-4 cursor-pointer animate-in fade-in zoom-in duration-700"
+                          >
+                            <div className="relative">
+                              <div className="h-24 w-24 md:h-32 md:w-32 rounded-full overflow-hidden border-4 border-white shadow-xl ring-1 ring-stone-100 group-hover:ring-amber-400 group-hover:scale-105 transition-all duration-500">
+                                {person.photoUrl ? (
+                                  <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0" />
+                                ) : (
+                                  <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300">
+                                    <UserCircle className="w-10 h-10" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="text-center space-y-1">
+                              <h3 className="font-serif font-bold text-stone-800 group-hover:text-amber-700 transition-colors">
+                                {person.name.split(' ')[0]}
+                              </h3>
+                              <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                                {getRelationshipLabel(person)}
+                              </p>
+                            </div>
+                          </div>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
             </section>
           ))}
