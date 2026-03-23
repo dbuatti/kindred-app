@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserCircle, Info, Bug, Heart, Users2 } from 'lucide-react';
+import { UserCircle, Info, Bug, Heart, Users2, Skull } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getPersonUrl } from '@/lib/slugify';
 import QuickAddMenu from '../QuickAddMenu';
@@ -54,6 +54,7 @@ const PersonAvatar = ({ person, me, relationships, isHighlighted, isInLineage, i
 
   const label = getLabel();
   const isCousin = label.toLowerCase().includes('cousin');
+  const isDeceased = person.isLiving === false;
 
   return (
     <div 
@@ -75,13 +76,19 @@ const PersonAvatar = ({ person, me, relationships, isHighlighted, isInLineage, i
         "border-white ring-stone-100 group-hover:ring-amber-400"
       )}>
         {person.photoUrl ? (
-          <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" />
+          <img src={person.photoUrl} className={cn("w-full h-full object-cover transition-all duration-700", isDeceased ? "grayscale-[0.6]" : "grayscale-[0.2] group-hover:grayscale-0")} />
         ) : (
           <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300">
             <UserCircle className="w-10 h-10" />
           </div>
         )}
         
+        {isDeceased && (
+          <div className="absolute top-1 right-1 bg-stone-800/60 p-1 rounded-full">
+            <Skull className="w-3 h-3 text-white/80" />
+          </div>
+        )}
+
         <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
           <Info className="w-6 h-6 text-white" />
         </div>
@@ -102,12 +109,19 @@ const PersonAvatar = ({ person, me, relationships, isHighlighted, isInLineage, i
         )}>
           {person.name.split(' ')[0]}
         </h3>
-        <div className={cn(
-          "px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest inline-block",
-          isMe ? "bg-amber-100 text-amber-700" : 
-          isCousin ? "bg-stone-100 text-stone-400" : "bg-stone-50 text-stone-400"
-        )}>
-          {label}
+        <div className="flex flex-col items-center gap-0.5">
+          <div className={cn(
+            "px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest inline-block",
+            isMe ? "bg-amber-100 text-amber-700" : 
+            isCousin ? "bg-stone-100 text-stone-400" : "bg-stone-50 text-stone-400"
+          )}>
+            {label}
+          </div>
+          {(person.birthYear || person.deathYear) && (
+            <span className="text-[8px] text-stone-400 font-medium">
+              {person.birthYear || '?'}{isDeceased ? `—${person.deathYear || '?'}` : ''}
+            </span>
+          )}
         </div>
       </div>
     </div>

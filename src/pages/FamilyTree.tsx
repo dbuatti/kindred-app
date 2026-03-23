@@ -105,7 +105,7 @@ const FamilyTree = () => {
       </header>
 
       <div className="flex-1 relative overflow-hidden bg-stone-50/30" ref={constraintsRef}>
-        {/* Generational Sidebar */}
+        {/* Generational Sidebar - Fixed to the left */}
         <div className="absolute left-0 top-0 bottom-0 w-24 bg-white/40 backdrop-blur-sm border-r border-stone-100 z-20 hidden lg:flex flex-col items-center py-20 gap-[300px]">
           <div className="flex flex-col items-center gap-2 opacity-40">
             <div className="h-px w-8 bg-stone-300" />

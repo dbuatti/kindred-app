@@ -48,8 +48,11 @@ export interface Person {
   id: string;
   familyId: string;
   name: string;
+  maidenName?: string;
   birthYear?: string;
   birthPlace?: string;
+  deathYear?: string;
+  deathPlace?: string;
   occupation?: string;
   vibeSentence: string;
   personalityTags: string[];

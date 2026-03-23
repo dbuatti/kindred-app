@@ -6,7 +6,9 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Edit3, Save, Trash2, AlertCircle } from 'lucide-react';
+import { Switch } from './ui/switch';
+import { Label } from './ui/label';
+import { Edit3, Save, Trash2, AlertCircle, Heart, Skull } from 'lucide-react';
 import { Person } from '../types';
 import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
@@ -30,9 +32,13 @@ const EditPersonDialog = ({ person, trigger }: EditPersonDialogProps) => {
   
   const [formData, setFormData] = useState({
     name: person.name,
+    maidenName: person.maidenName || '',
     gender: person.gender || '',
     birthYear: person.birthYear || '',
     birthPlace: person.birthPlace || '',
+    deathYear: person.deathYear || '',
+    deathPlace: person.deathPlace || '',
+    isLiving: person.isLiving !== false,
     occupation: person.occupation || '',
     vibeSentence: person.vibeSentence || '',
     photoUrl: person.photoUrl || ''
@@ -41,9 +47,13 @@ const EditPersonDialog = ({ person, trigger }: EditPersonDialogProps) => {
   useEffect(() => {
     setFormData({
       name: person.name,
+      maidenName: person.maidenName || '',
       gender: person.gender || '',
       birthYear: person.birthYear || '',
       birthPlace: person.birthPlace || '',
+      deathYear: person.deathYear || '',
+      deathPlace: person.deathPlace || '',
+      isLiving: person.isLiving !== false,
       occupation: person.occupation || '',
       vibeSentence: person.vibeSentence || '',
       photoUrl: person.photoUrl || ''
@@ -80,6 +90,17 @@ const EditPersonDialog = ({ person, trigger }: EditPersonDialogProps) => {
         </DialogHeader>
         
         <div className="space-y-6 py-6">
+          <div className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl border border-stone-100">
+            <div className="flex items-center gap-3">
+              {formData.isLiving ? <Heart className="w-5 h-5 text-red-500 fill-current" /> : <Skull className="w-5 h-5 text-stone-400" />}
+              <Label className="text-lg font-serif font-medium text-stone-800">This person is living</Label>
+            </div>
+            <Switch 
+              checked={formData.isLiving} 
+              onCheckedChange={(val) => setFormData({...formData, isLiving: val})} 
+            />
+          </div>
+
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -91,19 +112,16 @@ const EditPersonDialog = ({ person, trigger }: EditPersonDialogProps) => {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Gender</label>
-                <Select onValueChange={(val) => setFormData({...formData, gender: val})} value={formData.gender}>
-                  <SelectTrigger className="bg-stone-50 border-none rounded-2xl h-14 text-lg">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
-                    {GENDER_OPTIONS.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value} className="text-lg py-3">{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Maiden Name</label>
+                <Input 
+                  value={formData.maidenName}
+                  onChange={(e) => setFormData({...formData, maidenName: e.target.value})}
+                  placeholder="Optional"
+                  className="bg-stone-50 border-none rounded-2xl h-14 text-lg"
+                />
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Birth Year</label>
@@ -122,6 +140,28 @@ const EditPersonDialog = ({ person, trigger }: EditPersonDialogProps) => {
                 />
               </div>
             </div>
+
+            {!formData.isLiving && (
+              <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Death Year</label>
+                  <Input 
+                    value={formData.deathYear}
+                    onChange={(e) => setFormData({...formData, deathYear: e.target.value})}
+                    className="bg-stone-50 border-none rounded-2xl h-14 text-lg"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Death Place</label>
+                  <Input 
+                    value={formData.deathPlace}
+                    onChange={(e) => setFormData({...formData, deathPlace: e.target.value})}
+                    className="bg-stone-50 border-none rounded-2xl h-14 text-lg"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Occupation</label>
               <Input 
