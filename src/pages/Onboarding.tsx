@@ -4,6 +4,8 @@ import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { 
   Heart, 
   ArrowRight, 
@@ -14,17 +16,34 @@ import {
   MapPin, 
   Users,
   Check,
-  Loader2
+  Loader2,
+  ChevronsUpDown
 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+
+const COMMON_PLACES = [
+  "London, UK",
+  "New York, USA",
+  "Dublin, Ireland",
+  "Sicily, Italy",
+  "Paris, France",
+  "Berlin, Germany",
+  "Rome, Italy",
+  "Madrid, Spain",
+  "Sydney, Australia",
+  "Toronto, Canada",
+  "Brooklyn, NY",
+  "Chicago, IL"
+];
 
 const Onboarding = () => {
   const navigate = useNavigate();
   const { user, people, profiles, loading: contextLoading } = useFamily();
   const [step, setStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
+  const [placePopoverOpen, setPlacePopoverOpen] = useState(false);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -50,7 +69,7 @@ const Onboarding = () => {
         birthDate: profile.birth_date || '',
         birthPlace: profile.birth_place || '',
         bio: profile.bio || person?.vibeSentence || '',
-        relatedTo: [] // Relationships are harder to pre-fill without a dedicated fetch, keeping it simple for now
+        relatedTo: [] 
       });
     }
   }, [user, profiles, people]);
@@ -108,7 +127,7 @@ const Onboarding = () => {
 
       if (personError) throw personError;
 
-      // 3. Create Relationships (only if new ones selected)
+      // 3. Create Relationships
       if (formData.relatedTo.length > 0 && personData) {
         const relations = formData.relatedTo.map(relatedId => ({
           person_id: personData.id,
@@ -188,7 +207,52 @@ const Onboarding = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium uppercase tracking-widest text-stone-400">Birth Place</label>
-                <Input value={formData.birthPlace} onChange={(e) => updateField('birthPlace', e.target.value)} placeholder="e.g. London, UK" className="h-14 bg-stone-50 border-none rounded-2xl text-lg focus-visible:ring-amber-500/20" />
+                <Popover open={placePopoverOpen} onOpenChange={setPlacePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={placePopoverOpen}
+                      className="w-full justify-between bg-stone-50 border-none rounded-2xl h-14 text-lg font-normal text-stone-600 hover:bg-stone-100 focus:ring-amber-500/20"
+                    >
+                      {formData.birthPlace || "Select or type..."}
+                      <ChevronsUpDown className="ml-2 h-5 w-5 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0 rounded-2xl border-stone-100 shadow-xl">
+                    <Command className="rounded-2xl">
+                      <CommandInput 
+                        placeholder="Search or type place..." 
+                        value={formData.birthPlace}
+                        onValueChange={(val) => updateField('birthPlace', val)}
+                      />
+                      <CommandList>
+                        <CommandEmpty>No common place found. Keep typing...</CommandEmpty>
+                        <CommandGroup heading="Suggestions">
+                          {COMMON_PLACES.map((place) => (
+                            <CommandItem
+                              key={place}
+                              value={place}
+                              onSelect={() => {
+                                updateField('birthPlace', place);
+                                setPlacePopoverOpen(false);
+                              }}
+                              className="rounded-xl"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.birthPlace === place ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {place}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium uppercase tracking-widest text-stone-400">A short bio or "vibe"</label>
