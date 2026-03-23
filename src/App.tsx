@@ -1,10 +1,10 @@
+import React, { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { FamilyProvider } from "./context/FamilyContext.tsx";
-import { useEffect, useState } from "react";
+import { FamilyProvider } from "./context/FamilyContext";
 import { supabase } from "./integrations/supabase/client";
 import Index from "./pages/Index";
 import PersonDetail from "./pages/PersonDetail";

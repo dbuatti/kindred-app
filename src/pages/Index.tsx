@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useFamily } from '../context/FamilyContext.tsx';
+import { useFamily } from '../context/FamilyContext';
 import PersonCard from '../components/PersonCard';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import AddPersonDialog from '../components/AddPersonDialog';
 import FamilyInbox from '../components/FamilyInbox';
 import { Input } from '@/components/ui/input';
-import { Search, Heart, Plus, MessageSquare, Mic, Share2, Sparkles, BookOpen } from 'lucide-react';
+import { Search, Mic, Share2, Sparkles, BookOpen } from 'lucide-react';
 import { MadeWithDyad } from '@/components/made-with-dyad';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 const Index = () => {
   const navigate = useNavigate();
-  const { people, addMemory } = useFamily();
+  const { people } = useFamily();
   const [searchQuery, setSearchQuery] = useState('');
   
   const allMemories = people.flatMap(p => 
@@ -66,7 +66,6 @@ const Index = () => {
       </header>
 
       <main className="max-w-2xl mx-auto px-6 py-12 space-y-16">
-        {/* Simple Guide for Tech-Illiterate Users */}
         {!searchQuery && (
           <section className="bg-amber-50/50 border border-amber-100 rounded-[2rem] p-8 space-y-4">
             <div className="flex items-center gap-3 text-amber-800">
@@ -103,7 +102,7 @@ const Index = () => {
                 >
                   <div className="flex items-center justify-between text-[10px] text-stone-400 uppercase tracking-wider">
                     <span className="flex items-center gap-1">
-                      {memory.type === 'voice' ? <Mic className="w-3 h-3" /> : <MessageSquare className="w-3 h-3" />}
+                      {memory.type === 'voice' ? <Mic className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
                       {memory.personName.split(' ')[0]}
                     </span>
                     <span>{format(new Date(memory.createdAt), 'MMM d')}</span>
@@ -136,25 +135,12 @@ const Index = () => {
                 />
               </div>
             ))}
-            
-            {filteredPeople.length === 0 && (
-              <div className="text-center py-20 space-y-4">
-                <p className="text-stone-400 font-serif italic text-lg">No one found by that name...</p>
-                <button className="text-amber-600 font-medium hover:underline flex items-center gap-2 mx-auto">
-                  <Plus className="w-4 h-4" /> Add someone new to the family
-                </button>
-              </div>
-            )}
           </div>
         </section>
       </main>
 
       <AddPersonDialog />
-      
-      <AddMemoryDialog 
-        personName="the family" 
-      />
-
+      <AddMemoryDialog personName="the family" />
       <MadeWithDyad />
     </div>
   );
