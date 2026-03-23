@@ -4,8 +4,7 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Users, Heart, ZoomIn, ZoomOut, Share2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ArrowLeft, Users, Share2 } from 'lucide-react';
 import { getPersonUrl } from '@/lib/slugify';
 
 const FamilyTree = () => {
@@ -30,7 +29,6 @@ const FamilyTree = () => {
       
       let gen = "Legacy & Ancestors";
 
-      // 1. Priority: Specific relationship keywords in tags or inferred from relationships
       const isParent = relTags.includes('father') || relTags.includes('mother') || 
                        relationships.some(r => r.related_person_id === p.id && (r.relationship_type === 'father' || r.relationship_type === 'mother'));
       
@@ -40,13 +38,16 @@ const FamilyTree = () => {
       const isSpouse = relTags.includes('spouse') || relTags.includes('wife') || relTags.includes('husband');
       
       const isSibling = relTags.includes('brother') || relTags.includes('sister') || relTags.includes('sibling');
+      
+      const isPeer = relTags.includes('cousin') || relTags.includes('nephew') || relTags.includes('niece') || 
+                     relTags.includes('son') || relTags.includes('daughter') || relTags.includes('child') || 
+                     relTags.includes('family member') || isMe || isSibling;
 
       if (isGrandparent) {
         gen = "Grandparents' Generation";
       } else if (isParent) {
         gen = "Parents' Generation";
       } else if (isSpouse) {
-        // If spouse, try to find who they are married to and match their generation
         const partnerRel = relationships.find(r => (r.person_id === p.id || r.related_person_id === p.id) && r.relationship_type === 'spouse');
         if (partnerRel) {
           const partnerId = partnerRel.person_id === p.id ? partnerRel.related_person_id : partnerRel.person_id;
@@ -58,13 +59,11 @@ const FamilyTree = () => {
             else gen = "Current Generation";
           }
         } else {
-          gen = "Parents' Generation"; // Default spouse to parents if unknown
+          gen = "Parents' Generation";
         }
-      } else if (relTags.includes('son') || relTags.includes('daughter') || relTags.includes('child') || relTags.includes('family member') || isMe || isSibling) {
+      } else if (isPeer) {
         gen = "Current Generation";
-      } 
-      // 2. Fallback: Year-based grouping
-      else if (year > 0) {
+      } else if (year > 0) {
         if (year >= 1980) gen = "Current Generation";
         else if (year >= 1950) gen = "Parents' Generation";
         else if (year >= 1920) gen = "Grandparents' Generation";
@@ -187,18 +186,6 @@ const FamilyTree = () => {
           </div>
         )}
       </main>
-
-      <div className="fixed bottom-8 left-8 bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-stone-100 shadow-lg hidden lg:block">
-        <div className="space-y-2">
-          <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2">Legend</p>
-          <div className="flex items-center gap-2 text-xs text-stone-600">
-            <div className="h-2 w-2 bg-green-500 rounded-full" /> Living Member
-          </div>
-          <div className="flex items-center gap-2 text-xs text-stone-600">
-            <div className="h-2 w-2 bg-stone-200 rounded-full" /> Ancestor
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

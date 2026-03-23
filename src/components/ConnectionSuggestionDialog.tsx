@@ -6,11 +6,10 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Checkbox } from './ui/checkbox';
-import { UserPlus, Sparkles, Heart, HelpCircle, Info } from 'lucide-react';
+import { UserPlus, Sparkles, Heart, HelpCircle } from 'lucide-react';
 import { Person } from '../types';
 import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 
 interface ConnectionSuggestionDialogProps {
   person: Person;
@@ -27,24 +26,22 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
   const [relationship, setRelationship] = useState('');
   const [confirmedInferences, setConfirmedInferences] = useState<Record<string, boolean>>({});
 
-  // Smart Inference Logic
   const smartInferences = useMemo(() => {
     if (!relativeName || !relationship || !person) return [];
 
     const inferences: { id: string; question: string; inferredRole: string; targetPersonName: string }[] = [];
+    const relType = relationship.toLowerCase();
 
-    // If suggesting a Spouse for Alfred
-    if (relationship === "Spouse") {
-      // Find unique children who have Alfred as a Father or Mother
+    // 1. SPOUSE Inference: If adding a spouse, they are likely the other parent of the children
+    if (relType === "spouse") {
       const childIds = Array.from(new Set(relationships
         .filter(r => (r.related_person_id === person.id) && (r.relationship_type === 'father' || r.relationship_type === 'mother'))
         .map(r => r.person_id)
       ));
 
       const children = childIds.map(id => people.find(p => p.id === id)).filter(Boolean);
-
       children.forEach(child => {
-        const role = person.personalityTags.includes('Father') || person.relationshipType === 'Father' ? 'Mother' : 'Father';
+        const role = person.gender === 'male' ? 'Mother' : 'Father';
         inferences.push({
           id: `spouse-child-${child!.id}`,
           question: `Is ${relativeName} the ${role} of ${child!.name}?`,
@@ -54,21 +51,13 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
       });
     }
 
-    // If suggesting a Mother/Father for Alfred
-    if (relationship === "Mother" || relationship === "Father") {
-      // Find Alfred's unique siblings
-      const siblingIds = Array.from(new Set(relationships
-        .filter(r => {
-          // Find people who share a parent with Alfred
-          const alfredParents = relationships.filter(rel => rel.person_id === person.id && (rel.relationship_type === 'mother' || rel.relationship_type === 'father'));
-          const otherPersonParents = relationships.filter(rel => rel.person_id === r.person_id && (rel.relationship_type === 'mother' || rel.relationship_type === 'father'));
-          return alfredParents.some(ap => otherPersonParents.some(op => op.related_person_id === ap.related_person_id)) && r.person_id !== person.id;
-        })
-        .map(r => r.person_id)
-      ));
+    // 2. PARENT Inference: If adding a parent, they are likely the parent of siblings too
+    if (relType === "mother" || relType === "father") {
+      const siblingIds = relationships
+        .filter(r => (r.person_id === person.id || r.related_person_id === person.id) && (r.relationship_type === 'brother' || r.relationship_type === 'sister'))
+        .map(r => r.person_id === person.id ? r.related_person_id : r.person_id);
 
-      const siblings = siblingIds.map(id => people.find(p => p.id === id)).filter(Boolean);
-
+      const siblings = Array.from(new Set(siblingIds)).map(id => people.find(p => p.id === id)).filter(Boolean);
       siblings.forEach(sibling => {
         inferences.push({
           id: `parent-sibling-${sibling!.id}`,
@@ -79,6 +68,57 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
       });
     }
 
+    // 3. COUSIN Inference: If adding a cousin, they are likely a cousin to siblings too
+    if (relType === "cousin") {
+      const siblingIds = relationships
+        .filter(r => (r.person_id === person.id || r.related_person_id === person.id) && (r.relationship_type === 'brother' || r.relationship_type === 'sister'))
+        .map(r => r.person_id === person.id ? r.related_person_id : r.person_id);
+
+      const siblings = Array.from(new Set(siblingIds)).map(id => people.find(p => p.id === id)).filter(Boolean);
+      siblings.forEach(sibling => {
+        inferences.push({
+          id: `cousin-sibling-${sibling!.id}`,
+          question: `Is ${relativeName} also a cousin of ${sibling!.name}?`,
+          inferredRole: 'Cousin',
+          targetPersonName: sibling!.name
+        });
+      });
+    }
+
+    // 4. SIBLING Inference: If adding a brother/sister, they share the same parents
+    if (relType === "brother" || relType === "sister") {
+      const parentIds = relationships
+        .filter(r => r.person_id === person.id && (r.relationship_type === 'mother' || r.relationship_type === 'father'))
+        .map(r => r.related_person_id);
+
+      const parents = parentIds.map(id => people.find(p => p.id === id)).filter(Boolean);
+      parents.forEach(parent => {
+        inferences.push({
+          id: `sibling-parent-${parent!.id}`,
+          question: `Is ${relativeName} also a child of ${parent!.name}?`,
+          inferredRole: 'Child',
+          targetPersonName: parent!.name
+        });
+      });
+    }
+
+    // 5. CHILD Inference: If adding a son/daughter, they are likely the child of the spouse too
+    if (relType === "son" || relType === "daughter") {
+      const spouseRel = relationships.find(r => (r.person_id === person.id || r.related_person_id === person.id) && r.relationship_type === 'spouse');
+      if (spouseRel) {
+        const spouseId = spouseRel.person_id === person.id ? spouseRel.related_person_id : spouseRel.person_id;
+        const spouse = people.find(p => p.id === spouseId);
+        if (spouse) {
+          inferences.push({
+            id: `child-spouse-${spouse.id}`,
+            question: `Is ${relativeName} also the child of ${spouse.name}?`,
+            inferredRole: 'Child',
+            targetPersonName: spouse.name
+          });
+        }
+      }
+    }
+
     return inferences;
   }, [relativeName, relationship, person, relationships, people]);
 
@@ -86,9 +126,8 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
     if (!relativeName || !relationship) return;
 
     let finalValue = `${relativeName} (${relationship})`;
-    
-    // Append confirmed inferences to the suggestion
     const confirmed = smartInferences.filter(inf => confirmedInferences[inf.id]);
+    
     if (confirmed.length > 0) {
       finalValue += "\n\nAdditional Connections:";
       confirmed.forEach(inf => {
@@ -157,7 +196,6 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
             </div>
           </div>
 
-          {/* Smart Inferences Section */}
           {smartInferences.length > 0 && (
             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center gap-2 text-amber-700">
