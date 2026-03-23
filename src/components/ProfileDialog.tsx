@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { User, Settings, LogOut, ShieldCheck } from 'lucide-react';
+import { User, Settings, LogOut, ShieldCheck, Edit3 } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext.tsx';
 import { supabase } from '../integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -99,6 +99,18 @@ const ProfileDialog = () => {
           </div>
 
           <div className="flex flex-col gap-3 pt-4">
+            <Button 
+              variant="outline"
+              className="w-full h-14 rounded-2xl border-stone-200 text-stone-700 hover:bg-stone-100 gap-2"
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/onboarding');
+              }}
+            >
+              <Edit3 className="w-4 h-4" />
+              Edit Full Profile
+            </Button>
+            
             {isAdmin && (
               <Button 
                 variant="outline"

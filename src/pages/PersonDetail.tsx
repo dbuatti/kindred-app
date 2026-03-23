@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext.tsx';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Quote, Mic, MessageSquare, Play, Clock, Camera } from 'lucide-react';
+import { ArrowLeft, Quote, Mic, MessageSquare, Play, Clock, Camera, Edit3 } from 'lucide-react';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import SuggestionDialog from '../components/SuggestionDialog';
 import { format } from 'date-fns';
@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 const PersonDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { people } = useFamily();
+  const { people, user } = useFamily();
   const person = people.find(p => p.id === id);
 
   if (!person) return (
@@ -23,6 +23,8 @@ const PersonDetail = () => {
       </div>
     </div>
   );
+
+  const isOwnProfile = user?.id === person.userId;
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans pb-32">
@@ -52,7 +54,19 @@ const PersonDetail = () => {
           </div>
           
           <div className="space-y-2">
-            <h1 className="text-4xl font-serif font-medium text-stone-800">{person.name}</h1>
+            <div className="flex items-center justify-center gap-3">
+              <h1 className="text-4xl font-serif font-medium text-stone-800">{person.name}</h1>
+              {isOwnProfile && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => navigate('/onboarding')}
+                  className="rounded-full text-stone-400 hover:text-amber-600"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
             <p className="text-stone-500 font-light tracking-wide uppercase text-xs">
               {person.birthYear} {person.birthPlace && `• ${person.birthPlace}`}
             </p>
@@ -75,7 +89,7 @@ const PersonDetail = () => {
         </div>
 
         <div className="flex justify-center">
-          <SuggestionDialog person={person} />
+          {!isOwnProfile && <SuggestionDialog person={person} />}
         </div>
       </header>
 
