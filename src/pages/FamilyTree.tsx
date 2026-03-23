@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Share2, Heart, UserCircle, Users2 } from 'lucide-react';
+import { ArrowLeft, Share2, Heart, UserCircle, Users2, Activity } from 'lucide-react';
 import { getPersonUrl } from '@/lib/slugify';
 import { getInverseRelationship } from '@/lib/relationships';
 import { cn } from '@/lib/utils';
@@ -13,7 +13,7 @@ import SmartSuggestionHover from '../components/SmartSuggestionHover';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
-  const { people, loading, user, relationships } = useFamily();
+  const { people, loading, user, relationships, isAdmin } = useFamily();
 
   const me = useMemo(() => {
     return people.find(p => p.userId === user?.id) || people[0];
@@ -25,6 +25,7 @@ const FamilyTree = () => {
     const levels: Record<string, number> = {};
     people.forEach(p => levels[p.id] = 0);
 
+    // Run multiple passes to propagate levels through the graph
     for (let i = 0; i < 50; i++) {
       let changed = false;
       relationships.forEach(r => {
@@ -33,16 +34,19 @@ const FamilyTree = () => {
         const p2 = r.related_person_id;
 
         if (['mother', 'father', 'parent'].includes(type)) {
+          // p2 is parent of p1
           if (levels[p1] !== levels[p2] + 1) {
             levels[p1] = levels[p2] + 1;
             changed = true;
           }
         } else if (['son', 'daughter', 'child'].includes(type)) {
+          // p2 is child of p1
           if (levels[p2] !== levels[p1] + 1) {
             levels[p2] = levels[p1] + 1;
             changed = true;
           }
         } else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
+          // Same level
           if (levels[p1] !== levels[p2]) {
             const max = Math.max(levels[p1], levels[p2]);
             levels[p1] = max;
@@ -54,10 +58,9 @@ const FamilyTree = () => {
       if (!changed) break;
     }
 
-    const min = Math.min(...Object.values(levels));
-    const normalized: Record<string, number> = {};
-    Object.keys(levels).forEach(id => normalized[id] = levels[id] - min);
-    return normalized;
+    // Normalize levels per component to ensure each island starts at its own relative 0
+    // Actually, let's keep global levels but find roots of every component
+    return levels;
   }, [people, relationships]);
 
   // 2. Helper: Get all connected peers (spouses/siblings) on the same level
@@ -240,16 +243,35 @@ const FamilyTree = () => {
     );
   };
 
-  // 4. Find Root Clusters (Level 0)
+  // 4. Find Root Clusters (Every person who has no parents is a potential root)
   const rootClusters = useMemo(() => {
     const processed = new Set<string>();
     const clusters: any[][] = [];
-    const roots = people.filter(p => personLevels[p.id] === 0);
-    roots.forEach(r => {
-      if (!processed.has(r.id)) clusters.push(getPeerCluster(r.id, 0, processed));
+    
+    // A root is someone who has no "upward" relationships (parents)
+    const roots = people.filter(p => {
+      const hasParent = relationships.some(r => 
+        (r.person_id === p.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) ||
+        (r.related_person_id === p.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
+      );
+      return !hasParent;
     });
+
+    roots.forEach(r => {
+      if (!processed.has(r.id)) {
+        clusters.push(getPeerCluster(r.id, personLevels[r.id], processed));
+      }
+    });
+
+    // Catch any remaining disconnected people (e.g. orphans or cycles)
+    people.forEach(p => {
+      if (!processed.has(p.id)) {
+        clusters.push(getPeerCluster(p.id, personLevels[p.id], processed));
+      }
+    });
+
     return clusters;
-  }, [people, personLevels]);
+  }, [people, personLevels, relationships]);
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the branches...</div>;
 
@@ -264,14 +286,25 @@ const FamilyTree = () => {
               <p className="text-stone-400 text-sm uppercase tracking-widest font-medium">Our Living History</p>
             </div>
           </div>
-          <Button variant="outline" className="rounded-full border-stone-200 text-stone-600 gap-2"><Share2 className="w-4 h-4" /> Share Tree</Button>
+          <div className="flex items-center gap-3">
+            {isAdmin && (
+              <Button 
+                variant="ghost" 
+                onClick={() => navigate('/admin')}
+                className="rounded-full text-amber-600 hover:bg-amber-50 gap-2"
+              >
+                <Activity className="w-4 h-4" /> Diagnostics
+              </Button>
+            )}
+            <Button variant="outline" className="rounded-full border-stone-200 text-stone-600 gap-2"><Share2 className="w-4 h-4" /> Share Tree</Button>
+          </div>
         </div>
       </header>
 
       <main className="p-20 flex-1 flex flex-col items-center justify-start min-w-max">
         <div className="flex flex-col items-center gap-24">
           {rootClusters.map((cluster, idx) => (
-            <ClusterNode key={idx} members={cluster} level={0} />
+            <ClusterNode key={idx} members={cluster} level={personLevels[cluster[0].id]} />
           ))}
         </div>
       </main>

@@ -3,6 +3,7 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ArrowLeft, 
   Users, 
@@ -18,7 +19,8 @@ import {
   Trash2,
   UserPlus,
   Link as LinkIcon,
-  Copy
+  Copy,
+  Activity
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -34,6 +36,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { getPersonUrl } from '@/lib/slugify';
 import EditPersonDialog from '../components/EditPersonDialog';
 import AddPersonDialog from '../components/AddPersonDialog';
+import TreeDiagnostics from '../components/TreeDiagnostics';
 import { toast } from 'sonner';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
@@ -96,181 +99,168 @@ const AdminDashboard = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-12 space-y-10">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="p-6 bg-white border-stone-100 shadow-sm rounded-[2rem] space-y-2">
-            <div className="h-10 w-10 rounded-2xl bg-stone-50 flex items-center justify-center text-stone-400">
-              <Users className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-              <p className="text-3xl font-serif font-medium text-stone-800">{people.length}</p>
-              <p className="text-stone-400 text-xs uppercase tracking-widest">Total People</p>
-            </div>
-          </Card>
-          <Card className="p-6 bg-white border-stone-100 shadow-sm rounded-[2rem] space-y-2">
-            <div className="h-10 w-10 rounded-2xl bg-stone-50 flex items-center justify-center text-stone-400">
-              <MessageSquare className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-              <p className="text-3xl font-serif font-medium text-stone-800">{totalMemories}</p>
-              <p className="text-stone-400 text-xs uppercase tracking-widest">Stories Shared</p>
-            </div>
-          </Card>
-          <Card className="p-6 bg-amber-50/50 border-amber-100 shadow-sm rounded-[2rem] space-y-2">
-            <div className="h-10 w-10 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-              <p className="text-3xl font-serif font-medium text-amber-900">{pendingSuggestions}</p>
-              <p className="text-amber-700/60 text-xs uppercase tracking-widest">Pending Edits</p>
-            </div>
-          </Card>
-        </div>
+        <Tabs defaultValue="overview" className="space-y-8">
+          <TabsList className="bg-stone-100 p-1 rounded-2xl h-14 w-full md:w-auto">
+            <TabsTrigger value="overview" className="rounded-xl px-6 data-[state=active]:bg-white">Overview</TabsTrigger>
+            <TabsTrigger value="people" className="rounded-xl px-6 data-[state=active]:bg-white">People</TabsTrigger>
+            <TabsTrigger value="diagnostics" className="rounded-xl px-6 data-[state=active]:bg-white flex items-center gap-2">
+              <Activity className="w-4 h-4" /> Diagnostics
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Card className="p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
+          <TabsContent value="overview" className="space-y-10">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="p-6 bg-white border-stone-100 shadow-sm rounded-[2rem] space-y-2">
+                <div className="h-10 w-10 rounded-2xl bg-stone-50 flex items-center justify-center text-stone-400">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-3xl font-serif font-medium text-stone-800">{people.length}</p>
+                  <p className="text-stone-400 text-xs uppercase tracking-widest">Total People</p>
+                </div>
+              </Card>
+              <Card className="p-6 bg-white border-stone-100 shadow-sm rounded-[2rem] space-y-2">
+                <div className="h-10 w-10 rounded-2xl bg-stone-50 flex items-center justify-center text-stone-400">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-3xl font-serif font-medium text-stone-800">{totalMemories}</p>
+                  <p className="text-stone-400 text-xs uppercase tracking-widest">Stories Shared</p>
+                </div>
+              </Card>
+              <Card className="p-6 bg-amber-50/50 border-amber-100 shadow-sm rounded-[2rem] space-y-2">
+                <div className="h-10 w-10 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-3xl font-serif font-medium text-amber-900">{pendingSuggestions}</p>
+                  <p className="text-amber-700/60 text-xs uppercase tracking-widest">Pending Edits</p>
+                </div>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <Card className="p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-amber-600" />
+                    Most Remembered
+                  </h2>
+                </div>
+                <div className="h-[250px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
+                      <XAxis 
+                        dataKey="name" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#a8a29e', fontSize: 12 }}
+                      />
+                      <YAxis hide />
+                      <Tooltip 
+                        cursor={{ fill: '#fafaf9' }}
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+                      />
+                      <Bar dataKey="memories" radius={[8, 8, 0, 0]}>
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              <Card className="p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
+                <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-stone-400" />
+                  Recent Stories
+                </h2>
+                <div className="space-y-4">
+                  {recentMemories.map((memory) => (
+                    <div 
+                      key={memory.id} 
+                      className="flex items-start gap-4 p-3 rounded-2xl hover:bg-stone-50 transition-colors cursor-pointer" 
+                      onClick={() => navigate(getPersonUrl(memory.personId, memory.personName))}
+                    >
+                      <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-800 truncate">About {memory.personName}</p>
+                        <p className="text-xs text-stone-500 line-clamp-1 italic">"{memory.content}"</p>
+                        <p className="text-[10px] text-stone-400 mt-1">
+                          {formatDistanceToNow(new Date(memory.createdAt), { addSuffix: true })}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-stone-300 self-center" />
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="people" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-amber-600" />
-                Most Remembered
+                <Users className="w-5 h-5 text-stone-400" />
+                Manage Archive Entries
               </h2>
+              <AddPersonDialog />
             </div>
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: '#a8a29e', fontSize: 12 }}
-                  />
-                  <YAxis hide />
-                  <Tooltip 
-                    cursor={{ fill: '#fafaf9' }}
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                  />
-                  <Bar dataKey="memories" radius={[8, 8, 0, 0]}>
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-
-          <Card className="p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
-            <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-stone-400" />
-              Recent Stories
-            </h2>
-            <div className="space-y-4">
-              {recentMemories.map((memory) => (
-                <div 
-                  key={memory.id} 
-                  className="flex items-start gap-4 p-3 rounded-2xl hover:bg-stone-50 transition-colors cursor-pointer" 
-                  onClick={() => navigate(getPersonUrl(memory.personId, memory.personName))}
-                >
-                  <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
-                    <MessageSquare className="w-4 h-4" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {people.map((person) => (
+                <Card key={person.id} className="p-6 bg-white border-stone-100 shadow-sm rounded-3xl flex items-center justify-between group hover:border-amber-200 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full overflow-hidden bg-stone-100 shrink-0">
+                      {person.photoUrl ? (
+                        <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.5]" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-stone-300">
+                          <UserCircle className="w-6 h-6" />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-bold text-stone-800">{person.name}</p>
+                      <p className="text-[10px] text-stone-400 uppercase tracking-widest">
+                        {person.memories.length} memories
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-stone-800 truncate">About {memory.personName}</p>
-                    <p className="text-xs text-stone-500 line-clamp-1 italic">"{memory.content}"</p>
-                    <p className="text-[10px] text-stone-400 mt-1">
-                      {formatDistanceToNow(new Date(memory.createdAt), { addSuffix: true })}
-                    </p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-stone-300 self-center" />
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
-              <Users className="w-5 h-5 text-stone-400" />
-              Manage Archive Entries
-            </h2>
-            <AddPersonDialog />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {people.map((person) => (
-              <Card key={person.id} className="p-6 bg-white border-stone-100 shadow-sm rounded-3xl flex items-center justify-between group hover:border-amber-200 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full overflow-hidden bg-stone-100 shrink-0">
-                    {person.photoUrl ? (
-                      <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.5]" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-stone-300">
-                        <UserCircle className="w-6 h-6" />
-                      </div>
+                  <div className="flex items-center gap-2">
+                    {!person.userId && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleCopyInvite(person)}
+                        className="rounded-full text-amber-600 hover:bg-amber-50"
+                        title="Copy Invite Link"
+                      >
+                        <LinkIcon className="w-4 h-4" />
+                      </Button>
                     )}
-                  </div>
-                  <div>
-                    <p className="font-bold text-stone-800">{person.name}</p>
-                    <p className="text-[10px] text-stone-400 uppercase tracking-widest">
-                      {person.memories.length} memories
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {!person.userId && (
+                    <EditPersonDialog person={person} />
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      onClick={() => handleCopyInvite(person)}
-                      className="rounded-full text-amber-600 hover:bg-amber-50"
-                      title="Copy Invite Link"
+                      onClick={() => navigate(getPersonUrl(person.id, person.name))}
+                      className="rounded-full text-stone-400 hover:text-stone-800"
                     >
-                      <LinkIcon className="w-4 h-4" />
+                      <ChevronRight className="w-4 h-4" />
                     </Button>
-                  )}
-                  <EditPersonDialog person={person} />
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => navigate(getPersonUrl(person.id, person.name))}
-                    className="rounded-full text-stone-400 hover:text-stone-800"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
 
-        <div className="space-y-6">
-          <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
-            <UserCircle className="w-5 h-5 text-stone-400" />
-            Family Members
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Object.values(profiles).map((profile: any) => (
-              <Card key={profile.id} className="p-6 bg-white border-stone-100 shadow-sm rounded-3xl flex items-center justify-between group hover:border-amber-200 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center text-stone-400 group-hover:bg-amber-50 group-hover:text-amber-600 transition-colors">
-                    <UserCircle className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-stone-800">
-                      {profile.first_name} {profile.last_name}
-                    </p>
-                    <p className="text-xs text-stone-400 flex items-center gap-1">
-                      <Mail className="w-3 h-3" /> {profile.id.slice(0, 8)}...
-                    </p>
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm" className="text-stone-400 hover:text-stone-600 rounded-xl">
-                  View
-                </Button>
-              </Card>
-            ))}
-          </div>
-        </div>
+          <TabsContent value="diagnostics">
+            <TreeDiagnostics />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
