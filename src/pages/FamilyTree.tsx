@@ -51,6 +51,7 @@ const FamilyTree = () => {
     const queue = [highlightedId];
     const visited = new Set([highlightedId]);
     
+    // Trace 2 levels of connection for highlighting
     for (let i = 0; i < 2; i++) {
       const currentLevel = [...queue];
       queue.length = 0;
@@ -68,23 +69,25 @@ const FamilyTree = () => {
     return ids;
   }, [highlightedId, relationships]);
 
-  if (loading) return <div className="p-20 text-center text-xl font-serif italic text-stone-400">Loading archive...</div>;
+  if (loading) return <div className="p-20 text-center text-xl font-serif italic text-stone-400">Opening the archive...</div>;
 
   return (
-    <div className="min-h-screen bg-white flex flex-col overflow-hidden select-none">
-      <header className="bg-white border-b border-stone-100 px-8 py-6 sticky top-0 z-40">
+    <div className="min-h-screen bg-[#FDFCF9] flex flex-col overflow-hidden select-none">
+      <header className="bg-white border-b-4 border-stone-100 px-8 py-6 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
           <div className="flex items-center gap-6">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full text-stone-400"><ArrowLeft className="w-6 h-6" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full h-12 w-12 text-stone-400 hover:bg-stone-50">
+              <ArrowLeft className="w-6 h-6" />
+            </Button>
             <div>
               <h1 className="text-2xl font-serif font-bold text-stone-800">Family Tree</h1>
-              <p className="text-[10px] text-stone-400 font-bold uppercase tracking-[0.2em]">Archive Schematic View</p>
+              <p className="text-[10px] text-stone-400 font-bold uppercase tracking-[0.2em]">Archive Schematic</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
               <Input 
                 placeholder="Search names..." 
                 value={searchQuery}
@@ -93,17 +96,17 @@ const FamilyTree = () => {
                   const found = people.find(p => p.name.toLowerCase().includes(e.target.value.toLowerCase()));
                   if (found) setHighlightedId(found.id);
                 }}
-                className="pl-10 h-10 bg-stone-50 border-none rounded-full text-sm focus:ring-amber-500/20"
+                className="pl-12 h-12 bg-stone-50 border-none rounded-2xl text-sm focus:ring-amber-500/20"
               />
             </div>
             
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="rounded-full border-stone-200 gap-2 text-xs font-bold text-stone-600">
+                <Button variant="outline" className="h-12 rounded-2xl border-stone-200 gap-2 text-xs font-bold text-stone-600 px-6">
                   <Settings2 className="w-4 h-4" /> View Options
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-72 p-6 rounded-3xl border-none shadow-2xl bg-white space-y-6">
+              <PopoverContent className="w-72 p-6 rounded-[2rem] border-none shadow-2xl bg-white space-y-6">
                 <div className="space-y-4">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Tree Mode</h4>
                   <div className="grid grid-cols-1 gap-2">
@@ -126,10 +129,6 @@ const FamilyTree = () => {
                       <Label className="text-xs text-stone-600">Show Dates</Label>
                       <Switch checked={chartSettings.showDates} onCheckedChange={(val) => setChartSettings({...chartSettings, showDates: val})} />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs text-stone-600">Show Places</Label>
-                      <Switch checked={chartSettings.showPlaces} onCheckedChange={(val) => setChartSettings({...chartSettings, showPlaces: val})} />
-                    </div>
                   </div>
                 </div>
               </PopoverContent>
@@ -138,12 +137,13 @@ const FamilyTree = () => {
         </div>
       </header>
 
-      <div className="flex-1 relative bg-white" ref={constraintsRef}>
+      <div className="flex-1 relative" ref={constraintsRef}>
+        {/* Controls */}
         <div className="absolute bottom-8 left-8 z-30 flex flex-col gap-2">
-          <Button size="icon" variant="outline" onClick={() => setZoom(z => Math.min(z + 0.1, 2))} className="h-10 w-10 rounded-full bg-white border-stone-200 shadow-sm"><ZoomIn className="w-4 h-4" /></Button>
-          <Button size="icon" variant="outline" onClick={() => setZoom(z => Math.max(z - 0.1, 0.5))} className="h-10 w-10 rounded-full bg-white border-stone-200 shadow-sm"><ZoomOut className="w-4 h-4" /></Button>
-          <Button size="icon" variant="outline" onClick={() => { setZoom(1); setHighlightedId(null); }} className="h-10 w-10 rounded-full bg-white border-stone-200 shadow-sm"><Maximize className="w-4 h-4" /></Button>
-          <Button size="icon" variant="outline" onClick={() => { if (me) { setHighlightedId(me.id); setSelectedPersonId(me.id); setZoom(1); } }} className="h-10 w-10 rounded-full bg-amber-600 text-white border-none shadow-lg"><Target className="w-4 h-4" /></Button>
+          <Button size="icon" variant="outline" onClick={() => setZoom(z => Math.min(z + 0.1, 2))} className="h-12 w-12 rounded-full bg-white border-stone-200 shadow-lg"><ZoomIn className="w-5 h-5" /></Button>
+          <Button size="icon" variant="outline" onClick={() => setZoom(z => Math.max(z - 0.1, 0.5))} className="h-12 w-12 rounded-full bg-white border-stone-200 shadow-lg"><ZoomOut className="w-5 h-5" /></Button>
+          <Button size="icon" variant="outline" onClick={() => { setZoom(1); setHighlightedId(null); }} className="h-12 w-12 rounded-full bg-white border-stone-200 shadow-lg"><Maximize className="w-5 h-5" /></Button>
+          <Button size="icon" variant="outline" onClick={() => { if (me) { setHighlightedId(me.id); setSelectedPersonId(me.id); setZoom(1); } }} className="h-12 w-12 rounded-full bg-amber-600 text-white border-none shadow-xl"><Target className="w-5 h-5" /></Button>
         </div>
 
         <div className="w-full h-full overflow-hidden p-20 cursor-grab active:cursor-grabbing" onClick={() => { setHighlightedId(null); setSelectedPersonId(null); }}>

@@ -39,23 +39,22 @@ const PersonNode = ({
         onSelect(person.id);
       }}
       className={cn(
-        "w-48 border transition-all duration-300 cursor-pointer bg-white z-10",
-        isSelected ? "border-amber-600 ring-1 ring-amber-600 shadow-lg" :
-        isHighlighted ? "border-amber-400 ring-1 ring-amber-400" :
-        isInLineage ? "border-stone-800" : "border-stone-200 opacity-60"
+        "w-48 border-2 transition-all duration-300 cursor-pointer bg-white rounded-2xl overflow-hidden",
+        isSelected ? "border-amber-600 shadow-xl scale-105" :
+        isHighlighted ? "border-amber-400 shadow-md" :
+        isInLineage ? "border-stone-800" : "border-stone-100 opacity-70"
       )}
     >
-      {/* Minimal Status Bar */}
       <div className={cn(
-        "px-2 py-0.5 border-b text-[7px] font-bold tracking-widest flex justify-between items-center",
+        "px-3 py-1 border-b text-[8px] font-bold tracking-widest flex justify-between items-center",
         isSelected ? "bg-amber-600 text-white border-amber-600" : "bg-stone-50 text-stone-400 border-stone-100"
       )}>
-        <span>{isMe ? "PRIMARY" : "RECORD"}</span>
-        {isDeceased && <Skull className="w-2 h-2" />}
+        <span>{isMe ? "YOU" : "RECORD"}</span>
+        {isDeceased && <Skull className="w-2.5 h-2.5" />}
       </div>
 
       <div className="p-3 flex items-center gap-3">
-        <div className="w-10 h-10 border border-stone-100 bg-stone-50 shrink-0 overflow-hidden rounded-sm">
+        <div className="w-10 h-10 rounded-full border border-stone-100 bg-stone-50 shrink-0 overflow-hidden">
           {person.photoUrl ? (
             <img src={person.photoUrl} className={cn("w-full h-full object-cover", isDeceased && "grayscale")} />
           ) : (
@@ -69,7 +68,7 @@ const PersonNode = ({
             {formatDisplayName(person.name)}
           </h3>
           {settings.showDates && (
-            <p className="text-[9px] text-stone-400 mt-0.5">
+            <p className="text-[9px] text-stone-400 mt-0.5 font-medium">
               {person.birthYear || '????'} — {isDeceased ? (person.deathYear || '????') : 'Present'}
             </p>
           )}
