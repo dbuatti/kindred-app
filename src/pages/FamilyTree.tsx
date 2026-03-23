@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
@@ -42,34 +42,33 @@ const FamilyTree = () => {
   });
 
   const constraintsRef = useRef<HTMLDivElement>(null);
-  const { personLevels, rootClusters, getPeerCluster } = useTreeLayout(people, relationships, treeMode, selectedPersonId);
+  const { personLevels, rootClusters } = useTreeLayout(people, relationships, treeMode, selectedPersonId);
 
   const me = useMemo(() => people.find(p => p.userId === user?.id) || people[0], [people, user]);
+
+  // Find the "true" roots (people with no parents in the current view)
+  const topLevelClusters = useMemo(() => {
+    return rootClusters.filter(cluster => {
+      return !cluster.some(member => {
+        return relationships.some(r => {
+          const type = r.relationship_type.toLowerCase();
+          const isParentRel = ['mother', 'father', 'parent'].includes(type);
+          const isChildRel = ['son', 'daughter', 'child'].includes(type);
+          
+          // If someone is a child of another person in the tree, this cluster isn't a root
+          if (r.related_person_id === member.id && isParentRel) return true;
+          if (r.person_id === member.id && isChildRel) return true;
+          return false;
+        });
+      });
+    });
+  }, [rootClusters, relationships]);
 
   const lineageIds = useMemo(() => {
     if (!highlightedId) return new Set<string>();
     const ids = new Set<string>([highlightedId]);
-    
-    const queue = [highlightedId];
-    const visited = new Set([highlightedId]);
-    
-    // Trace 2 levels of connection for highlighting
-    for (let i = 0; i < 2; i++) {
-      const currentLevel = [...queue];
-      queue.length = 0;
-      currentLevel.forEach(id => {
-        relationships.forEach(r => {
-          const otherId = r.person_id === id ? r.related_person_id : (r.related_person_id === id ? r.person_id : null);
-          if (otherId && !visited.has(otherId)) {
-            visited.add(otherId);
-            ids.add(otherId);
-            queue.push(otherId);
-          }
-        });
-      });
-    }
     return ids;
-  }, [highlightedId, relationships]);
+  }, [highlightedId]);
 
   if (loading) return <div className="p-20 text-center text-xl font-serif italic text-stone-400">Opening the archive...</div>;
 
@@ -146,7 +145,6 @@ const FamilyTree = () => {
       </header>
 
       <div className="flex-1 relative" ref={constraintsRef}>
-        {/* Controls */}
         <div className="absolute bottom-8 left-8 z-30 flex flex-col gap-2">
           <Button size="icon" variant="outline" onClick={() => setZoom(z => Math.min(z + 0.1, 2))} className="h-12 w-12 rounded-full bg-white border-stone-200 shadow-lg"><ZoomIn className="w-5 h-5" /></Button>
           <Button size="icon" variant="outline" onClick={() => setZoom(z => Math.max(z - 0.1, 0.5))} className="h-12 w-12 rounded-full bg-white border-stone-200 shadow-lg"><ZoomOut className="w-5 h-5" /></Button>
@@ -154,15 +152,15 @@ const FamilyTree = () => {
           <Button size="icon" variant="outline" onClick={() => { if (me) { setHighlightedId(me.id); setSelectedPersonId(me.id); setZoom(1); } }} className="h-12 w-12 rounded-full bg-amber-600 text-white border-none shadow-xl"><Target className="w-5 h-5" /></Button>
         </div>
 
-        <div className="w-full h-full overflow-hidden p-20 cursor-grab active:cursor-grabbing" onClick={() => { setHighlightedId(null); setSelectedPersonId(null); }}>
+        <div className="w-full h-full overflow-auto p-20 cursor-grab active:cursor-grabbing" onClick={() => { setHighlightedId(null); setSelectedPersonId(null); }}>
           <motion.div 
             drag 
             dragConstraints={constraintsRef} 
             animate={{ scale: zoom }} 
             transition={{ type: "spring", stiffness: 300, damping: 30 }} 
-            className="flex flex-col items-center gap-48 min-w-max origin-top"
+            className="flex flex-col items-center gap-32 min-w-max origin-top"
           >
-            {rootClusters.map((cluster, idx) => (
+            {topLevelClusters.map((cluster, idx) => (
               <ClusterNode 
                 key={idx} 
                 members={cluster} 
@@ -175,7 +173,6 @@ const FamilyTree = () => {
                 selectedPersonId={selectedPersonId}
                 me={me}
                 onSelect={(id) => { setHighlightedId(id); setSelectedPersonId(id); }}
-                getPeerCluster={getPeerCluster}
                 settings={chartSettings}
                 debugMode={debugMode}
               />
