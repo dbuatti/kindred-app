@@ -29,9 +29,7 @@ const PersonDetail = () => {
 
   const person = useMemo(() => {
     if (!shortId || loading) return null;
-    // Find the person whose ID starts with our short identifier
     const found = people.find(p => p.id.startsWith(shortId));
-    console.log("[PersonDetail] Searching for person with short ID:", shortId, found ? "Found: " + found.name : "Not found");
     return found;
   }, [shortId, people, loading]);
 
@@ -42,10 +40,10 @@ const PersonDetail = () => {
 
   const isAdmin = user?.email === ADMIN_EMAIL;
 
-  // Find relatives
   const relatives = useMemo(() => {
     if (!person || !relationships.length) return [];
     
+    const seen = new Set();
     return relationships
       .filter(r => r.person_id === person.id || r.related_person_id === person.id)
       .map(r => {
@@ -54,6 +52,11 @@ const PersonDetail = () => {
         const relative = people.find(p => p.id === relativeId);
         
         if (!relative) return null;
+        
+        // Create a unique key to filter duplicates
+        const key = `${relative.id}-${r.relationship_type}`;
+        if (seen.has(key)) return null;
+        seen.add(key);
         
         return {
           ...relative,
@@ -173,7 +176,6 @@ const PersonDetail = () => {
       onDragLeave={onDragLeavePage}
       onDrop={onDropPage}
     >
-      {/* Drag Overlay for Memories */}
       {isDraggingOverPage && !isDraggingOverProfile && (
         <div className="fixed inset-0 z-50 bg-amber-600/20 backdrop-blur-sm flex items-center justify-center pointer-events-none animate-in fade-in duration-300">
           <div className="bg-white p-8 rounded-[3rem] shadow-2xl border-4 border-amber-500 flex flex-col items-center gap-4 scale-105 transition-transform">
@@ -183,7 +185,6 @@ const PersonDetail = () => {
         </div>
       )}
 
-      {/* Navigation */}
       <nav className="sticky top-0 z-10 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
         <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -219,7 +220,6 @@ const PersonDetail = () => {
         </div>
       </nav>
 
-      {/* Hero Section */}
       <header className="max-w-4xl mx-auto px-6 pt-8 pb-6 space-y-6">
         <div className="flex flex-col items-center text-center space-y-4">
           <div 
@@ -269,14 +269,13 @@ const PersonDetail = () => {
           </div>
         </div>
 
-        {/* Family Circle Pills */}
         {relatives.length > 0 && (
           <div className="space-y-3">
             <p className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.2em] text-center">Family Circle</p>
             <div className="flex flex-wrap justify-center gap-2">
               {relatives.map((rel: any) => (
                 <button
-                  key={rel.id}
+                  key={`${rel.id}-${rel.type}`}
                   onClick={() => navigate(getPersonUrl(rel.id, rel.name))}
                   className="flex items-center gap-2 px-3 py-1.5 bg-white border border-stone-100 rounded-full shadow-sm hover:border-amber-200 hover:bg-amber-50/30 transition-all group"
                 >
@@ -323,7 +322,8 @@ const PersonDetail = () => {
         </div>
       </header>
 
-      {/* Memories Feed */}
+      <FamilyConnections person={person} relatives={relatives} />
+
       <main className="max-w-4xl mx-auto px-6 space-y-8 mt-8">
         <div className="flex items-center justify-between border-b border-stone-100 pb-3">
           <h2 className="font-serif text-xl text-stone-800">Memories</h2>
@@ -373,7 +373,6 @@ const PersonDetail = () => {
         </div>
       </main>
 
-      {/* Floating Action */}
       <AddMemoryDialog 
         personId={person.id}
         personName={person.name} 
