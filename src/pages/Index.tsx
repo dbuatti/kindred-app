@@ -6,6 +6,7 @@ import AddMemoryDialog from '../components/AddMemoryDialog';
 import AddPersonDialog from '../components/AddPersonDialog';
 import FamilyInbox from '../components/FamilyInbox';
 import StoryStarter from '../components/StoryStarter';
+import ProfileDialog from '../components/ProfileDialog';
 import { Input } from '@/components/ui/input';
 import { Search, Mic, Share2, Sparkles, BookOpen, Heart } from 'lucide-react';
 import { MadeWithDyad } from '@/components/made-with-dyad';
@@ -62,6 +63,7 @@ const Index = () => {
                 <Share2 className="w-4 h-4" />
                 Invite
               </button>
+              <ProfileDialog />
             </div>
           </div>
 

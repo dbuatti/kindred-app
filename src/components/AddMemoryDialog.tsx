@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
-import { Mic, Camera, X, Loader2, MessageSquare } from 'lucide-react';
+import { Mic, Camera, X, Loader2, MessageSquare, Sparkles } from 'lucide-react';
 import { useVoiceInput } from '../hooks/use-voice';
 import { useFamily } from '../context/FamilyContext.tsx';
 import { cn } from '@/lib/utils';
@@ -11,15 +11,24 @@ import { toast } from 'sonner';
 interface AddMemoryDialogProps {
   personId?: string;
   personName: string;
+  initialContent?: string;
+  trigger?: React.ReactNode;
   onAdd?: (content: string, type: 'text' | 'voice' | 'photo') => void;
 }
 
-const AddMemoryDialog = ({ personId, personName, onAdd }: AddMemoryDialogProps) => {
+const AddMemoryDialog = ({ personId, personName, initialContent, trigger, onAdd }: AddMemoryDialogProps) => {
   const { addMemory } = useFamily();
   const { isListening, transcript, setTranscript, startListening } = useVoiceInput();
   const [isOpen, setIsOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Set initial content if provided when dialog opens
+  useEffect(() => {
+    if (isOpen && initialContent && !transcript) {
+      setTranscript(initialContent + "\n\n");
+    }
+  }, [isOpen, initialContent]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -50,20 +59,28 @@ const AddMemoryDialog = ({ personId, personName, onAdd }: AddMemoryDialogProps) 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="fixed bottom-8 right-8 h-20 px-8 rounded-full shadow-2xl bg-amber-600 hover:bg-amber-700 text-white z-20 text-lg font-medium gap-3">
-          <Mic className="w-6 h-6" />
-          Add a Story
-        </Button>
+        {trigger || (
+          <Button className="fixed bottom-8 right-8 h-20 px-8 rounded-full shadow-2xl bg-amber-600 hover:bg-amber-700 text-white z-20 text-lg font-medium gap-3">
+            <Mic className="w-6 h-6" />
+            Add a Story
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none bg-stone-50 p-8">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl text-stone-800 text-center">
-            Tell a story about {personName.split(' ')[0]}
+            {initialContent ? "Answering a prompt" : `Tell a story about ${personName.split(' ')[0]}`}
           </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-8 py-4">
-          {/* Big Voice Button */}
+          {initialContent && (
+            <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex gap-3">
+              <Sparkles className="w-5 h-5 text-amber-600 shrink-0" />
+              <p className="text-amber-900 font-serif italic text-sm">{initialContent}</p>
+            </div>
+          )}
+
           <div className="flex flex-col items-center gap-4">
             <Button
               onClick={startListening}

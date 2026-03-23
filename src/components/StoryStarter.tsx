@@ -1,7 +1,8 @@
 import React from 'react';
-import { Sparkles, RefreshCw, MessageSquarePlus } from 'lucide-react';
+import { Sparkles, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
+import AddMemoryDialog from './AddMemoryDialog';
 
 const PROMPTS = [
   "What was their favorite Sunday tradition?",
@@ -21,24 +22,36 @@ const StoryStarter = () => {
   };
 
   return (
-    <Card className="bg-amber-50/30 border-amber-100/50 p-6 rounded-[2rem] shadow-none">
+    <Card className="bg-amber-50/30 border-amber-100/50 p-6 rounded-[2rem] shadow-none group hover:bg-amber-50/50 transition-colors">
       <div className="flex items-start justify-between gap-4">
-        <div className="space-y-3">
+        <div className="space-y-3 flex-1">
           <div className="flex items-center gap-2 text-amber-700 text-xs font-bold uppercase tracking-widest">
             <Sparkles className="w-3 h-3" />
             Story Starter
           </div>
-          <h3 className="font-serif text-xl text-stone-800 leading-tight">
-            {PROMPTS[index]}
-          </h3>
-          <p className="text-stone-500 text-sm">
-            Tap to share a memory inspired by this question.
-          </p>
+          
+          <AddMemoryDialog 
+            personName="the family"
+            initialContent={PROMPTS[index]}
+            trigger={
+              <button className="text-left space-y-2 block w-full">
+                <h3 className="font-serif text-xl text-stone-800 leading-tight group-hover:text-amber-900 transition-colors">
+                  {PROMPTS[index]}
+                </h3>
+                <p className="text-stone-500 text-sm">
+                  Tap to share a memory inspired by this question.
+                </p>
+              </button>
+            }
+          />
         </div>
         <Button 
           variant="ghost" 
           size="icon" 
-          onClick={nextPrompt}
+          onClick={(e) => {
+            e.stopPropagation();
+            nextPrompt();
+          }}
           className="text-amber-600 hover:bg-amber-100 rounded-full shrink-0"
         >
           <RefreshCw className="w-4 h-4" />
