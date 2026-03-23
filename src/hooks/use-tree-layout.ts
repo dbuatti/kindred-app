@@ -4,143 +4,147 @@ import { useMemo } from 'react';
 import { Person } from '../types';
 
 interface Relationship {
+  id: string;
   person_id: string;
   related_person_id: string;
   relationship_type: string;
 }
 
-export type TreeMode = 'all' | 'ancestors' | 'descendants';
+export interface TreePosition {
+  id: string;
+  x: number;
+  y: number;
+  person: Person;
+}
 
-export const useTreeLayout = (people: Person[], relationships: Relationship[], mode: TreeMode = 'all', rootId: string | null = null) => {
-  
-  // 1. Build a bidirectional graph for easier traversal
-  const graph = useMemo(() => {
-    const adj: Record<string, { id: string, type: string }[]> = {};
-    people.forEach(p => adj[p.id] = []);
-    
-    relationships.forEach(r => {
-      if (adj[r.person_id] && adj[r.related_person_id]) {
-        adj[r.person_id].push({ id: r.related_person_id, type: r.relationship_type.toLowerCase() });
-      }
-    });
-    return adj;
-  }, [people, relationships]);
+export interface TreeConnection {
+  id: string;
+  from: { x: number, y: number };
+  to: { x: number, y: number };
+  type: 'parent-child' | 'spouse';
+}
 
-  // 2. Filter people based on mode (Ancestors/Descendants/All)
-  const filteredPeople = useMemo(() => {
-    if (mode === 'all' || !rootId) return people;
+export const useTreeLayout = (people: Person[], relationships: Relationship[]) => {
+  return useMemo(() => {
+    if (!people.length) return { positions: [], connections: [] };
 
-    const resultIds = new Set<string>([rootId]);
-    const queue = [rootId];
-    const visited = new Set([rootId]);
+    const NODE_WIDTH = 220;
+    const NODE_HEIGHT = 100;
+    const LEVEL_HEIGHT = 250;
+    const SIBLING_GAP = 250;
 
-    while (queue.length > 0) {
-      const currId = queue.shift()!;
-      
-      relationships.forEach(r => {
-        const type = r.relationship_type.toLowerCase();
-        const isParentRel = ['mother', 'father', 'parent', 'grandmother', 'grandfather'].includes(type);
-        const isChildRel = ['son', 'daughter', 'child', 'grandson', 'granddaughter'].includes(type);
-
-        if (mode === 'ancestors') {
-          if (r.person_id === currId && isParentRel && !visited.has(r.related_person_id)) {
-            resultIds.add(r.related_person_id);
-            visited.add(r.related_person_id);
-            queue.push(r.related_person_id);
-          } else if (r.related_person_id === currId && isChildRel && !visited.has(r.person_id)) {
-            resultIds.add(r.person_id);
-            visited.add(r.person_id);
-            queue.push(r.person_id);
-          }
-        } else if (mode === 'descendants') {
-          if (r.person_id === currId && isChildRel && !visited.has(r.related_person_id)) {
-            resultIds.add(r.related_person_id);
-            visited.add(r.related_person_id);
-            queue.push(r.related_person_id);
-          } else if (r.related_person_id === currId && isParentRel && !visited.has(r.person_id)) {
-            resultIds.add(r.person_id);
-            visited.add(r.person_id);
-            queue.push(r.person_id);
-          }
-        }
-      });
-    }
-
-    return people.filter(p => resultIds.has(p.id));
-  }, [people, relationships, mode, rootId]);
-
-  // 3. Calculate Generational Levels
-  const personLevels = useMemo(() => {
-    if (!filteredPeople.length) return {};
+    // 1. Calculate Generational Levels (Y-axis)
     const levels: Record<string, number> = {};
-    filteredPeople.forEach(p => levels[p.id] = 0);
+    people.forEach(p => levels[p.id] = 0);
 
-    for (let i = 0; i < 100; i++) {
+    // Iterative constraint relaxation for levels
+    for (let i = 0; i < 50; i++) {
       let changed = false;
       relationships.forEach(r => {
-        if (!levels.hasOwnProperty(r.person_id) || !levels.hasOwnProperty(r.related_person_id)) return;
-
         const type = r.relationship_type.toLowerCase();
         const p1 = r.person_id;
         const p2 = r.related_person_id;
+        if (!levels.hasOwnProperty(p1) || !levels.hasOwnProperty(p2)) return;
 
         if (['mother', 'father', 'parent'].includes(type)) {
-          if (levels[p1] <= levels[p2]) {
-            levels[p1] = levels[p2] + 1;
-            changed = true;
-          }
-        } 
-        else if (['son', 'daughter', 'child'].includes(type)) {
-          if (levels[p2] <= levels[p1]) {
-            levels[p2] = levels[p1] + 1;
-            changed = true;
-          }
-        }
-        else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling', 'cousin'].includes(type)) {
+          if (levels[p1] <= levels[p2]) { levels[p1] = levels[p2] + 1; changed = true; }
+        } else if (['son', 'daughter', 'child'].includes(type)) {
+          if (levels[p2] <= levels[p1]) { levels[p2] = levels[p1] + 1; changed = true; }
+        } else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
           if (levels[p1] !== levels[p2]) {
-            const avg = Math.max(levels[p1], levels[p2]);
-            levels[p1] = avg;
-            levels[p2] = avg;
-            changed = true;
+            const max = Math.max(levels[p1], levels[p2]);
+            levels[p1] = max; levels[p2] = max; changed = true;
           }
         }
       });
       if (!changed) break;
     }
 
-    const minLevel = Math.min(...Object.values(levels));
-    Object.keys(levels).forEach(id => {
-      levels[id] -= minLevel;
+    // Normalize levels
+    const minLvl = Math.min(...Object.values(levels));
+    Object.keys(levels).forEach(id => levels[id] -= minLvl);
+
+    // 2. Calculate X Positions
+    const positions: Record<string, number> = {};
+    
+    // Group people by level and sort them to keep families together
+    const peopleByLevel: Record<number, string[]> = {};
+    people.forEach(p => {
+      const lvl = levels[p.id];
+      if (!peopleByLevel[lvl]) peopleByLevel[lvl] = [];
+      peopleByLevel[lvl].push(p.id);
     });
 
-    return levels;
-  }, [filteredPeople, relationships]);
-
-  // 4. Group into "Marriage Units"
-  const rootClusters = useMemo(() => {
-    const processed = new Set<string>();
-    const clusters: any[][] = [];
-
-    const sortedPeople = [...filteredPeople].sort((a, b) => personLevels[a.id] - personLevels[b.id]);
-
-    sortedPeople.forEach(p => {
-      if (processed.has(p.id)) return;
-
-      const spouseRel = relationships.find(r => 
-        (r.person_id === p.id || r.related_person_id === p.id) && 
-        ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
-      );
-
-      const spouseId = spouseRel ? (spouseRel.person_id === p.id ? spouseRel.related_person_id : spouseRel.person_id) : null;
-      const spouse = spouseId ? filteredPeople.find(sp => sp.id === spouseId) : null;
-
-      const cluster = spouse ? [p, spouse] : [p];
-      cluster.forEach(c => processed.add(c.id));
-      clusters.push(cluster);
+    // Simple initial X assignment: spread them out
+    Object.keys(peopleByLevel).forEach(lvlStr => {
+      const lvl = parseInt(lvlStr);
+      const ids = peopleByLevel[lvl];
+      ids.forEach((id, idx) => {
+        positions[id] = (idx - (ids.length - 1) / 2) * SIBLING_GAP;
+      });
     });
 
-    return clusters;
-  }, [filteredPeople, personLevels, relationships]);
+    // 3. Refine X Positions (Pull children toward parents, spouses together)
+    for (let i = 0; i < 20; i++) {
+      relationships.forEach(r => {
+        const type = r.relationship_type.toLowerCase();
+        const p1 = r.person_id;
+        const p2 = r.related_person_id;
+        
+        if (['spouse', 'wife', 'husband'].includes(type)) {
+          const avg = (positions[p1] + positions[p2]) / 2;
+          positions[p1] = avg - 60;
+          positions[p2] = avg + 60;
+        }
+        
+        if (['mother', 'father', 'parent'].includes(type)) {
+          // Child (p1) should be near parent (p2)
+          const diff = positions[p1] - positions[p2];
+          positions[p1] -= diff * 0.1;
+        }
+      });
+    }
 
-  return { personLevels, rootClusters, filteredPeople };
+    const finalPositions: TreePosition[] = people.map(p => ({
+      id: p.id,
+      x: positions[p.id],
+      y: levels[p.id] * LEVEL_HEIGHT,
+      person: p
+    }));
+
+    // 4. Generate Connections
+    const connections: TreeConnection[] = [];
+    relationships.forEach(r => {
+      const type = r.relationship_type.toLowerCase();
+      const fromPos = finalPositions.find(p => p.id === r.person_id);
+      const toPos = finalPositions.find(p => p.id === r.related_person_id);
+      
+      if (!fromPos || !toPos) return;
+
+      if (['mother', 'father', 'parent'].includes(type)) {
+        connections.push({
+          id: `rel-${r.id}`,
+          from: { x: toPos.x + NODE_WIDTH/2, y: toPos.y + NODE_HEIGHT },
+          to: { x: fromPos.x + NODE_WIDTH/2, y: fromPos.y },
+          type: 'parent-child'
+        });
+      } else if (['son', 'daughter', 'child'].includes(type)) {
+        connections.push({
+          id: `rel-${r.id}`,
+          from: { x: fromPos.x + NODE_WIDTH/2, y: fromPos.y + NODE_HEIGHT },
+          to: { x: toPos.x + NODE_WIDTH/2, y: toPos.y },
+          type: 'parent-child'
+        });
+      } else if (['spouse', 'wife', 'husband'].includes(type)) {
+        connections.push({
+          id: `rel-${r.id}`,
+          from: { x: fromPos.x + NODE_WIDTH, y: fromPos.y + NODE_HEIGHT/2 },
+          to: { x: toPos.x, y: toPos.y + NODE_HEIGHT/2 },
+          type: 'spouse'
+        });
+      }
+    });
+
+    return { positions: finalPositions, connections };
+  }, [people, relationships]);
 };
