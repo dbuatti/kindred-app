@@ -99,12 +99,10 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
         if (!alreadyMyParent) {
           const parent = people.find(p => p.id === pId);
           if (parent) {
-            // Determine the correct role (mother/father) based on existing relationship to sibling
             let role = 'parent';
             if (rel.relationship_type.toLowerCase() === 'mother' || rel.relationship_type.toLowerCase() === 'father') {
               role = rel.relationship_type.toLowerCase();
             } else if (rel.relationship_type.toLowerCase() === 'son' || rel.relationship_type.toLowerCase() === 'daughter') {
-              // If the sibling is the 'son' of this person, we need to know this person's gender
               role = parent.gender?.toLowerCase() === 'female' ? 'mother' : 'father';
             }
 

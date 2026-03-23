@@ -25,11 +25,14 @@ import {
   Calendar,
   MapPin,
   Briefcase,
-  ExternalLink
+  ExternalLink,
+  Activity
 } from 'lucide-react';
 import { getPersonUrl } from '@/lib/slugify';
 import { cn } from '@/lib/utils';
 import QuickAddMenu from '../components/QuickAddMenu';
+import SmartSuggestionHover from '../components/SmartSuggestionHover';
+import TreeDiagnostics from '../components/TreeDiagnostics';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card } from '@/components/ui/card';
@@ -44,6 +47,7 @@ const FamilyTree = () => {
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [showMinimap, setShowMinimap] = useState(true);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   
   const treeRef = useRef<HTMLDivElement>(null);
   const constraintsRef = useRef<HTMLDivElement>(null);
@@ -115,6 +119,7 @@ const FamilyTree = () => {
       if (e.key === '-' || e.key === '_') setZoom(z => Math.max(z - 0.1, 0.5));
       if (e.key === '0') setZoom(1);
       if (e.key === 'm') setShowMinimap(prev => !prev);
+      if (e.key === 'd') setShowDiagnostics(prev => !prev);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -305,6 +310,7 @@ const FamilyTree = () => {
         className="flex flex-col items-center space-y-3 cursor-pointer group"
       >
         <QuickAddMenu personId={person.id} personName={person.name} />
+        <SmartSuggestionHover personId={person.id} />
         <div className={cn(
           "h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 shadow-lg ring-1 transition-all duration-500 relative",
           isSelected ? "border-amber-600 ring-amber-300 scale-110 z-20 shadow-amber-200" :
@@ -479,6 +485,18 @@ const FamilyTree = () => {
           >
             <MapIcon className="w-5 h-5" />
           </Button>
+          <Button 
+            size="icon" 
+            variant="secondary" 
+            onClick={() => setShowDiagnostics(!showDiagnostics)}
+            className={cn(
+              "h-12 w-12 rounded-full shadow-lg border-2 border-white transition-colors",
+              showDiagnostics ? "bg-red-600 text-white" : "bg-white text-red-600"
+            )}
+            title="Toggle Diagnostics"
+          >
+            <Activity className="w-5 h-5" />
+          </Button>
         </div>
 
         {/* Mini-map Overlay */}
@@ -504,6 +522,31 @@ const FamilyTree = () => {
               </div>
               <div className="absolute inset-0 border-2 border-amber-500/30 rounded-3xl" />
               <div className="absolute top-2 left-2 text-[8px] font-bold text-stone-400 uppercase tracking-widest">Mini-map</div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Diagnostics Overlay */}
+        <AnimatePresence>
+          {showDiagnostics && (
+            <motion.div 
+              initial={{ y: 400, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 400, opacity: 0 }}
+              className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t-4 border-red-100 shadow-2xl z-50 max-h-[50vh] overflow-y-auto p-8"
+            >
+              <div className="max-w-4xl mx-auto">
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-2xl font-serif font-bold text-stone-800 flex items-center gap-3">
+                    <Activity className="w-6 h-6 text-red-600" />
+                    Tree Diagnostics
+                  </h2>
+                  <Button variant="ghost" size="icon" onClick={() => setShowDiagnostics(false)} className="rounded-full">
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+                <TreeDiagnostics />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
