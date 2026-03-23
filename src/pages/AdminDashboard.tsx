@@ -8,18 +8,12 @@ import {
   ArrowLeft, 
   Users, 
   MessageSquare, 
-  Sparkles, 
   ShieldCheck, 
   TrendingUp,
   UserCircle,
-  Mail,
   Clock,
   ChevronRight,
-  Edit3,
-  Trash2,
-  UserPlus,
   Link as LinkIcon,
-  Copy,
   Activity
 } from 'lucide-react';
 import { 
@@ -37,15 +31,15 @@ import { getPersonUrl } from '@/lib/slugify';
 import EditPersonDialog from '../components/EditPersonDialog';
 import AddPersonDialog from '../components/AddPersonDialog';
 import TreeDiagnostics from '../components/TreeDiagnostics';
+import AdminStats from '../components/admin/AdminStats';
 import { toast } from 'sonner';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { people, suggestions, profiles, user, loading } = useFamily();
+  const { people, suggestions, user, loading } = useFamily();
 
-  // Access Control
   if (!loading && user?.email !== ADMIN_EMAIL) {
     return <Navigate to="/" />;
   }
@@ -109,35 +103,11 @@ const AdminDashboard = () => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-10">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="p-6 bg-white border-stone-100 shadow-sm rounded-[2rem] space-y-2">
-                <div className="h-10 w-10 rounded-2xl bg-stone-50 flex items-center justify-center text-stone-400">
-                  <Users className="w-5 h-5" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-3xl font-serif font-medium text-stone-800">{people.length}</p>
-                  <p className="text-stone-400 text-xs uppercase tracking-widest">Total People</p>
-                </div>
-              </Card>
-              <Card className="p-6 bg-white border-stone-100 shadow-sm rounded-[2rem] space-y-2">
-                <div className="h-10 w-10 rounded-2xl bg-stone-50 flex items-center justify-center text-stone-400">
-                  <MessageSquare className="w-5 h-5" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-3xl font-serif font-medium text-stone-800">{totalMemories}</p>
-                  <p className="text-stone-400 text-xs uppercase tracking-widest">Stories Shared</p>
-                </div>
-              </Card>
-              <Card className="p-6 bg-amber-50/50 border-amber-100 shadow-sm rounded-[2rem] space-y-2">
-                <div className="h-10 w-10 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-3xl font-serif font-medium text-amber-900">{pendingSuggestions}</p>
-                  <p className="text-amber-700/60 text-xs uppercase tracking-widest">Pending Edits</p>
-                </div>
-              </Card>
-            </div>
+            <AdminStats 
+              totalPeople={people.length} 
+              totalMemories={totalMemories} 
+              pendingSuggestions={pendingSuggestions} 
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <Card className="p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">

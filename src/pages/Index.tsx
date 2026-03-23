@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import PersonCard from '../components/PersonCard';
@@ -11,14 +11,15 @@ import StoryStarter from '../components/StoryStarter';
 import FloatingMenu from '../components/FloatingMenu';
 import ScrollToTop from '../components/ScrollToTop';
 import BottomNav from '../components/BottomNav';
+import SearchBar from '../components/index/SearchBar';
+import RecentPeople from '../components/index/RecentPeople';
 import { PersonCardSkeleton } from '../components/SkeletonLoader';
-import { Input } from '@/components/ui/input';
-import { Search, Share2, ScrollText, X, HelpCircle, UserCircle, Network, Users, ShieldCheck, Sparkles, Command, History, ArrowRight, Clock } from 'lucide-react';
+import { Share2, ScrollText, HelpCircle, UserCircle, Network, Users, ShieldCheck, Sparkles, History, ArrowRight, Search } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
 import { Card } from '@/components/ui/card';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
@@ -26,9 +27,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { people, loading, user } = useFamily();
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('people');
   const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   
   const isAdmin = user?.email === ADMIN_EMAIL;
 
@@ -37,10 +36,10 @@ const Index = () => {
     if (stored) setRecentlyViewed(JSON.parse(stored));
   }, []);
 
-  const recentPeople = useMemo(() => {
+  const recentPeopleList = useMemo(() => {
     return recentlyViewed
       .map(id => people.find(p => p.id === id))
-      .filter(Boolean)
+      .filter((p): p is any => !!p)
       .slice(0, 4);
   }, [recentlyViewed, people]);
 
@@ -49,17 +48,6 @@ const Index = () => {
     if (all.length < 2) return null;
     return all[Math.floor(Math.random() * all.length)];
   }, [people]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   const filteredPeople = people.filter(p => {
     const nameMatch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -70,9 +58,7 @@ const Index = () => {
   const handleInvite = async () => {
     const inviteUrl = window.location.origin + '/join?code=KINDRED2024';
     if (navigator.share) {
-      try {
-        await navigator.share({ title: 'Join Kindred', url: inviteUrl });
-      } catch (err) {}
+      try { await navigator.share({ title: 'Join Kindred', url: inviteUrl }); } catch (err) {}
     } else {
       navigator.clipboard.writeText(inviteUrl);
       toast.success("Link copied! Send it to family.");
@@ -126,27 +112,7 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="relative group">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-stone-400 group-focus-within:text-amber-600 transition-colors" />
-            <Input 
-              ref={searchInputRef}
-              placeholder="Search names or stories..."
-              className="pl-14 h-16 bg-stone-100 border-4 border-transparent focus:border-amber-500 rounded-2xl text-xl placeholder:text-stone-400 transition-all"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              {searchQuery ? (
-                <button onClick={() => setSearchQuery('')} className="p-2 bg-stone-200 rounded-full hover:bg-stone-300 transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              ) : (
-                <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-stone-200/50 rounded-md text-[10px] font-bold text-stone-400 uppercase tracking-widest">
-                  <Command className="w-3 h-3" /> /
-                </div>
-              )}
-            </div>
-          </div>
+          <SearchBar value={searchQuery} onChange={setSearchQuery} />
         </div>
       </header>
 
@@ -157,28 +123,7 @@ const Index = () => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-12"
           >
-            {recentPeople.length > 0 && (
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 text-stone-400 text-[10px] font-bold uppercase tracking-widest">
-                  <Clock className="w-3 h-3" />
-                  Recently Visited
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  {recentPeople.map(p => (
-                    <button 
-                      key={p!.id}
-                      onClick={() => navigate(getPersonUrl(p!.id, p!.name))}
-                      className="flex items-center gap-3 bg-white border border-stone-100 px-4 py-2 rounded-full shadow-sm hover:border-amber-200 hover:bg-amber-50/30 transition-all group"
-                    >
-                      <div className="h-6 w-6 rounded-full overflow-hidden bg-stone-100">
-                        {p!.photoUrl ? <img src={p!.photoUrl} className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0" /> : <UserCircle className="w-full h-full text-stone-300" />}
-                      </div>
-                      <span className="text-sm font-medium text-stone-700">{p!.name.split(' ')[0]}</span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
+            <RecentPeople people={recentPeopleList} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2">
@@ -209,7 +154,7 @@ const Index = () => {
           </motion.div>
         )}
 
-        <Tabs defaultValue="people" className="w-full" onValueChange={setActiveTab}>
+        <Tabs defaultValue="people" className="w-full">
           <TabsList className="bg-stone-100 p-2 rounded-2xl h-16 w-full mb-12">
             <TabsTrigger value="people" className="flex-1 rounded-xl text-lg data-[state=active]:bg-white data-[state=active]:shadow-md gap-3">
               <Users className="w-6 h-6" />
