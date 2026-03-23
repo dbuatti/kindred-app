@@ -21,7 +21,7 @@
     <div class="content">
       <p>You've been invited to join our private family storybook.</p>
       <p>Click the button below to verify your email and step inside the archive.</p>
-      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup" class="button">Step Inside</a>
+      <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=signup" class="button">Step Inside</a>
     </div>
     <div class="footer">
       Private • Secure • Family Only

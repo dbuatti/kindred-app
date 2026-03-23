@@ -21,7 +21,7 @@
     <div class="content">
       <p>Welcome back to the family archive.</p>
       <p>Tap the button below to sign in securely.</p>
-      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink" class="button">Enter the Archive</a>
+      <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=magiclink" class="button">Enter the Archive</a>
     </div>
     <div class="footer">
       Private • Secure • Family Only
