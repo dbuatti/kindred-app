@@ -9,6 +9,7 @@ import { getPersonUrl } from '@/lib/slugify';
 import { getInverseRelationship } from '@/lib/relationships';
 import { cn } from '@/lib/utils';
 import QuickAddMenu from '../components/QuickAddMenu';
+import SmartSuggestionHover from '../components/SmartSuggestionHover';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
@@ -38,11 +39,10 @@ const FamilyTree = () => {
       .map(r => r.person_id === personId ? r.related_person_id : r.person_id);
   };
 
-  // Normalize parents to include spouses (e.g. if Alfred is a parent and Venna is his spouse, they are a parent unit)
+  // Normalize parents to include spouses
   const getNormalizedParents = (personId: string) => {
     let parents = getDirectParents(personId);
     
-    // If no direct parents, try to infer from siblings
     if (parents.length === 0) {
       const sibs = getDirectSiblings(personId);
       for (const sibId of sibs) {
@@ -56,7 +56,6 @@ const FamilyTree = () => {
 
     if (parents.length === 0) return [];
 
-    // Expand parent set to include spouses of parents
     const fullSet = new Set(parents);
     parents.forEach(pId => {
       const spouseRel = relationships.find(r => 
@@ -70,14 +69,13 @@ const FamilyTree = () => {
     return Array.from(fullSet).sort();
   };
 
-  // 1. Calculate Generations (Levels) - Ancestors = 0
+  // 1. Calculate Generations (Levels)
   const generations = useMemo(() => {
     if (!people.length) return {};
     
     const levels: Record<string, number> = {};
     people.forEach(p => levels[p.id] = 0);
 
-    // Relaxation algorithm: parent level must be less than child level
     for (let i = 0; i < 50; i++) {
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
@@ -95,7 +93,6 @@ const FamilyTree = () => {
       });
     }
 
-    // Normalize so min level is 0
     const minLevel = Math.min(...Object.values(levels));
     Object.keys(levels).forEach(id => levels[id] -= minLevel);
 
@@ -117,11 +114,9 @@ const FamilyTree = () => {
       peopleInLevel.forEach(person => {
         if (renderedIds.has(person.id)) return;
 
-        // Determine grouping key
         const parents = getNormalizedParents(person.id);
         let groupKey = parents.length > 0 ? `parents-${parents.join('-')}` : 'root';
         
-        // If no parents, check if they are part of a sibling group with no parents
         if (groupKey === 'root') {
           const sibs = getDirectSiblings(person.id);
           if (sibs.length > 0) {
@@ -134,7 +129,6 @@ const FamilyTree = () => {
           gens[level].siblingGroups[groupKey] = [];
         }
 
-        // Find spouse
         const spouseRel = relationships.find(r => 
           (r.person_id === person.id || r.related_person_id === person.id) && 
           ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
@@ -199,12 +193,9 @@ const FamilyTree = () => {
             {Object.entries(gen.siblingGroups).map(([groupKey, members]) => (
               <div key={groupKey} className="relative flex flex-col items-center">
                 
-                {/* Sibling Connector Bar (Above the group) */}
                 {groupKey !== 'root' && (
                   <div className="absolute -top-32 left-0 right-0 flex flex-col items-center pointer-events-none">
-                    {/* Vertical line coming from parents above */}
                     <div className="h-16 w-px bg-stone-200" />
-                    {/* Horizontal bar connecting siblings */}
                     {members.length > 1 && (
                       <div className="h-px bg-stone-200 w-full" />
                     )}
@@ -220,7 +211,6 @@ const FamilyTree = () => {
                     return (
                       <div key={person.id} className="relative flex flex-col items-center">
                         
-                        {/* Vertical line from sibling bar down to node */}
                         {groupKey !== 'root' && (
                           <div className="absolute -top-16 h-16 w-px bg-stone-200 pointer-events-none" />
                         )}
@@ -233,6 +223,7 @@ const FamilyTree = () => {
                             onClick={() => navigate(getPersonUrl(person.id, person.name))}
                             className="relative flex flex-col items-center space-y-3 cursor-pointer"
                           >
+                            <SmartSuggestionHover personId={person.id} />
                             <QuickAddMenu personId={person.id} personName={person.name} />
                             <div className="h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
                               {person.photoUrl ? (
@@ -260,6 +251,7 @@ const FamilyTree = () => {
                                 onClick={() => navigate(getPersonUrl(spouse.id, spouse.name))}
                                 className="relative flex flex-col items-center space-y-3 cursor-pointer"
                               >
+                                <SmartSuggestionHover personId={spouse.id} />
                                 <QuickAddMenu personId={spouse.id} personName={spouse.name} />
                                 <div className="h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
                                   {spouse.photoUrl ? (
