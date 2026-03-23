@@ -18,42 +18,67 @@ const FamilyTree = () => {
     return people.find(p => p.userId === user?.id) || people[0];
   }, [people, user]);
 
-  // 1. Calculate Generations (Levels)
+  // Helper to get children of a person
+  const getChildren = (personId: string) => {
+    return relationships
+      .filter(r => r.related_person_id === personId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
+      .map(r => r.person_id)
+      .concat(
+        relationships
+          .filter(r => r.person_id === personId && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
+          .map(r => r.related_person_id)
+      );
+  };
+
+  // 1. Calculate Generations (Levels) with robust alignment
   const generations = useMemo(() => {
     if (!people.length) return {};
     
     const levels: Record<string, number> = {};
     people.forEach(p => levels[p.id] = 0);
 
-    // Simple relaxation algorithm to settle levels based on relationships
-    for (let i = 0; i < 20; i++) {
+    // Run relaxation multiple times to settle the tree
+    for (let i = 0; i < 30; i++) {
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         
-        // Parent -> Child link (r.related_person_id is parent, r.person_id is child)
+        // Parent -> Child (related_person_id is parent, person_id is child)
         if (['mother', 'father', 'parent'].includes(type)) {
           levels[r.person_id] = Math.max(levels[r.person_id], levels[r.related_person_id] + 1);
         }
         
-        // Child -> Parent link (r.person_id is parent, r.related_person_id is child)
+        // Child -> Parent (person_id is parent, related_person_id is child)
         if (['son', 'daughter', 'child'].includes(type)) {
           levels[r.related_person_id] = Math.max(levels[r.related_person_id], levels[r.person_id] + 1);
         }
         
-        // Spouse/Sibling links (should be on same level)
+        // Sibling/Spouse alignment
         if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
           const max = Math.max(levels[r.person_id], levels[r.related_person_id]);
           levels[r.person_id] = max;
           levels[r.related_person_id] = max;
         }
       });
+
+      // Align co-parents (people who share the same child)
+      people.forEach(p => {
+        const children = getChildren(p.id);
+        if (children.length > 0) {
+          const otherParents = people.filter(other => 
+            other.id !== p.id && getChildren(other.id).some(cid => children.includes(cid))
+          );
+          otherParents.forEach(op => {
+            const max = Math.max(levels[p.id], levels[op.id]);
+            levels[p.id] = max;
+            levels[op.id] = max;
+          });
+        }
+      });
     }
 
-    // Normalize levels so the minimum is 0
+    // Normalize levels
     const minLevel = Math.min(...Object.values(levels));
-    Object.keys(levels).forEach(id => {
-      levels[id] -= minLevel;
-    });
+    Object.keys(levels).forEach(id => levels[id] -= minLevel);
 
     return levels;
   }, [people, relationships]);
@@ -63,33 +88,40 @@ const FamilyTree = () => {
     const gens: Record<number, { couples: any[][], singles: any[] }> = {};
     const processed = new Set();
 
-    // Sort people into generations
-    Object.entries(generations).forEach(([id, level]) => {
-      if (processed.has(id)) return;
-      
-      if (!gens[level]) gens[level] = { couples: [], singles: [] };
-      
-      const person = people.find(p => p.id === id);
-      if (!person) return;
+    Object.entries(generations)
+      .sort(([, a], [, b]) => a - b)
+      .forEach(([id, level]) => {
+        if (processed.has(id)) return;
+        
+        if (!gens[level]) gens[level] = { couples: [], singles: [] };
+        
+        const person = people.find(p => p.id === id);
+        if (!person) return;
 
-      // Find spouse in the same generation
-      const spouseRel = relationships.find(r => 
-        (r.person_id === id || r.related_person_id === id) && 
-        ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
-      );
+        // Find spouse or co-parent in the same generation
+        const children = getChildren(id);
+        const coParent = people.find(other => 
+          other.id !== id && 
+          generations[other.id] === level && 
+          !processed.has(other.id) &&
+          (
+            relationships.some(r => 
+              (r.person_id === id && r.related_person_id === other.id || r.person_id === other.id && r.related_person_id === id) &&
+              ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
+            ) ||
+            getChildren(other.id).some(cid => children.includes(cid))
+          )
+        );
 
-      const spouseId = spouseRel ? (spouseRel.person_id === id ? spouseRel.related_person_id : spouseRel.person_id) : null;
-      const spouse = spouseId ? people.find(p => p.id === spouseId) : null;
-
-      if (spouse && generations[spouse.id] === level) {
-        gens[level].couples.push([person, spouse]);
-        processed.add(id);
-        processed.add(spouse.id);
-      } else {
-        gens[level].singles.push(person);
-        processed.add(id);
-      }
-    });
+        if (coParent) {
+          gens[level].couples.push([person, coParent]);
+          processed.add(id);
+          processed.add(coParent.id);
+        } else {
+          gens[level].singles.push(person);
+          processed.add(id);
+        }
+      });
 
     return Object.entries(gens)
       .sort(([a], [b]) => Number(a) - Number(b))
@@ -98,17 +130,14 @@ const FamilyTree = () => {
 
   const getRelationshipLabel = (target: any) => {
     if (!me || target.id === me.id) return "You";
-    
     const directRel = relationships.find(r => 
       (r.person_id === me.id && r.related_person_id === target.id) ||
       (r.person_id === target.id && r.related_person_id === me.id)
     );
-
     if (directRel) {
       if (directRel.person_id === me.id) return directRel.relationship_type;
       return getInverseRelationship(directRel.relationship_type, target.gender);
     }
-
     return target.birthYear || "Family Member";
   };
 
@@ -136,7 +165,6 @@ const FamilyTree = () => {
       <main className="max-w-6xl mx-auto px-8 py-16 space-y-24">
         {treeData.map((gen, gIdx) => (
           <div key={gen.level} className="relative">
-            {/* Generation Connector Line */}
             {gIdx > 0 && (
               <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex flex-col items-center">
                 <div className="h-24 w-px bg-gradient-to-b from-stone-100 to-stone-300" />
@@ -145,7 +173,6 @@ const FamilyTree = () => {
             )}
 
             <div className="flex flex-wrap justify-center gap-12">
-              {/* Render Couples */}
               {gen.couples.map((couple, cIdx) => (
                 <div key={cIdx} className="flex gap-4 p-6 rounded-[3rem] bg-white shadow-sm border-2 border-amber-100 bg-amber-50/10 relative group hover:shadow-md transition-all">
                   {couple.map((person, pIdx) => (
@@ -181,7 +208,6 @@ const FamilyTree = () => {
                 </div>
               ))}
 
-              {/* Render Singles */}
               {gen.singles.map((person) => (
                 <div 
                   key={person.id}
