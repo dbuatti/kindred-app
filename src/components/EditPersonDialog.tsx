@@ -21,7 +21,10 @@ import {
   Tag, 
   User,
   Sparkles,
-  UserCheck
+  UserCheck,
+  Calendar,
+  MapPin,
+  Briefcase
 } from 'lucide-react';
 import { Person } from '../types';
 import { useFamily } from '../context/FamilyContext';
@@ -278,59 +281,75 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
                 <Sparkles className="w-3 h-3" /> Life Events
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Date of Birth (DD, DD/MM, or DD/MM/YYYY)</label>
-                  <Input 
-                    type="text"
-                    value={formData.birthDate}
-                    onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
-                    placeholder="e.g. 15 or 15/05 or 1920"
-                    className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
-                  />
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-3">Date of Birth</label>
+                  <div className="relative">
+                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
+                    <Input 
+                      type="text"
+                      value={formData.birthDate}
+                      onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
+                      placeholder="e.g. 15 or 15/05 or 1920"
+                      className="bg-stone-50 border-none rounded-2xl h-14 text-base pl-12 focus-visible:ring-amber-500/20"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Birth Place</label>
-                  <Input 
-                    value={formData.birthPlace}
-                    onChange={(e) => setFormData({...formData, birthPlace: e.target.value})}
-                    placeholder="City, Country"
-                    className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
-                  />
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-3">Birth Place</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
+                    <Input 
+                      value={formData.birthPlace}
+                      onChange={(e) => setFormData({...formData, birthPlace: e.target.value})}
+                      placeholder="City, Country"
+                      className="bg-stone-50 border-none rounded-2xl h-14 text-base pl-12 focus-visible:ring-amber-500/20"
+                    />
+                  </div>
                 </div>
               </div>
 
               {!formData.isLiving && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Date of Death</label>
-                    <Input 
-                      type="text"
-                      value={formData.deathDate}
-                      onChange={(e) => setFormData({...formData, deathDate: e.target.value})}
-                      placeholder="e.g. 20/12/2005"
-                      className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
-                    />
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-3">Date of Death</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
+                      <Input 
+                        type="text"
+                        value={formData.deathDate}
+                        onChange={(e) => setFormData({...formData, deathDate: e.target.value})}
+                        placeholder="e.g. 20/12/2005"
+                        className="bg-stone-50 border-none rounded-2xl h-14 text-base pl-12 focus-visible:ring-amber-500/20"
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Death Place</label>
-                    <Input 
-                      value={formData.deathPlace}
-                      onChange={(e) => setFormData({...formData, deathPlace: e.target.value})}
-                      className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
-                    />
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-3">Death Place</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
+                      <Input 
+                        value={formData.deathPlace}
+                        onChange={(e) => setFormData({...formData, deathPlace: e.target.value})}
+                        placeholder="City, Country"
+                        className="bg-stone-50 border-none rounded-2xl h-14 text-base pl-12 focus-visible:ring-amber-500/20"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
 
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Occupation</label>
-                <Input 
-                  value={formData.occupation}
-                  onChange={(e) => setFormData({...formData, occupation: e.target.value})}
-                  placeholder="e.g. Teacher, Engineer..."
-                  className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
-                />
+                <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-3">Occupation</label>
+                <div className="relative">
+                  <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
+                  <Input 
+                    value={formData.occupation}
+                    onChange={(e) => setFormData({...formData, occupation: e.target.value})}
+                    placeholder="e.g. Teacher, Engineer..."
+                    className="bg-stone-50 border-none rounded-2xl h-14 text-base pl-12 focus-visible:ring-amber-500/20"
+                  />
+                </div>
               </div>
             </div>
 
