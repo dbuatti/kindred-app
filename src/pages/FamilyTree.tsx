@@ -119,7 +119,7 @@ const FamilyTree = () => {
       }
     });
 
-    return couples.map(parents => {
+    const initialBranches = couples.map(parents => {
       const parentIds = parents.map(p => p.id);
       const children = people.filter(p => {
         const myParents = getParents(p.id);
@@ -137,6 +137,36 @@ const FamilyTree = () => {
         children: children.sort((a, b) => (a.birthYear || '').localeCompare(b.birthYear || ''))
       };
     }).filter(b => b.parents.length > 0);
+
+    // Reorder parents within branches to put siblings closer to each other
+    return initialBranches.map((branch, idx) => {
+      const isLeft = idx % 2 === 0;
+      const otherBranchIdx = isLeft ? idx + 1 : idx - 1;
+      const otherBranch = initialBranches[otherBranchIdx];
+
+      if (!otherBranch) return branch;
+
+      const siblingInThisBranch = branch.parents.find(p => 
+        otherBranch.parents.some(otherP => 
+          relationships.some(r => 
+            (r.person_id === p.id && r.related_person_id === otherP.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) ||
+            (r.person_id === otherP.id && r.related_person_id === p.id && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
+          )
+        )
+      );
+
+      if (siblingInThisBranch && branch.parents.length === 2) {
+        const otherParent = branch.parents.find(p => p.id !== siblingInThisBranch.id);
+        // If this is the left branch, sibling should be on the right
+        // If this is the right branch, sibling should be on the left
+        const newParents = isLeft 
+          ? [otherParent, siblingInThisBranch] 
+          : [siblingInThisBranch, otherParent];
+        return { ...branch, parents: newParents };
+      }
+
+      return branch;
+    });
   }, [people, me, relationships]);
 
   // Identify sibling links between branches
