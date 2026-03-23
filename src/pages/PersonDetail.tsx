@@ -161,31 +161,33 @@ const PersonDetail = () => {
       )}
 
       {/* Navigation */}
-      <nav className="sticky top-0 z-10 bg-[#FDFCF9]/80 backdrop-blur-md px-6 py-3 flex items-center justify-between border-b border-stone-100">
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => navigate('/')}
-            className="rounded-full text-stone-500 h-10 w-10"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="hidden md:flex items-center gap-2 text-[10px] font-medium text-stone-400 uppercase tracking-widest">
-            <span className="cursor-pointer hover:text-stone-800 transition-colors" onClick={() => navigate('/')}>Archive</span>
-            <ChevronRight className="w-3 h-3" />
-            <span className="text-stone-800">{person.name.split(' ')[0]}</span>
+      <nav className="sticky top-0 z-10 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
+        <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate('/')}
+              className="rounded-full text-stone-500 h-10 w-10"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="hidden md:flex items-center gap-2 text-[10px] font-medium text-stone-400 uppercase tracking-widest">
+              <span className="cursor-pointer hover:text-stone-800 transition-colors" onClick={() => navigate('/')}>Archive</span>
+              <ChevronRight className="w-3 h-3" />
+              <span className="text-stone-800">{person.name.split(' ')[0]}</span>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={handleShare} className="rounded-full text-stone-500 h-10 w-10">
-            <Share2 className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={handleShare} className="rounded-full text-stone-500 h-10 w-10">
+              <Share2 className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <header className="max-w-2xl mx-auto px-6 pt-8 pb-6 space-y-6">
+      <header className="max-w-4xl mx-auto px-6 pt-8 pb-6 space-y-6">
         <div className="flex flex-col items-center text-center space-y-4">
           <div 
             className={cn(
@@ -287,7 +289,7 @@ const PersonDetail = () => {
       </header>
 
       {/* Memories Feed */}
-      <main className="max-w-2xl mx-auto px-6 space-y-8 mt-8">
+      <main className="max-w-4xl mx-auto px-6 space-y-8 mt-8">
         <div className="flex items-center justify-between border-b border-stone-100 pb-3">
           <h2 className="font-serif text-xl text-stone-800">Memories</h2>
           <span className="text-stone-400 text-xs">{person.memories.length} stories shared</span>

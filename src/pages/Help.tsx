@@ -54,7 +54,7 @@ const Help = () => {
   return (
     <div className="min-h-screen bg-[#FDFCF9] pb-20">
       <header className="bg-white border-b-8 border-stone-100 px-8 py-10 sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto flex items-center gap-6">
+        <div className="max-w-4xl mx-auto flex items-center gap-6">
           <Button 
             variant="ghost" 
             onClick={() => navigate('/')} 
@@ -69,7 +69,7 @@ const Help = () => {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-8 py-12 space-y-10">
+      <main className="max-w-4xl mx-auto px-8 py-12 space-y-10">
         <div className="bg-amber-50 p-10 rounded-[3rem] border-4 border-amber-100 space-y-4">
           <h2 className="text-3xl font-serif font-bold text-amber-900 flex items-center gap-3">
             <HelpCircle className="w-8 h-8" />

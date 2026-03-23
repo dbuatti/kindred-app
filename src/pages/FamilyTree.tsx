@@ -45,7 +45,7 @@ const FamilyTree = () => {
   return (
     <div className="min-h-screen bg-[#FDFCF9] pb-32 overflow-x-hidden">
       <header className="bg-white/80 backdrop-blur-md border-b border-stone-100 px-8 py-6 sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button 
               variant="ghost" 
@@ -69,7 +69,7 @@ const FamilyTree = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-8 py-16">
+      <main className="max-w-4xl mx-auto px-8 py-16">
         <div className="relative space-y-24">
           {/* Vertical Line connecting generations */}
           <div className="absolute left-1/2 top-0 bottom-0 w-px bg-stone-200 -translate-x-1/2 hidden md:block" />
