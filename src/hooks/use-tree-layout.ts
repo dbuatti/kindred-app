@@ -10,105 +10,121 @@ interface Relationship {
   relationship_type: string;
 }
 
-export interface RadialNode {
+export interface TreePosition {
   id: string;
   x: number;
   y: number;
-  angle: number;
-  radius: number;
   person: Person;
-  generation: number;
 }
 
-export interface RadialLink {
+export interface TreeConnection {
   id: string;
-  source: { x: number, y: number };
-  target: { x: number, y: number };
+  from: { x: number, y: number };
+  to: { x: number, y: number };
   type: 'blood' | 'spouse';
 }
 
-export const useTreeLayout = (people: Person[], relationships: Relationship[], centerId: string | null) => {
+export const useTreeLayout = (people: Person[], relationships: Relationship[]) => {
   return useMemo(() => {
-    if (!people.length || !centerId) return { nodes: [], links: [] };
+    console.log("[useTreeLayout] Starting layout calculation...", { 
+      peopleCount: people.length, 
+      relCount: relationships.length 
+    });
 
-    const nodes: RadialNode[] = [];
-    const links: RadialLink[] = [];
-    const visited = new Set<string>();
-    
-    // 1. Calculate Generational Distance from Center
-    const distance: Record<string, number> = {};
-    const queue: [string, number][] = [[centerId, 0]];
-    distance[centerId] = 0;
+    if (!people.length) return { positions: [], connections: [], debug: "No people found" };
 
-    while (queue.length > 0) {
-      const [currId, dist] = queue.shift()!;
-      if (visited.has(currId)) continue;
-      visited.add(currId);
+    const ITERATIONS = 50;
+    const SPRING_LENGTH = 300;
+    const REPULSION = 100000;
+    const DAMPING = 0.85;
 
+    // 1. Initialize positions randomly to avoid overlaps
+    const pos: Record<string, { x: number, y: number, vx: number, vy: number }> = {};
+    people.forEach((p, i) => {
+      pos[p.id] = {
+        x: Math.cos(i) * 500,
+        y: Math.sin(i) * 500,
+        vx: 0,
+        vy: 0
+      };
+    });
+
+    // 2. Run Physics Simulation (Force-Directed)
+    for (let i = 0; i < ITERATIONS; i++) {
+      // Repulsion (Push everyone apart)
+      people.forEach(p1 => {
+        people.forEach(p2 => {
+          if (p1.id === p2.id) return;
+          const dx = pos[p1.id].x - pos[p2.id].x;
+          const dy = pos[p1.id].y - pos[p2.id].y;
+          const distSq = dx * dx + dy * dy + 0.1;
+          const force = REPULSION / distSq;
+          pos[p1.id].vx += (dx / Math.sqrt(distSq)) * force * 0.01;
+          pos[p1.id].vy += (dy / Math.sqrt(distSq)) * force * 0.01;
+        });
+      });
+
+      // Attraction (Pull relatives together)
       relationships.forEach(r => {
-        const type = r.relationship_type.toLowerCase();
-        let neighborId = null;
+        if (!pos[r.person_id] || !pos[r.related_person_id]) return;
+        const p1 = pos[r.person_id];
+        const p2 = pos[r.related_person_id];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const force = (dist - SPRING_LENGTH) * 0.05;
         
-        if (r.person_id === currId) neighborId = r.related_person_id;
-        else if (r.related_person_id === currId) neighborId = r.person_id;
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+        
+        p1.vx += fx;
+        p1.vy += fy;
+        p2.vx -= fx;
+        p2.vy -= fy;
+      });
 
-        if (neighborId && !visited.has(neighborId)) {
-          // Blood relations change generation, spouses/siblings stay on same orbit
-          const isBlood = ['mother', 'father', 'parent', 'son', 'daughter', 'child'].includes(type);
-          const nextDist = isBlood ? (['mother', 'father', 'parent'].includes(type) ? dist - 1 : dist + 1) : dist;
-          
-          if (distance[neighborId] === undefined) {
-            distance[neighborId] = nextDist;
-            queue.push([neighborId, nextDist]);
-          }
-        }
+      // Apply velocity and damping
+      people.forEach(p => {
+        const node = pos[p.id];
+        node.x += node.vx;
+        node.y += node.vy;
+        node.vx *= DAMPING;
+        node.vy *= DAMPING;
       });
     }
 
-    // 2. Group by Generation and Calculate Angles
-    const genGroups: Record<number, string[]> = {};
-    Object.entries(distance).forEach(([id, gen]) => {
-      if (!genGroups[gen]) genGroups[gen] = [];
-      genGroups[gen].push(id);
-    });
+    const finalPositions: TreePosition[] = people.map(p => ({
+      id: p.id,
+      x: pos[p.id].x,
+      y: pos[p.id].y,
+      person: p
+    }));
 
-    const RADIUS_STEP = 350;
-    
-    Object.entries(genGroups).forEach(([genStr, ids]) => {
-      const gen = parseInt(genStr);
-      const radius = Math.abs(gen) * RADIUS_STEP;
+    const finalConnections: TreeConnection[] = relationships.map(r => {
+      const from = pos[r.person_id];
+      const to = pos[r.related_person_id];
+      if (!from || !to) return null;
       
-      ids.forEach((id, idx) => {
-        const person = people.find(p => p.id === id);
-        if (!person) return;
+      const type = r.relationship_type.toLowerCase();
+      const isSpouse = ['spouse', 'wife', 'husband'].includes(type);
 
-        // Spread nodes around the circle
-        const angle = (idx / ids.length) * 2 * Math.PI + (gen * 0.5); // Offset each gen slightly
-        const x = radius * Math.cos(angle);
-        const y = radius * Math.sin(angle);
+      return {
+        id: r.id,
+        from: { x: from.x, y: from.y },
+        to: { x: to.x, y: to.y },
+        type: isSpouse ? 'spouse' : 'blood'
+      } as TreeConnection;
+    }).filter((c): c is TreeConnection => c !== null);
 
-        nodes.push({ id, x, y, angle, radius, person, generation: gen });
-      });
+    console.log("[useTreeLayout] Layout complete.", { 
+      nodes: finalPositions.length, 
+      links: finalConnections.length 
     });
 
-    // 3. Create Links
-    relationships.forEach(r => {
-      const source = nodes.find(n => n.id === r.person_id);
-      const target = nodes.find(n => n.id === r.related_person_id);
-      
-      if (source && target) {
-        const type = r.relationship_type.toLowerCase();
-        const isSpouse = ['spouse', 'wife', 'husband'].includes(type);
-        
-        links.push({
-          id: r.id,
-          source: { x: source.x, y: source.y },
-          target: { x: target.x, y: target.y },
-          type: isSpouse ? 'spouse' : 'blood'
-        });
-      }
-    });
-
-    return { nodes, links };
-  }, [people, relationships, centerId]);
+    return { 
+      positions: finalPositions, 
+      connections: finalConnections,
+      debug: `Calculated ${finalPositions.length} nodes and ${finalConnections.length} links.`
+    };
+  }, [people, relationships]);
 };
