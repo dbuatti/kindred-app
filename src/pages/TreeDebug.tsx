@@ -14,7 +14,8 @@ import {
   AlignVerticalSpaceAround,
   GitBranch,
   Heart,
-  Focus
+  Focus,
+  Bug
 } from 'lucide-react';
 import { buildTree } from '@/lib/tree-utils';
 import { OutlineLayout } from '@/components/tree/OutlineLayout';
@@ -24,6 +25,7 @@ import { CompactVerticalLayout } from '@/components/tree/CompactVerticalLayout';
 import { FlowLayout } from '@/components/tree/FlowLayout';
 import { SimpleTreeLayout } from '@/components/tree/SimpleTreeLayout';
 import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 type LayoutType = 'outline' | 'traditional' | 'modern' | 'compact' | 'flow' | 'simple';
 
@@ -32,6 +34,7 @@ const TreeDebug = () => {
   const { people, loading, relationships } = useFamily();
   const [layout, setLayout] = useState<LayoutType>('simple');
   const [zoom, setZoom] = useState(0.8);
+  const [debugMode, setDebugMode] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   
@@ -56,10 +59,8 @@ const TreeDebug = () => {
     }
   };
 
-  // Center view on initial load and layout change
   useEffect(() => {
     if (!loading && roots.length > 0) {
-      // Small timeout to allow the new layout to render before measuring
       const timer = setTimeout(centerView, 100);
       return () => clearTimeout(timer);
     }
@@ -69,7 +70,6 @@ const TreeDebug = () => {
 
   return (
     <div className="fixed inset-0 bg-[#FDFCF9] overflow-hidden flex flex-col text-stone-900">
-      {/* Elegant Header */}
       <div className="bg-white/80 backdrop-blur-md border-b border-stone-100 p-6 flex items-center justify-between z-50 shadow-sm">
         <div className="flex items-center gap-6">
           <Button 
@@ -126,6 +126,17 @@ const TreeDebug = () => {
 
         <div className="flex items-center gap-3">
           <Button 
+            variant={debugMode ? "secondary" : "outline"}
+            size="sm" 
+            onClick={() => setDebugMode(!debugMode)}
+            className={cn(
+              "rounded-full gap-2 h-10 px-4 transition-all",
+              debugMode ? "bg-red-50 text-red-600 border-red-100" : "border-stone-200 text-stone-500"
+            )}
+          >
+            <Bug className="w-4 h-4" /> Debug
+          </Button>
+          <Button 
             variant="outline" 
             size="sm" 
             onClick={centerView}
@@ -152,13 +163,13 @@ const TreeDebug = () => {
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="origin-center inline-block min-w-full min-h-full"
         >
-          <div className="p-[1000px]"> {/* Large padding for panning */}
+          <div className="p-[1000px]">
             {layout === 'outline' && <OutlineLayout roots={roots} />}
             {layout === 'traditional' && <TraditionalLayout roots={roots} />}
             {layout === 'modern' && <ModernHorizontalLayout roots={roots} />}
             {layout === 'compact' && <CompactVerticalLayout roots={roots} />}
             {layout === 'flow' && <FlowLayout roots={roots} />}
-            {layout === 'simple' && <SimpleTreeLayout roots={roots} />}
+            {layout === 'simple' && <SimpleTreeLayout roots={roots} debugMode={debugMode} />}
           </div>
         </motion.div>
       </div>
@@ -169,7 +180,7 @@ const TreeDebug = () => {
           <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-stone-300" /> {relationships.length} Connections</span>
         </div>
         <div className="text-amber-600 italic font-serif normal-case tracking-normal text-sm">
-          Viewing {layout} layout
+          Viewing {layout} layout {debugMode && "(Debug Active)"}
         </div>
       </div>
     </div>

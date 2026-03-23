@@ -7,7 +7,7 @@ import { useFamily } from '@/context/FamilyContext';
 import { Users, Heart, Bug } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const SimpleNode = ({ node }: { node: TreeNode }) => {
+const SimpleNode = ({ node, debugMode }: { node: TreeNode, debugMode?: boolean }) => {
   const { relationships, people } = useFamily();
   
   const siblingRels = relationships.filter(r => 
@@ -25,8 +25,18 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
       <div className="relative flex flex-col items-center">
         <div className="flex items-center gap-6 p-10 bg-white/20 rounded-[4rem] border border-stone-200/30 backdrop-blur-[1px] shadow-sm">
           
-          <div className="px-8 py-8 bg-white border-2 border-stone-200 rounded-[3rem] min-w-[220px] text-center shadow-md relative z-10 group hover:border-amber-300 transition-all duration-1000">
+          <div className={cn(
+            "px-8 py-8 bg-white border-2 rounded-[3rem] min-w-[220px] text-center shadow-md relative z-10 group transition-all duration-1000",
+            debugMode ? "border-red-200" : "border-stone-200 hover:border-amber-300"
+          )}>
             
+            {/* Debug Info Overlay */}
+            {debugMode && (
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg z-30 whitespace-nowrap">
+                LEVEL: {node.level}
+              </div>
+            )}
+
             {/* Debug Copy Button */}
             <button 
               onClick={(e) => {
@@ -76,7 +86,15 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
                   <Heart className="w-3 h-3 text-red-300 fill-current" />
                 </div>
               </div>
-              <div className="px-8 py-8 bg-stone-50/60 border-2 border-stone-200 rounded-[3rem] min-w-[220px] text-center italic shadow-sm group hover:border-amber-200 transition-all duration-1000 relative">
+              <div className={cn(
+                "px-8 py-8 bg-stone-50/60 border-2 rounded-[3rem] min-w-[220px] text-center italic shadow-sm group transition-all duration-1000 relative",
+                debugMode ? "border-red-100" : "border-stone-200 hover:border-amber-200"
+              )}>
+                {debugMode && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-400 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg z-30 whitespace-nowrap">
+                    LEVEL: {node.level} (Spouse)
+                  </div>
+                )}
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
@@ -112,7 +130,7 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
           <div className="flex gap-24 relative pt-16 border-t-2 border-stone-200 rounded-t-[4rem]">
             {node.children.map((child) => (
               <div key={child.id} className="relative">
-                <SimpleNode node={child} />
+                <SimpleNode node={child} debugMode={debugMode} />
               </div>
             ))}
           </div>
@@ -122,7 +140,7 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
   );
 };
 
-export const SimpleTreeLayout = ({ roots }: { roots: TreeNode[] }) => {
+export const SimpleTreeLayout = ({ roots, debugMode }: { roots: TreeNode[], debugMode?: boolean }) => {
   const rootsByLevel = roots.reduce((acc, root) => {
     if (!acc[root.level]) acc[root.level] = [];
     acc[root.level].push(root);
@@ -134,7 +152,7 @@ export const SimpleTreeLayout = ({ roots }: { roots: TreeNode[] }) => {
       {Object.entries(rootsByLevel).sort(([a], [b]) => Number(a) - Number(b)).map(([level, levelRoots]) => (
         <div key={level} className="flex gap-64 items-start">
           {levelRoots.map(root => (
-            <SimpleNode key={root.id} node={root} />
+            <SimpleNode key={root.id} node={root} debugMode={debugMode} />
           ))}
         </div>
       ))}

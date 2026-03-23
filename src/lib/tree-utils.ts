@@ -27,7 +27,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   const spousesOf = new Map<string, string[]>();
   const allConnections = new Map<string, string[]>();
 
-  // Helper to track any connection for island detection
   const addConn = (a: string, b: string) => {
     const aList = allConnections.get(a) || [];
     if (!aList.includes(b)) aList.push(b);
@@ -74,10 +73,10 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     }
   });
 
-  // 1. Calculate Generational Levels
   const levels: Record<string, number> = {};
   people.forEach(p => levels[p.id] = 0);
 
+  console.log("[tree-utils] Calculating generational levels...");
   for (let i = 0; i < 20; i++) {
     let changed = false;
     relationships.forEach(r => {
@@ -88,17 +87,20 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
 
       if (['father', 'mother', 'parent'].includes(type)) {
         if (levels[p2] <= levels[p1]) {
+          console.log(`[tree-utils] Level Shift: ${personMap.get(p2)?.name} moved to level ${levels[p1] + 1} (Child of ${personMap.get(p1)?.name})`);
           levels[p2] = levels[p1] + 1;
           changed = true;
         }
       } else if (['son', 'daughter', 'child'].includes(type)) {
         if (levels[p1] <= levels[p2]) {
+          console.log(`[tree-utils] Level Shift: ${personMap.get(p1)?.name} moved to level ${levels[p2] + 1} (Child of ${personMap.get(p2)?.name})`);
           levels[p1] = levels[p2] + 1;
           changed = true;
         }
       } else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
         const maxLvl = Math.max(levels[p1], levels[p2]);
         if (levels[p1] !== maxLvl || levels[p2] !== maxLvl) {
+          console.log(`[tree-utils] Level Sync: ${personMap.get(p1)?.name} and ${personMap.get(p2)?.name} synced to level ${maxLvl}`);
           levels[p1] = maxLvl;
           levels[p2] = maxLvl;
           changed = true;
@@ -108,7 +110,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     if (!changed) break;
   }
 
-  // 2. Group into Islands (Connected Components)
   const visitedIslands = new Set<string>();
   const islands: string[][] = [];
 
@@ -140,6 +141,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     if (!person || globalVisited.has(personId)) return null;
 
     globalVisited.add(personId);
+    console.log(`[tree-utils] Constructing node for ${person.name} at level ${level}`);
 
     const spouseIds = spousesOf.get(personId) || [];
     const spouses = spouseIds
@@ -171,13 +173,11 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
 
   const roots: TreeNode[] = [];
   
-  // For each island, find the "top" nodes (those with no parents in the island)
   islands.forEach((island, islandIdx) => {
     const islandRoots = island
       .filter(id => !parentsOf.has(id))
       .sort((a, b) => levels[a] - levels[b]);
 
-    // If an island is a cycle or has no clear root, pick the one with the lowest level
     if (islandRoots.length === 0 && island.length > 0) {
       const minLvl = Math.min(...island.map(id => levels[id]));
       islandRoots.push(island.find(id => levels[id] === minLvl)!);
