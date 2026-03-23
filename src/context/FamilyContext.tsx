@@ -153,7 +153,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           personality_tags: newPerson.personalityTags,
           photo_url: newPerson.photoUrl,
           created_by_email: user.email,
-          user_id: user.id
+          // Removed user_id: user.id to prevent 409 conflicts with the current user's profile
         }]);
 
       if (error) throw error;
@@ -220,7 +220,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .eq('memory_id', memoryId)
           .eq('user_id', user.id);
       } else {
-        // Use upsert to prevent 409 Conflict if clicked twice
         await supabase
           .from('reactions')
           .upsert({ memory_id: memoryId, user_id: user.id }, { onConflict: 'memory_id,user_id' });
