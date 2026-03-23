@@ -11,7 +11,7 @@ import StoryStarter from '../components/StoryStarter';
 import FamilyJournal from '../components/FamilyJournal';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Share2, Users, ScrollText, X, HelpCircle, UserCircle } from 'lucide-react';
+import { Search, Share2, Users, ScrollText, X, HelpCircle, UserCircle, Network } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -51,6 +51,15 @@ const Index = () => {
               <p className="text-stone-500 text-2xl italic">Our Family Storybook</p>
             </div>
             <div className="flex gap-8">
+              <button 
+                onClick={() => navigate('/tree')}
+                className="flex flex-col items-center gap-2 text-stone-500 hover:text-amber-600 transition-colors"
+              >
+                <div className="h-20 w-20 rounded-full bg-stone-100 flex items-center justify-center">
+                  <Network className="w-10 h-10" />
+                </div>
+                <span className="text-sm font-bold uppercase tracking-widest">Tree</span>
+              </button>
               <button 
                 onClick={() => navigate('/help')}
                 className="flex flex-col items-center gap-2 text-stone-500 hover:text-amber-600 transition-colors"

@@ -17,6 +17,7 @@ import Onboarding from "./pages/Onboarding";
 import EditProfile from "./pages/EditProfile";
 import Help from "./pages/Help";
 import Profile from "./pages/Profile";
+import FamilyTree from "./pages/FamilyTree";
 
 const queryClient = new QueryClient();
 
@@ -74,6 +75,7 @@ const App = () => (
             <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
+            <Route path="/tree" element={<ProtectedRoute><OnboardingCheck><FamilyTree /></OnboardingCheck></ProtectedRoute>} />
             <Route path="/" element={<ProtectedRoute><OnboardingCheck><Index /></OnboardingCheck></ProtectedRoute>} />
             <Route path="/person/:id" element={<ProtectedRoute><OnboardingCheck><PersonDetail /></OnboardingCheck></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><OnboardingCheck><AdminDashboard /></OnboardingCheck></ProtectedRoute>} />
