@@ -31,12 +31,15 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
   // State for "Link Existing" mode
   const [selectedPersonId, setSelectedPersonId] = useState('');
   const [existingRelationship, setExistingRelationship] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   
   const [confirmedInferences, setConfirmedInferences] = useState<Record<string, boolean>>({});
 
   const otherPeople = useMemo(() => {
-    return people.filter(p => p.id !== person.id);
-  }, [people, person]);
+    return people
+      .filter(p => p.id !== person.id)
+      .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [people, person, searchQuery]);
 
   const smartInferences = useMemo(() => {
     const name = relativeName || (selectedPersonId ? people.find(p => p.id === selectedPersonId)?.name : '');
@@ -64,7 +67,7 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
       });
     }
 
-    // 2. COUSIN Inference: If adding a cousin, ask about the parent link (The "Missing Link" fix)
+    // 2. COUSIN Inference: If adding a cousin, ask about the parent link
     if (relType === "cousin") {
       const myParents = relationships
         .filter(r => r.person_id === person.id && (r.relationship_type === 'mother' || r.relationship_type === 'father'))
@@ -93,7 +96,6 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
 
     let finalValue = `${name} (${rel})`;
     
-    // If linking existing, we use a special format for the admin to process
     if (selectedPersonId) {
       finalValue = `LINK_EXISTING: ${selectedPersonId} as ${rel} to ${person.id}`;
     }
@@ -119,6 +121,7 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
     setRelationship('');
     setSelectedPersonId('');
     setExistingRelationship('');
+    setSearchQuery('');
     setConfirmedInferences({});
   };
 
@@ -172,31 +175,44 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
           </TabsContent>
 
           <TabsContent value="existing" className="space-y-6 py-6">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Select Person</label>
-              <Select onValueChange={setSelectedPersonId} value={selectedPersonId}>
-                <SelectTrigger className="bg-white border-stone-200 rounded-2xl h-14 text-lg">
-                  <SelectValue placeholder="Choose from archive..." />
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl">
-                  {otherPeople.map(p => (
-                    <SelectItem key={p.id} value={p.id} className="text-lg py-3">{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Relationship to {person.name.split(' ')[0]}</label>
-              <Select onValueChange={setExistingRelationship} value={existingRelationship}>
-                <SelectTrigger className="bg-white border-stone-200 rounded-2xl h-14 text-lg">
-                  <SelectValue placeholder="Select relationship" />
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl">
-                  {RELATIONSHIPS.map(r => (
-                    <SelectItem key={r} value={r} className="text-lg py-3">{r}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                <Input 
+                  placeholder="Search family members..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-white border-stone-200 rounded-xl h-12"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Select Person</label>
+                <Select onValueChange={setSelectedPersonId} value={selectedPersonId}>
+                  <SelectTrigger className="bg-white border-stone-200 rounded-2xl h-14 text-lg">
+                    <SelectValue placeholder={otherPeople.length === 0 ? "No matches found" : "Choose from archive..."} />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl">
+                    {otherPeople.map(p => (
+                      <SelectItem key={p.id} value={p.id} className="text-lg py-3">{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Relationship to {person.name.split(' ')[0]}</label>
+                <Select onValueChange={setExistingRelationship} value={existingRelationship}>
+                  <SelectTrigger className="bg-white border-stone-200 rounded-2xl h-14 text-lg">
+                    <SelectValue placeholder="Select relationship" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl">
+                    {RELATIONSHIPS.map(r => (
+                      <SelectItem key={r} value={r} className="text-lg py-3">{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
