@@ -1,27 +1,43 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AuthCallback = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     const handleAuth = async () => {
-      // The Supabase client handles the hash/code in the URL automatically,
-      // but we can also manually verify if a token_hash is present.
-      const { data, error } = await supabase.auth.getSession();
+      const token_hash = searchParams.get('token_hash');
+      const type = searchParams.get('type');
+
+      // If we have a token_hash (Option 2 from the docs), verify it manually
+      if (token_hash && type) {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash,
+          type: type as any,
+        });
+
+        if (error) {
+          toast.error("Verification failed: " + error.message);
+          navigate('/login');
+          return;
+        }
+      }
+
+      // Check if we have a session now
+      const { data, error: sessionError } = await supabase.auth.getSession();
       
-      if (error) {
-        toast.error("Authentication failed: " + error.message);
+      if (sessionError) {
+        toast.error("Authentication failed: " + sessionError.message);
         navigate('/login');
       } else if (data.session) {
         toast.success("Welcome back!");
         navigate('/');
       } else {
-        // If no session yet, we might be waiting for the redirect to finish
-        // or it might be an invalid link.
+        // Fallback for slow redirects
         const timeout = setTimeout(() => {
           navigate('/login');
         }, 5000);
@@ -30,7 +46,7 @@ const AuthCallback = () => {
     };
 
     handleAuth();
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] flex flex-col items-center justify-center p-6">
