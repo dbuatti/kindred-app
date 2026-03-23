@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: 'Georgia', serif; background-color: #FDFCF9; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 40px; overflow: hidden; border: 1px solid #e7e5e4; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .header { padding: 40px 20px; text-align: center; background-color: #FDFCF9; }
+    .content { padding: 40px; text-align: center; color: #44403c; }
+    .button { display: inline-block; padding: 18px 36px; background-color: #292524; color: #ffffff !important; text-decoration: none; border-radius: 20px; font-weight: 500; font-size: 18px; margin-top: 20px; }
+    .footer { padding: 30px; text-align: center; color: #a8a29e; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+    h1 { color: #1c1917; font-size: 32px; margin-bottom: 10px; }
+    p { line-height: 1.6; font-size: 18px; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div style="font-size: 40px; color: #d97706;">♥</div>
+      <h1>Kindred</h1>
+    </div>
+    <div class="content">
+      <p>You've been invited to join our private family storybook.</p>
+      <p>Click the button below to verify your email and step inside the archive.</p>
+      <a href="{{ .ConfirmationURL }}" class="button">Step Inside</a>
+    </div>
+    <div class="footer">
+      Private • Secure • Family Only
+    </div>
+  </div>
+</body>
+</html>
