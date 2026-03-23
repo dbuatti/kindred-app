@@ -18,7 +18,7 @@ const FamilyTree = () => {
     return people.find(p => p.userId === user?.id) || people[0];
   }, [people, user]);
 
-  // 1. Helper to get direct parents
+  // Helper to get direct parents
   const getDirectParents = (personId: string) => {
     const parentIds = relationships
       .filter(r => r.person_id === personId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
@@ -31,29 +31,46 @@ const FamilyTree = () => {
     return Array.from(new Set(parentIds)).sort();
   };
 
-  // 2. Helper to get siblings
+  // Helper to get siblings
   const getDirectSiblings = (personId: string) => {
     return relationships
       .filter(r => (r.person_id === personId || r.related_person_id === personId) && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
       .map(r => r.person_id === personId ? r.related_person_id : r.person_id);
   };
 
-  // 3. Advanced Parent Inference (e.g., if Stefano is Daniele's brother, Stefano gets Daniele's parents)
-  const getInferredParents = (personId: string) => {
+  // Normalize parents to include spouses (e.g. if Alfred is a parent and Venna is his spouse, they are a parent unit)
+  const getNormalizedParents = (personId: string) => {
     let parents = getDirectParents(personId);
-    if (parents.length > 0) return parents;
-
-    // Try to find parents via siblings
-    const siblings = getDirectSiblings(personId);
-    for (const sibId of siblings) {
-      const sibParents = getDirectParents(sibId);
-      if (sibParents.length > 0) return sibParents;
+    
+    // If no direct parents, try to infer from siblings
+    if (parents.length === 0) {
+      const sibs = getDirectSiblings(personId);
+      for (const sibId of sibs) {
+        const sibParents = getDirectParents(sibId);
+        if (sibParents.length > 0) {
+          parents = sibParents;
+          break;
+        }
+      }
     }
 
-    return [];
+    if (parents.length === 0) return [];
+
+    // Expand parent set to include spouses of parents
+    const fullSet = new Set(parents);
+    parents.forEach(pId => {
+      const spouseRel = relationships.find(r => 
+        (r.person_id === pId || r.related_person_id === pId) && 
+        ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
+      );
+      if (spouseRel) {
+        fullSet.add(spouseRel.person_id === pId ? spouseRel.related_person_id : spouseRel.person_id);
+      }
+    });
+    return Array.from(fullSet).sort();
   };
 
-  // 4. Calculate Generations (Levels) - Ancestors = Low Numbers (Top)
+  // 1. Calculate Generations (Levels) - Ancestors = 0
   const generations = useMemo(() => {
     if (!people.length) return {};
     
@@ -64,20 +81,12 @@ const FamilyTree = () => {
     for (let i = 0; i < 50; i++) {
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
-        
-        // Parent -> Child link
         if (['mother', 'father', 'parent'].includes(type)) {
-          // related_person_id is parent, person_id is child
           levels[r.person_id] = Math.max(levels[r.person_id], levels[r.related_person_id] + 1);
         }
-        
-        // Child -> Parent link
         if (['son', 'daughter', 'child'].includes(type)) {
-          // person_id is parent, related_person_id is child
           levels[r.related_person_id] = Math.max(levels[r.related_person_id], levels[r.person_id] + 1);
         }
-        
-        // Sibling/Spouse link (same level)
         if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
           const max = Math.max(levels[r.person_id], levels[r.related_person_id]);
           levels[r.person_id] = max;
@@ -86,10 +95,14 @@ const FamilyTree = () => {
       });
     }
 
+    // Normalize so min level is 0
+    const minLevel = Math.min(...Object.values(levels));
+    Object.keys(levels).forEach(id => levels[id] -= minLevel);
+
     return levels;
   }, [people, relationships]);
 
-  // 5. Group people by generation and sibling groups
+  // 2. Group people by generation and sibling groups
   const treeData = useMemo(() => {
     const gens: Record<number, { siblingGroups: Record<string, any[]> }> = {};
     const renderedIds = new Set<string>();
@@ -105,7 +118,7 @@ const FamilyTree = () => {
         if (renderedIds.has(person.id)) return;
 
         // Determine grouping key
-        const parents = getInferredParents(person.id);
+        const parents = getNormalizedParents(person.id);
         let groupKey = parents.length > 0 ? `parents-${parents.join('-')}` : 'root';
         
         // If no parents, check if they are part of a sibling group with no parents
