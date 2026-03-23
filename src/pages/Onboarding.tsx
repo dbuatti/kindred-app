@@ -107,6 +107,7 @@ const Onboarding = () => {
         vibe_sentence: formData.bio || "",
         personality_tags: ["✨ Family Member"],
         created_by_email: user.email,
+        is_living: true // Ensure the user is marked as living
       };
 
       let myPersonId = formData.claimedPersonId;
@@ -137,7 +138,8 @@ const Onboarding = () => {
             name: rel.name,
             vibe_sentence: "",
             personality_tags: [rel.type],
-            created_by_email: user.email
+            created_by_email: user.email,
+            is_living: true // Default relatives to living during onboarding
           })
           .select()
           .single();

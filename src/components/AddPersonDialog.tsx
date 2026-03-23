@@ -2,10 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { Switch } from './ui/switch';
+import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { UserPlus, History, CheckCircle2 } from 'lucide-react';
+import { UserPlus, History, CheckCircle2, Heart, Skull } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface AddPersonDialogProps {
   trigger?: React.ReactNode;
@@ -41,6 +44,7 @@ const AddPersonDialog = ({
 
   const [name, setName] = useState('');
   const [gender, setGender] = useState('');
+  const [isLiving, setIsLiving] = useState(true);
   const [relationship, setRelationship] = useState(initialRelationship);
   const [relatedToId, setRelatedToId] = useState<string>(initialRelatedToId);
 
@@ -64,6 +68,7 @@ const AddPersonDialog = ({
     await addPerson({
       name,
       gender,
+      isLiving,
       relationshipType: relationship,
       vibeSentence: "", 
       personalityTags: [relationship],
@@ -75,12 +80,13 @@ const AddPersonDialog = ({
     setName('');
     setGender('');
     setRelationship('');
+    setIsLiving(true);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="sm:max-w-lg rounded-[3rem] border-none bg-white p-10">
+      <DialogContent className="sm:max-w-lg rounded-[3rem] border-none bg-white p-10 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-4 mb-4">
             <div className="h-14 w-14 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
@@ -96,6 +102,28 @@ const AddPersonDialog = ({
         </DialogHeader>
 
         <div className="space-y-8 py-6">
+          {/* Living Status Toggle */}
+          <div className="flex items-center justify-between p-5 bg-stone-50 rounded-3xl border border-stone-100 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className={cn(
+                "h-10 w-10 rounded-full flex items-center justify-center transition-colors",
+                isLiving ? "bg-red-50 text-red-500" : "bg-stone-200 text-stone-500"
+              )}>
+                {isLiving ? <Heart className="w-5 h-5 fill-current" /> : <Skull className="w-5 h-5" />}
+              </div>
+              <div className="space-y-0.5">
+                <Label className="text-lg font-serif font-bold text-stone-800">Living Status</Label>
+                <p className="text-xs text-stone-400 uppercase tracking-widest font-bold">
+                  {isLiving ? "Currently with us" : "In our memories"}
+                </p>
+              </div>
+            </div>
+            <Switch 
+              checked={isLiving} 
+              onCheckedChange={setIsLiving} 
+            />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
               <label className="text-lg font-bold text-stone-600">Name</label>

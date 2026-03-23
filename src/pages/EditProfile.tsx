@@ -150,6 +150,7 @@ const EditProfile = () => {
         vibe_sentence: formData.bio || "",
         personality_tags: ["✨ Family Member"],
         created_by_email: user.email,
+        is_living: true // Ensure the user is marked as living
       }, { onConflict: 'user_id' });
 
       toast.success("Profile saved successfully!");
