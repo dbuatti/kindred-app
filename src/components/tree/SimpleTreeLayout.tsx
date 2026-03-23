@@ -4,7 +4,7 @@ import React from 'react';
 import { TreeNode } from '@/lib/tree-utils';
 import { formatDisplayName } from '@/lib/utils';
 import { useFamily } from '@/context/FamilyContext';
-import { Users, Heart, UserCircle, Camera } from 'lucide-react';
+import { Users, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const SimpleNode = ({ node }: { node: TreeNode }) => {
@@ -20,28 +20,20 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
     return people.find(p => p.id === sibId)?.name.split(' ')[0];
   }).filter(Boolean);
 
-  const hasSpouse = node.spouses.length > 0;
-  const lineXOffset = hasSpouse ? 120 : 0;
-
   return (
     <div className="flex flex-col items-center">
       <div className="relative flex flex-col items-center">
-        {/* Incoming line from parent */}
-        {node.level > 0 && (
-          <svg className="absolute -top-32 left-1/2 w-40 h-32 -translate-x-1/2 pointer-events-none overflow-visible">
-            <path 
-              d="M 80 0 L 80 60 Q 80 80 80 100" 
-              fill="none" 
-              stroke="#e7e5e4" 
-              strokeWidth="2" 
-              strokeDasharray="6 4"
-            />
-          </svg>
-        )}
-
+        {/* Family Group Container */}
         <div className="flex items-center gap-6 p-10 bg-white/20 rounded-[4rem] border border-stone-200/30 backdrop-blur-[1px] shadow-sm">
-          {/* Main Person */}
+          
+          {/* Main Person Box */}
           <div className="px-8 py-8 bg-white border-2 border-stone-200 rounded-[3rem] min-w-[220px] text-center shadow-md relative z-10 group hover:border-amber-300 transition-all duration-1000">
+            
+            {/* Incoming line from parent - Anchored directly to the person */}
+            {node.level > 0 && (
+              <div className="absolute -top-28 left-1/2 w-0.5 h-28 bg-stone-200 -translate-x-1/2 pointer-events-none" />
+            )}
+
             <div className="w-20 h-20 rounded-full overflow-hidden bg-stone-50 mx-auto mb-4 border-4 border-white shadow-inner ring-1 ring-stone-100">
               {node.person.photoUrl ? (
                 <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-1000" />
@@ -96,23 +88,13 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
         </div>
       </div>
 
+      {/* Downward line to children - Anchored to the center of the union */}
       {node.children.length > 0 && (
-        <div className="flex flex-col items-center mt-16">
-          {/* Vertical line down from the family group */}
-          <div 
-            className="w-0.5 h-16 bg-stone-200 transition-all duration-500" 
-            style={{ transform: `translateX(${lineXOffset}px)` }}
-          />
-          
-          {/* Horizontal connector line */}
-          <div 
-            className="flex gap-24 relative pt-16 border-t-2 border-stone-200 rounded-t-[4rem] transition-all duration-500"
-            style={{ transform: `translateX(${lineXOffset}px)` }}
-          >
+        <div className="flex flex-col items-center">
+          <div className="w-0.5 h-16 bg-stone-200" />
+          <div className="flex gap-24 relative pt-16 border-t-2 border-stone-200 rounded-t-[4rem]">
             {node.children.map((child) => (
               <div key={child.id} className="relative">
-                {/* Vertical line up to the horizontal connector */}
-                <div className="absolute -top-16 left-1/2 w-0.5 h-16 bg-stone-200 -translate-x-1/2" />
                 <SimpleNode node={child} />
               </div>
             ))}
