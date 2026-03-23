@@ -135,6 +135,19 @@ const FamilyTree = () => {
           <Button size="icon" variant="secondary" onClick={() => setShowDiagnostics(!showDiagnostics)} className={cn("h-12 w-12 rounded-full shadow-lg border-2 border-white", showDiagnostics ? "bg-red-600 text-white" : "bg-white text-red-600")}><Activity className="w-5 h-5" /></Button>
         </div>
 
+        {/* Backdrop for Sidebars */}
+        <AnimatePresence>
+          {(selectedPersonId || showDiagnostics) && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { setSelectedPersonId(null); setShowDiagnostics(false); }}
+              className="absolute inset-0 bg-stone-900/20 backdrop-blur-[2px] z-40"
+            />
+          )}
+        </AnimatePresence>
+
         {/* Diagnostics Overlay */}
         <AnimatePresence>
           {showDiagnostics && (
@@ -142,11 +155,14 @@ const FamilyTree = () => {
               initial={{ x: -400, opacity: 0 }} 
               animate={{ x: 0, opacity: 1 }} 
               exit={{ x: -400, opacity: 0 }} 
-              className="absolute top-0 left-0 bottom-0 w-96 bg-white shadow-2xl z-50 border-r border-stone-100 overflow-y-auto p-8"
+              className="absolute top-0 left-0 bottom-0 w-full md:w-[450px] bg-white shadow-[20px_0_60px_-15px_rgba(0,0,0,0.3)] z-50 border-r border-stone-200 overflow-y-auto p-8"
             >
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-2xl font-serif font-bold text-stone-800">Diagnostics</h2>
-                <Button variant="ghost" size="icon" onClick={() => setShowDiagnostics(false)}><X className="w-5 h-5" /></Button>
+                <div className="flex items-center gap-3">
+                  <Activity className="w-6 h-6 text-red-600" />
+                  <h2 className="text-2xl font-serif font-bold text-stone-800">Diagnostics</h2>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setShowDiagnostics(false)} className="rounded-full hover:bg-stone-100"><X className="w-6 h-6" /></Button>
               </div>
               <TreeDiagnostics />
             </motion.div>
@@ -174,29 +190,77 @@ const FamilyTree = () => {
         {/* Selected Person Sidebar */}
         <AnimatePresence>
           {selectedPerson && (
-            <motion.div initial={{ x: 400, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 400, opacity: 0 }} className="absolute top-0 right-0 bottom-0 w-80 md:w-96 bg-white shadow-2xl z-50 border-l border-stone-100 overflow-y-auto custom-scrollbar">
+            <motion.div 
+              initial={{ x: 400, opacity: 0 }} 
+              animate={{ x: 0, opacity: 1 }} 
+              exit={{ x: 400, opacity: 0 }} 
+              className="absolute top-0 right-0 bottom-0 w-full md:w-[400px] bg-white shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.3)] z-50 border-l border-stone-200 overflow-y-auto custom-scrollbar"
+            >
               <div className="p-8 space-y-8">
                 <div className="flex items-center justify-between">
-                  <Button variant="ghost" size="icon" onClick={() => setSelectedPersonId(null)} className="rounded-full"><X className="w-5 h-5" /></Button>
-                  <Button variant="ghost" onClick={() => navigate(getPersonUrl(selectedPerson.id, selectedPerson.name))} className="text-amber-600 hover:bg-amber-50 rounded-full gap-2">Full Profile <ExternalLink className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="icon" onClick={() => setSelectedPersonId(null)} className="rounded-full hover:bg-stone-100"><X className="w-6 h-6" /></Button>
+                  <Button variant="ghost" onClick={() => navigate(getPersonUrl(selectedPerson.id, selectedPerson.name))} className="text-amber-600 hover:bg-amber-50 rounded-full gap-2 font-bold text-xs uppercase tracking-widest">Full Profile <ExternalLink className="w-4 h-4" /></Button>
                 </div>
-                <div className="flex flex-col items-center text-center space-y-4">
-                  <div className="h-32 w-32 rounded-full overflow-hidden border-4 border-stone-50 shadow-xl">
-                    {selectedPerson.photoUrl ? <img src={selectedPerson.photoUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300"><UserCircle className="w-16 h-16" /></div>}
+                <div className="flex flex-col items-center text-center space-y-6">
+                  <div className="h-40 w-40 rounded-full overflow-hidden border-8 border-stone-50 shadow-2xl ring-1 ring-stone-200">
+                    {selectedPerson.photoUrl ? <img src={selectedPerson.photoUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300"><UserCircle className="w-20 h-20" /></div>}
                   </div>
-                  <h2 className="text-3xl font-serif font-bold text-stone-800">{selectedPerson.name}</h2>
+                  <div className="space-y-2">
+                    <h2 className="text-4xl font-serif font-bold text-stone-800">{selectedPerson.name}</h2>
+                    <p className="text-stone-400 text-xs font-bold uppercase tracking-[0.3em]">Family Member</p>
+                  </div>
                 </div>
-                <div className="space-y-4 text-stone-600">
-                  {selectedPerson.birthYear && <div className="flex items-center gap-3"><Calendar className="w-5 h-5 text-amber-600" /><span>Born {selectedPerson.birthYear}</span></div>}
-                  {selectedPerson.birthPlace && <div className="flex items-center gap-3"><MapPin className="w-5 h-5 text-amber-600" /><span>{selectedPerson.birthPlace}</span></div>}
-                  {selectedPerson.occupation && <div className="flex items-center gap-3"><Briefcase className="w-5 h-5 text-amber-600" /><span>{selectedPerson.occupation}</span></div>}
+                
+                <div className="grid grid-cols-1 gap-4 pt-4">
+                  {selectedPerson.birthYear && (
+                    <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-2xl border border-stone-100">
+                      <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center text-amber-600 shadow-sm">
+                        <Calendar className="w-5 h-5" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Born</span>
+                        <span className="text-stone-800 font-medium">{selectedPerson.birthYear}</span>
+                      </div>
+                    </div>
+                  )}
+                  {selectedPerson.birthPlace && (
+                    <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-2xl border border-stone-100">
+                      <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center text-amber-600 shadow-sm">
+                        <MapPin className="w-5 h-5" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Place</span>
+                        <span className="text-stone-800 font-medium">{selectedPerson.birthPlace}</span>
+                      </div>
+                    </div>
+                  )}
+                  {selectedPerson.occupation && (
+                    <div className="flex items-center gap-4 p-4 bg-stone-50 rounded-2xl border border-stone-100">
+                      <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center text-amber-600 shadow-sm">
+                        <Briefcase className="w-5 h-5" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Occupation</span>
+                        <span className="text-stone-800 font-medium">{selectedPerson.occupation}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest flex items-center gap-2"><MessageSquare className="w-4 h-4" /> Recent Stories</h3>
-                  <div className="space-y-3">
-                    {selectedPerson.memories.slice(0, 3).map(m => (
-                      <div key={m.id} className="p-4 bg-white border border-stone-100 rounded-2xl shadow-sm"><p className="text-sm text-stone-600 italic line-clamp-3">"{m.content}"</p></div>
-                    ))}
+
+                <div className="space-y-4 pt-4">
+                  <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest flex items-center gap-2 border-b border-stone-100 pb-2">
+                    <MessageSquare className="w-4 h-4" /> Recent Stories
+                  </h3>
+                  <div className="space-y-4">
+                    {selectedPerson.memories.length === 0 ? (
+                      <p className="text-stone-400 text-sm italic text-center py-4">No stories shared yet.</p>
+                    ) : (
+                      selectedPerson.memories.slice(0, 3).map(m => (
+                        <div key={m.id} className="p-5 bg-white border border-stone-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                          <p className="text-stone-600 italic font-serif leading-relaxed">"{m.content}"</p>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
