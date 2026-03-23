@@ -19,43 +19,39 @@ const FamilyTree = () => {
     return people.find(p => p.userId === user?.id) || people[0];
   }, [people, user]);
 
-  // 1. Calculate Generations (Levels) with a robust iterative algorithm
+  // 1. Robust Generational Leveling
   const generations = useMemo(() => {
     if (!people.length) return {};
     
     const levels: Record<string, number> = {};
     people.forEach(p => levels[p.id] = 0);
 
-    // Iterative relaxation to settle levels
-    // We want: Parent = Child + 1
-    // Spouse = Spouse
-    // Sibling = Sibling
-    // Cousin = Cousin
-    for (let i = 0; i < 50; i++) {
+    // Iterative relaxation to settle levels based on hierarchy
+    for (let i = 0; i < 100; i++) {
       let changed = false;
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         const p1 = r.person_id;
         const p2 = r.related_person_id;
 
-        // Parent/Child relationships
+        // Parent/Child: Parent is always exactly 1 level above child
         if (['mother', 'father', 'parent'].includes(type)) {
-          // p2 is the parent of p1
+          // p2 is parent of p1
           if (levels[p2] !== levels[p1] + 1) {
             levels[p2] = levels[p1] + 1;
             changed = true;
           }
         }
         if (['son', 'daughter', 'child'].includes(type)) {
-          // p1 is the parent of p2
+          // p1 is parent of p2
           if (levels[p1] !== levels[p2] + 1) {
             levels[p1] = levels[p2] + 1;
             changed = true;
           }
         }
 
-        // Same-level relationships: Spouse, Sibling, Cousin
-        if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling', 'cousin'].includes(type)) {
+        // Same-level: Spouses and Siblings must be on the same level
+        if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
           const max = Math.max(levels[p1], levels[p2]);
           if (levels[p1] !== max || levels[p2] !== max) {
             levels[p1] = max;
@@ -67,7 +63,7 @@ const FamilyTree = () => {
       if (!changed) break;
     }
 
-    // Normalize so the lowest level is 0
+    // Normalize levels so the youngest generation is at the bottom (0)
     const minLevel = Math.min(...Object.values(levels));
     const normalized: Record<string, number> = {};
     Object.keys(levels).forEach(id => normalized[id] = levels[id] - minLevel);
@@ -88,26 +84,7 @@ const FamilyTree = () => {
     return Array.from(new Set(parentIds)).sort();
   };
 
-  // Generate a unique key for a sibling group based on their parent unit
-  const getParentUnitKey = (personId: string) => {
-    const parents = getDirectParents(personId);
-    if (parents.length === 0) return null;
-    
-    const unitSet = new Set<string>();
-    parents.forEach(pId => {
-      unitSet.add(pId);
-      const spouseRel = relationships.find(r => 
-        (r.person_id === pId || r.related_person_id === pId) && 
-        ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
-      );
-      if (spouseRel) {
-        unitSet.add(spouseRel.person_id === pId ? spouseRel.related_person_id : spouseRel.person_id);
-      }
-    });
-    return Array.from(unitSet).sort().join('-');
-  };
-
-  // 2. Group people by generation and sibling groups
+  // 2. Grouping Logic for Sibling Groups and Couples
   const treeData = useMemo(() => {
     const gens: Record<number, { siblingGroups: Record<string, any[]> }> = {};
     const renderedIds = new Set<string>();
@@ -122,13 +99,15 @@ const FamilyTree = () => {
       peopleInLevel.forEach(person => {
         if (renderedIds.has(person.id)) return;
 
-        const parentKey = getParentUnitKey(person.id);
-        const groupKey = parentKey ? `parents-${parentKey}` : `root-${person.id}`;
+        // Determine which "parent unit" this person belongs to
+        const parents = getDirectParents(person.id);
+        const groupKey = parents.length > 0 ? `parents-${parents.join('-')}` : `root-${person.id}`;
 
         if (!gens[level].siblingGroups[groupKey]) {
           gens[level].siblingGroups[groupKey] = [];
         }
 
+        // Check if this person has a spouse on the same level
         const spouseRel = relationships.find(r => 
           (r.person_id === person.id || r.related_person_id === person.id) && 
           ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
@@ -196,9 +175,9 @@ const FamilyTree = () => {
                 {/* Sibling Connector Bar (Horizontal) */}
                 {!groupKey.startsWith('root') && (
                   <div className="absolute -top-20 left-0 right-0 flex flex-col items-center pointer-events-none">
-                    <div className="h-10 w-px bg-stone-200" />
+                    <div className="h-20 w-px bg-stone-200" />
                     {members.length > 1 && (
-                      <div className="h-px bg-stone-200 w-full" />
+                      <div className="h-px bg-stone-200 w-full mt-[-80px]" />
                     )}
                   </div>
                 )}
@@ -209,12 +188,21 @@ const FamilyTree = () => {
                     const person = isCouple ? item[0] : item;
                     const spouse = isCouple ? item[1] : null;
 
+                    // Check if this person/couple has children to draw a line down
+                    const hasChildren = relationships.some(r => 
+                      (r.person_id === person.id || (spouse && r.person_id === spouse.id)) && 
+                      ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase())
+                    ) || relationships.some(r => 
+                      (r.related_person_id === person.id || (spouse && r.related_person_id === spouse.id)) && 
+                      ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())
+                    );
+
                     return (
                       <div key={person.id} className="relative flex flex-col items-center">
                         
-                        {/* Vertical line to child */}
+                        {/* Vertical line up to parent bar */}
                         {!groupKey.startsWith('root') && (
-                          <div className="absolute -top-10 h-10 w-px bg-stone-200 pointer-events-none" />
+                          <div className="absolute -top-20 h-20 w-px bg-stone-200 pointer-events-none" />
                         )}
 
                         <div className={cn(
@@ -273,8 +261,8 @@ const FamilyTree = () => {
                           )}
                         </div>
 
-                        {/* Vertical line down to next generation bar */}
-                        {genIdx < treeData.length - 1 && (
+                        {/* Vertical line down to children bar */}
+                        {hasChildren && genIdx < treeData.length - 1 && (
                           <div className="absolute -bottom-20 h-20 w-px bg-stone-200 pointer-events-none" />
                         )}
                       </div>
