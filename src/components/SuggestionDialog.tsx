@@ -24,7 +24,7 @@ const SuggestionDialog = ({ person, trigger }: SuggestionDialogProps) => {
 
     addSuggestion({
       personId: person.id,
-      fieldName: 'vibeSentence', // Defaulting to vibe for now
+      fieldName: 'vibe_sentence', // Matches the database column name
       suggestedValue: value,
       suggestedByEmail: 'cousin@family.com'
     });
