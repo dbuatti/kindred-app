@@ -21,7 +21,8 @@ import {
   Briefcase,
   ExternalLink,
   Activity,
-  UserCircle
+  UserCircle,
+  Bug
 } from 'lucide-react';
 import { getPersonUrl } from '@/lib/slugify';
 import { cn } from '@/lib/utils';
@@ -39,6 +40,7 @@ const FamilyTree = () => {
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [showMinimap, setShowMinimap] = useState(true);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
   
   const constraintsRef = useRef<HTMLDivElement>(null);
   const { personLevels, rootClusters, getPeerCluster } = useTreeLayout(people, relationships);
@@ -65,6 +67,7 @@ const FamilyTree = () => {
       if (e.key === '0') setZoom(1);
       if (e.key === 'm') setShowMinimap(prev => !prev);
       if (e.key === 'd') setShowDiagnostics(prev => !prev);
+      if (e.key === 'b') setDebugMode(prev => !prev);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -98,12 +101,19 @@ const FamilyTree = () => {
               />
               {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400"><X className="w-4 h-4" /></button>}
             </div>
-            <Button variant="outline" className="rounded-full border-stone-200 text-stone-600 gap-2 hidden md:flex"><Share2 className="w-4 h-4" /> Share Tree</Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setDebugMode(!debugMode)}
+              className={cn("rounded-full border-stone-200 gap-2 hidden md:flex", debugMode ? "bg-stone-800 text-white" : "text-stone-600")}
+            >
+              <Bug className="w-4 h-4" /> Debug Mode
+            </Button>
           </div>
         </div>
       </header>
 
       <div className="flex-1 relative overflow-hidden bg-stone-50/30" ref={constraintsRef}>
+        {/* Generational Labels */}
         <div className="absolute left-0 top-0 bottom-0 w-32 border-r border-stone-100/50 bg-white/20 backdrop-blur-sm z-20 hidden lg:flex flex-col items-center py-20 gap-48">
           {Array.from({ length: maxLevel + 1 }).map((_, i) => (
             <div key={i} className="flex flex-col items-center gap-2">
@@ -115,6 +125,7 @@ const FamilyTree = () => {
           ))}
         </div>
 
+        {/* Controls */}
         <div className="absolute bottom-8 left-8 z-30 flex flex-col gap-2">
           <Button size="icon" variant="secondary" onClick={() => setZoom(z => Math.min(z + 0.1, 2))} className="h-12 w-12 rounded-full bg-white shadow-lg"><ZoomIn className="w-5 h-5" /></Button>
           <Button size="icon" variant="secondary" onClick={() => setZoom(z => Math.max(z - 0.1, 0.5))} className="h-12 w-12 rounded-full bg-white shadow-lg"><ZoomOut className="w-5 h-5" /></Button>
@@ -124,6 +135,25 @@ const FamilyTree = () => {
           <Button size="icon" variant="secondary" onClick={() => setShowDiagnostics(!showDiagnostics)} className={cn("h-12 w-12 rounded-full shadow-lg border-2 border-white", showDiagnostics ? "bg-red-600 text-white" : "bg-white text-red-600")}><Activity className="w-5 h-5" /></Button>
         </div>
 
+        {/* Diagnostics Overlay */}
+        <AnimatePresence>
+          {showDiagnostics && (
+            <motion.div 
+              initial={{ x: -400, opacity: 0 }} 
+              animate={{ x: 0, opacity: 1 }} 
+              exit={{ x: -400, opacity: 0 }} 
+              className="absolute top-0 left-0 bottom-0 w-96 bg-white shadow-2xl z-50 border-r border-stone-100 overflow-y-auto p-8"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-serif font-bold text-stone-800">Diagnostics</h2>
+                <Button variant="ghost" size="icon" onClick={() => setShowDiagnostics(false)}><X className="w-5 h-5" /></Button>
+              </div>
+              <TreeDiagnostics />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Minimap */}
         <AnimatePresence>
           {showMinimap && (
             <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} className="absolute bottom-8 right-8 w-48 h-48 bg-white/80 backdrop-blur-md border-2 border-stone-100 rounded-3xl shadow-2xl z-30 overflow-hidden p-4 pointer-events-none">
@@ -141,6 +171,7 @@ const FamilyTree = () => {
           )}
         </AnimatePresence>
 
+        {/* Selected Person Sidebar */}
         <AnimatePresence>
           {selectedPerson && (
             <motion.div initial={{ x: 400, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 400, opacity: 0 }} className="absolute top-0 right-0 bottom-0 w-80 md:w-96 bg-white shadow-2xl z-50 border-l border-stone-100 overflow-y-auto custom-scrollbar">
@@ -173,6 +204,7 @@ const FamilyTree = () => {
           )}
         </AnimatePresence>
 
+        {/* Main Tree Canvas */}
         <div className="w-full h-full overflow-hidden p-20 cursor-grab active:cursor-grabbing" onClick={() => { setHighlightedId(null); setSelectedPersonId(null); }}>
           <motion.div drag dragConstraints={constraintsRef} animate={{ scale: zoom }} transition={{ type: "spring", stiffness: 300, damping: 30 }} className="flex flex-col items-center gap-32 min-w-max origin-top">
             {rootClusters.map((cluster, idx) => (
@@ -189,6 +221,7 @@ const FamilyTree = () => {
                 me={me}
                 onSelect={(id) => { setHighlightedId(id); setSelectedPersonId(id); }}
                 getPeerCluster={getPeerCluster}
+                debugMode={debugMode}
               />
             ))}
           </motion.div>

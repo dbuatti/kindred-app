@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import { Heart, Users2 } from 'lucide-react';
+import { Heart, Users2, Bug } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import PersonAvatar from './PersonAvatar';
@@ -16,6 +16,7 @@ interface ClusterNodeProps {
   highlightedId: string | null;
   selectedPersonId: string | null;
   me: any;
+  debugMode?: boolean;
   onSelect: (id: string) => void;
   getPeerCluster: (id: string, level: number, processed: Set<string>) => any[];
   parentProcessed?: Set<string>;
@@ -31,6 +32,7 @@ const ClusterNode = ({
   highlightedId, 
   selectedPersonId, 
   me, 
+  debugMode,
   onSelect, 
   getPeerCluster,
   parentProcessed = new Set() 
@@ -80,6 +82,12 @@ const ClusterNode = ({
         isClusterHighlighted ? "border-amber-400 bg-amber-50/50 shadow-amber-100" : "",
         highlightedId && !isClusterHighlighted ? "opacity-40 grayscale-[0.5]" : ""
       )}>
+        {debugMode && (
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-400 text-[8px] font-mono px-2 py-0.5 rounded-full flex items-center gap-1">
+            <Bug className="w-2 h-2" /> CLUSTER: {members.length} members
+          </div>
+        )}
+
         {members.map((person, idx) => {
           const next = members[idx + 1];
           const rel = next ? relationships.find(r => (r.person_id === person.id && r.related_person_id === next.id) || (r.person_id === next.id && r.related_person_id === person.id)) : null;
@@ -101,6 +109,8 @@ const ClusterNode = ({
                   isHighlighted={person.id === highlightedId} 
                   isInLineage={lineageIds.has(person.id)}
                   isSelected={person.id === selectedPersonId}
+                  debugMode={debugMode}
+                  level={level}
                   onSelect={onSelect}
                 />
               </div>
@@ -177,6 +187,7 @@ const ClusterNode = ({
                       highlightedId={highlightedId}
                       selectedPersonId={selectedPersonId}
                       me={me}
+                      debugMode={debugMode}
                       onSelect={onSelect}
                       getPeerCluster={getPeerCluster}
                       parentProcessed={parentProcessed} 

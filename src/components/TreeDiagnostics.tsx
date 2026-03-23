@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { useFamily } from '../context/FamilyContext';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
+import { Button } from './ui/button';
 import { 
   Activity, 
   AlertTriangle, 
@@ -12,17 +13,20 @@ import {
   User, 
   Link2, 
   Unlink,
-  ChevronRight,
-  Info
+  Info,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TreeDiagnostics = () => {
-  const { people, relationships, loading } = useFamily();
+  const { people, relationships, loading, refreshData } = useFamily();
 
   const stats = useMemo(() => {
     if (loading || !people.length) return null;
 
+    const issues: { type: 'warning' | 'error', message: string, personId?: string }[] = [];
+    
     // 1. Find Disconnected Components (Islands)
     const visited = new Set<string>();
     const components: string[][] = [];
@@ -59,22 +63,34 @@ const TreeDiagnostics = () => {
       return !relationships.some(r => r.person_id === p.id || r.related_person_id === p.id);
     });
 
-    // 3. Check for potential data issues
-    const issues: { type: 'warning' | 'error', message: string, personId?: string }[] = [];
-    
+    // 3. Circular Reference Check (Simple Ancestry Check)
+    const checkCircularity = (startId: string, currentId: string, path: Set<string>): boolean => {
+      const parents = relationships
+        .filter(r => r.person_id === currentId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
+        .map(r => r.related_person_id);
+      
+      for (const parentId of parents) {
+        if (parentId === startId) return true;
+        if (path.has(parentId)) continue;
+        path.add(parentId);
+        if (checkCircularity(startId, parentId, path)) return true;
+      }
+      return false;
+    };
+
+    people.forEach(p => {
+      if (checkCircularity(p.id, p.id, new Set())) {
+        issues.push({ type: 'error', message: `Circular ancestry detected for ${p.name}.`, personId: p.id });
+      }
+    });
+
+    // 4. Inconsistent Levels Check
     if (components.length > 1) {
       issues.push({ 
         type: 'warning', 
         message: `The family tree is split into ${components.length} separate islands. They won't all connect in the main view.` 
       });
     }
-
-    people.forEach(p => {
-      const rels = relationships.filter(r => r.person_id === p.id || r.related_person_id === p.id);
-      if (rels.length > 10) {
-        issues.push({ type: 'warning', message: `${p.name} has a very high number of connections (${rels.length}).`, personId: p.id });
-      }
-    });
 
     return {
       totalPeople: people.length,
@@ -91,6 +107,13 @@ const TreeDiagnostics = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-serif font-bold text-stone-800">Tree Health Report</h2>
+        <Button variant="ghost" size="sm" onClick={() => refreshData()} className="text-stone-400 hover:text-amber-600 gap-2">
+          <RefreshCw className="w-4 h-4" /> Re-scan
+        </Button>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4 bg-white border-stone-100 flex flex-col items-center text-center gap-2">
@@ -116,29 +139,34 @@ const TreeDiagnostics = () => {
       </div>
 
       {/* Issues Section */}
-      {stats.issues.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" /> Potential Issues
-          </h3>
-          <div className="space-y-2">
-            {stats.issues.map((issue, idx) => (
+      <div className="space-y-4">
+        <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4" /> Validation Results
+        </h3>
+        <div className="space-y-2">
+          {stats.issues.length === 0 ? (
+            <div className="p-6 bg-green-50 border border-green-100 rounded-2xl flex items-center gap-4 text-green-700">
+              <CheckCircle2 className="w-6 h-6" />
+              <p className="font-medium">No structural issues detected. The tree is healthy!</p>
+            </div>
+          ) : (
+            stats.issues.map((issue, idx) => (
               <div key={idx} className={cn(
                 "p-4 rounded-xl border flex items-center gap-3",
                 issue.type === 'error' ? "bg-red-50 border-red-100 text-red-700" : "bg-amber-50 border-amber-100 text-amber-700"
               )}>
-                <Info className="w-4 h-4 shrink-0" />
+                <AlertCircle className="w-4 h-4 shrink-0" />
                 <p className="text-sm font-medium">{issue.message}</p>
               </div>
-            ))}
-          </div>
+            ))
+          )}
         </div>
-      )}
+      </div>
 
       {/* Islands Breakdown */}
       <div className="space-y-4">
         <h3 className="text-sm font-bold uppercase tracking-widest text-stone-400 flex items-center gap-2">
-          <Network className="w-4 h-4" /> Family Islands
+          <Network className="w-4 h-4" /> Connection Clusters
         </h3>
         <div className="grid grid-cols-1 gap-4">
           {stats.components.map((comp, idx) => (
@@ -163,23 +191,6 @@ const TreeDiagnostics = () => {
           ))}
         </div>
       </div>
-
-      {/* Orphan List */}
-      {stats.orphans.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-red-400 flex items-center gap-2">
-            <Unlink className="w-4 h-4" /> Orphaned Members (No Connections)
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {stats.orphans.map(p => (
-              <div key={p.id} className="p-4 bg-red-50/30 border border-red-100 rounded-xl flex items-center justify-between">
-                <span className="font-medium text-stone-800">{p.name}</span>
-                <Badge className="bg-red-100 text-red-600 hover:bg-red-100 border-none">Disconnected</Badge>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="pt-6 border-t border-stone-100 text-center">
         <p className="text-xs text-stone-400 italic">
