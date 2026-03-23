@@ -37,7 +37,8 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
             changed = true;
           }
         } 
-        else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling', 'cousin'].includes(type)) {
+        else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
+          // NOTE: We EXCLUDE 'cousin' here to prevent branches from merging horizontally
           if (levels[p1] !== levels[p2]) {
             const max = Math.max(levels[p1], levels[p2]);
             levels[p1] = max;
@@ -57,7 +58,7 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
     return levels;
   }, [people, relationships]);
 
-  // 2. Helper to get a cluster of peers (connected horizontally)
+  // 2. Helper to get a cluster of peers (Only Spouses and Siblings)
   const getPeerCluster = useCallback((startId: string, level: number, processed: Set<string>) => {
     const cluster: any[] = [];
     const queue = [startId];
@@ -73,8 +74,8 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
 
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
-        // Follow peer links: spouses, siblings, cousins
-        if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling', 'cousin'].includes(type)) {
+        // We ONLY follow spouse and sibling links for horizontal clustering
+        if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
           const otherId = r.person_id === currId ? r.related_person_id : r.person_id;
           if (personLevels[otherId] === level && !clusterIds.has(otherId) && !processed.has(otherId)) {
             clusterIds.add(otherId);
