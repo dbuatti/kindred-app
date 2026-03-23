@@ -9,6 +9,7 @@ import { ArrowLeft, Quote, Mic, MessageSquare, Play, Clock, Camera, Edit3, Share
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import SuggestionDialog from '../components/SuggestionDialog';
 import ConnectionSuggestionDialog from '../components/ConnectionSuggestionDialog';
+import FamilyConnections from '../components/FamilyConnections';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -119,6 +120,7 @@ const PersonDetail = () => {
 
   const onDropProfile = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDraggingOverProfile(false);
     setIsDraggingOverPage(false);
     const file = e.dataTransfer.files?.[0];
@@ -252,33 +254,8 @@ const PersonDetail = () => {
           </div>
         </div>
 
-        {/* Family Circle Pills */}
-        {relatives.length > 0 && (
-          <div className="space-y-3">
-            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.2em] text-center">Family Circle</p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {relatives.map((rel: any) => (
-                <button
-                  key={rel.id}
-                  onClick={() => navigate(getPersonUrl(rel.id, rel.name))}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-white border border-stone-100 rounded-full shadow-sm hover:border-amber-200 hover:bg-amber-50/30 transition-all group"
-                >
-                  <div className="h-5 w-5 rounded-full overflow-hidden bg-stone-100 shrink-0">
-                    {rel.photoUrl ? (
-                      <img src={rel.photoUrl} className="w-full h-full object-cover grayscale-[0.5] group-hover:grayscale-0" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-stone-300">
-                        <Users className="w-2.5 h-2.5" />
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-[11px] font-medium text-stone-600 group-hover:text-amber-900">{rel.name.split(' ')[0]}</span>
-                  <span className="text-[9px] text-stone-300 italic">{rel.type}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Visual Family Connections */}
+        <FamilyConnections person={person} relatives={relatives} />
 
         {person.vibeSentence && person.vibeSentence.trim() !== "" && (
           <div className="bg-stone-100/50 rounded-2xl p-6 relative">
