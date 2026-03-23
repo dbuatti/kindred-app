@@ -14,7 +14,8 @@ import {
   ZoomOut,
   Maximize,
   AlignVerticalSpaceAround,
-  GitBranch
+  GitBranch,
+  Share2
 } from 'lucide-react';
 import { buildTree } from '@/lib/tree-utils';
 import { OutlineLayout } from '@/components/tree/OutlineLayout';
@@ -22,14 +23,15 @@ import { TraditionalLayout } from '@/components/tree/TraditionalLayout';
 import { ModernHorizontalLayout } from '@/components/tree/ModernHorizontalLayout';
 import { CompactVerticalLayout } from '@/components/tree/CompactVerticalLayout';
 import { FlowLayout } from '@/components/tree/FlowLayout';
+import { SimpleTreeLayout } from '@/components/tree/SimpleTreeLayout';
 import { motion } from 'framer-motion';
 
-type LayoutType = 'outline' | 'traditional' | 'modern' | 'compact' | 'flow';
+type LayoutType = 'outline' | 'traditional' | 'modern' | 'compact' | 'flow' | 'simple';
 
 const TreeDebug = () => {
   const navigate = useNavigate();
   const { people, loading, relationships } = useFamily();
-  const [layout, setLayout] = useState<LayoutType>('flow');
+  const [layout, setLayout] = useState<LayoutType>('simple');
   const [zoom, setZoom] = useState(1.0);
   
   const roots = useMemo(() => {
@@ -60,6 +62,14 @@ const TreeDebug = () => {
         <div className="flex items-center gap-1 bg-stone-800 p-1 rounded-xl border border-stone-700">
           <Button 
             size="sm" 
+            variant={layout === 'simple' ? 'secondary' : 'ghost'}
+            onClick={() => setLayout('simple')}
+            className="rounded-lg gap-2 text-xs"
+          >
+            <Layout className="w-4 h-4" /> Simple
+          </Button>
+          <Button 
+            size="sm" 
             variant={layout === 'flow' ? 'secondary' : 'ghost'}
             onClick={() => setLayout('flow')}
             className="rounded-lg gap-2 text-xs"
@@ -73,14 +83,6 @@ const TreeDebug = () => {
             className="rounded-lg gap-2 text-xs"
           >
             <AlignVerticalSpaceAround className="w-4 h-4" /> Compact
-          </Button>
-          <Button 
-            size="sm" 
-            variant={layout === 'traditional' ? 'secondary' : 'ghost'}
-            onClick={() => setLayout('traditional')}
-            className="rounded-lg gap-2 text-xs"
-          >
-            <Layout className="w-4 h-4" /> Classic
           </Button>
           <Button 
             size="sm" 
@@ -111,6 +113,7 @@ const TreeDebug = () => {
           {layout === 'modern' && <ModernHorizontalLayout roots={roots} />}
           {layout === 'compact' && <CompactVerticalLayout roots={roots} />}
           {layout === 'flow' && <FlowLayout roots={roots} />}
+          {layout === 'simple' && <SimpleTreeLayout roots={roots} />}
         </motion.div>
       </div>
 
