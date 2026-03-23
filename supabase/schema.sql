@@ -1,66 +1,41 @@
--- Create families table
-CREATE TABLE families (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  invite_code TEXT UNIQUE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Create profiles table
+CREATE TABLE public.profiles (
+  id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT,
+  role TEXT DEFAULT 'member',
+  first_name TEXT,
+  last_name TEXT,
+  avatar_url TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (id)
 );
 
--- Create people table
-CREATE TABLE people (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  family_id UUID REFERENCES families(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  birth_year TEXT,
-  birth_place TEXT,
-  occupation TEXT,
-  vibe_sentence TEXT NOT NULL,
-  personality_tags TEXT[] DEFAULT '{}',
-  photo_url TEXT,
-  created_by_email TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Enable RLS
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Create memories table
-CREATE TABLE memories (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  person_id UUID REFERENCES people(id) ON DELETE CASCADE,
-  content TEXT NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('text', 'voice', 'photo')),
-  created_by_email TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  voice_url TEXT,
-  image_url TEXT
-);
+-- Policies
+CREATE POLICY "profiles_select_policy" ON public.profiles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "profiles_update_policy" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
 
--- Create suggestions table
-CREATE TABLE suggestions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  person_id UUID REFERENCES people(id) ON DELETE CASCADE,
-  field_name TEXT NOT NULL,
-  suggested_value TEXT NOT NULL,
-  suggested_by_email TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Function to handle new user signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE PLPGSQL
+SECURITY DEFINER SET search_path = ''
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, role)
+  VALUES (
+    new.id,
+    new.email,
+    CASE WHEN new.email = 'daniele.buatti@gmail.com' THEN 'admin' ELSE 'member' END
+  );
+  RETURN new;
+END;
+$$;
 
--- Enable Row Level Security (RLS)
-ALTER TABLE families ENABLE ROW LEVEL SECURITY;
-ALTER TABLE people ENABLE ROW LEVEL SECURITY;
-ALTER TABLE memories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE suggestions ENABLE ROW LEVEL SECURITY;
-
--- Create policies (Simplified for family access)
-CREATE POLICY "Allow public read access" ON families FOR SELECT USING (true);
-CREATE POLICY "Allow public insert access" ON families FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Allow public read access" ON people FOR SELECT USING (true);
-CREATE POLICY "Allow public insert access" ON people FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update access" ON people FOR UPDATE USING (true);
-
-CREATE POLICY "Allow public read access" ON memories FOR SELECT USING (true);
-CREATE POLICY "Allow public insert access" ON memories FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Allow public read access" ON suggestions FOR SELECT USING (true);
-CREATE POLICY "Allow public insert access" ON suggestions FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update access" ON suggestions FOR UPDATE USING (true);
+-- Trigger the function on user creation
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

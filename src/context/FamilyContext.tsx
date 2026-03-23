@@ -7,6 +7,7 @@ interface FamilyContextType {
   people: Person[];
   suggestions: Suggestion[];
   loading: boolean;
+  user: any;
   addPerson: (person: Partial<Person>) => Promise<void>;
   addMemory: (personId: string, content: string, type: MemoryType) => Promise<void>;
   addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'status'>) => Promise<void>;
@@ -19,6 +20,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [people, setPeople] = useState<Person[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -36,7 +38,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (suggestionsError) throw suggestionsError;
 
-      // Map snake_case from DB to camelCase for the app
       const mappedPeople = (peopleData || []).map((p: any) => ({
         id: p.id,
         familyId: p.family_id,
@@ -79,10 +80,21 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
     fetchData();
+
+    return () => subscription.unsubscribe();
   }, [fetchData]);
 
   const addPerson = useCallback(async (newPerson: Partial<Person>) => {
+    if (!user) return;
     try {
       const { error } = await supabase
         .from('people')
@@ -93,8 +105,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           vibe_sentence: newPerson.vibeSentence,
           personality_tags: newPerson.personalityTags,
           photo_url: newPerson.photoUrl,
-          created_by_email: 'me@family.com',
-          family_id: null // Optional for now
+          created_by_email: user.email,
+          family_id: null
         }]);
 
       if (error) throw error;
@@ -102,9 +114,10 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (error: any) {
       toast.error("Failed to add person: " + error.message);
     }
-  }, [fetchData]);
+  }, [fetchData, user]);
 
   const addMemory = useCallback(async (personId: string, content: string, type: MemoryType) => {
+    if (!user) return;
     try {
       const { error } = await supabase
         .from('memories')
@@ -112,7 +125,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           person_id: personId,
           content,
           type,
-          created_by_email: 'me@family.com'
+          created_by_email: user.email
         }]);
 
       if (error) throw error;
@@ -120,9 +133,10 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (error: any) {
       toast.error("Failed to save story: " + error.message);
     }
-  }, [fetchData]);
+  }, [fetchData, user]);
 
   const addSuggestion = useCallback(async (s: Omit<Suggestion, 'id' | 'status'>) => {
+    if (!user) return;
     try {
       const { error } = await supabase
         .from('suggestions')
@@ -130,7 +144,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           person_id: s.personId,
           field_name: s.fieldName,
           suggested_value: s.suggestedValue,
-          suggested_by_email: s.suggestedByEmail
+          suggested_by_email: user.email
         }]);
 
       if (error) throw error;
@@ -138,7 +152,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (error: any) {
       toast.error("Failed to send suggestion: " + error.message);
     }
-  }, [fetchData]);
+  }, [fetchData, user]);
 
   const resolveSuggestion = useCallback(async (id: string, status: 'approved' | 'rejected') => {
     try {
@@ -172,6 +186,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       people, 
       suggestions, 
       loading,
+      user,
       addPerson, 
       addMemory, 
       addSuggestion, 
