@@ -84,7 +84,6 @@ const FamilyTree = () => {
       });
     }
 
-    // Sort cluster members by their connections to keep them adjacent
     return sortClusterChain(cluster);
   };
 
@@ -117,8 +116,8 @@ const FamilyTree = () => {
   };
 
   // 3. Recursive Component to render a Cluster and its children
-  const ClusterNode = ({ members, level }: { members: any[], level: number }) => {
-    // Identify "Parent Units" in this cluster (couples or single parents with children)
+  const ClusterNode = ({ members, level, parentProcessed = new Set() }: { members: any[], level: number, parentProcessed?: Set<string> }) => {
+    // Identify "Parent Units" in this cluster
     const parentUnits = useMemo(() => {
       const units: { parents: any[], children: any[] }[] = [];
       const processedInCluster = new Set<string>();
@@ -147,7 +146,10 @@ const FamilyTree = () => {
         });
 
         if (childIds.size > 0) {
-          units.push({ parents: unitParents, children: Array.from(childIds).map(id => people.find(p => p.id === id)).filter(Boolean) });
+          units.push({ 
+            parents: unitParents, 
+            children: Array.from(childIds).map(id => people.find(p => p.id === id)).filter(Boolean) 
+          });
         }
       });
       return units;
@@ -156,7 +158,7 @@ const FamilyTree = () => {
     return (
       <div className="flex flex-col items-center">
         {/* Render the Cluster Row */}
-        <div className="flex items-center gap-4 p-8 rounded-[4rem] bg-white/40 border-2 border-stone-50 shadow-sm relative z-10">
+        <div className="flex items-center gap-4 p-6 rounded-[3.5rem] bg-white/40 border-2 border-stone-50 shadow-sm relative z-10">
           {members.map((person, idx) => {
             const next = members[idx + 1];
             const rel = next ? relationships.find(r => (r.person_id === person.id && r.related_person_id === next.id) || (r.person_id === next.id && r.related_person_id === person.id)) : null;
@@ -167,17 +169,17 @@ const FamilyTree = () => {
                 <div className="relative flex flex-col items-center">
                   {/* Vertical line UP if has parent */}
                   {relationships.some(r => (r.person_id === person.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) || (r.related_person_id === person.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))) && (
-                    <div className="absolute -top-12 w-px h-12 bg-stone-200" />
+                    <div className="absolute -top-10 w-px h-10 bg-stone-200" />
                   )}
                   <PersonAvatar person={person} />
                 </div>
                 {linkType && (
-                  <div className="flex flex-col items-center gap-1 px-4">
-                    <div className="h-px w-12 bg-stone-200" />
-                    <div className="bg-white p-1.5 rounded-full shadow-sm border border-stone-100">
-                      {['spouse', 'wife', 'husband'].includes(linkType) ? <Heart className="w-4 h-4 text-red-400 fill-current" /> : <Users2 className="w-4 h-4 text-amber-400" />}
+                  <div className="flex flex-col items-center gap-1 px-2">
+                    <div className="h-px w-8 bg-stone-200" />
+                    <div className="bg-white p-1 rounded-full shadow-sm border border-stone-100">
+                      {['spouse', 'wife', 'husband'].includes(linkType) ? <Heart className="w-3 h-3 text-red-400 fill-current" /> : <Users2 className="w-3 h-3 text-amber-400" />}
                     </div>
-                    <div className="h-px w-12 bg-stone-200" />
+                    <div className="h-px w-8 bg-stone-200" />
                   </div>
                 )}
               </React.Fragment>
@@ -185,29 +187,30 @@ const FamilyTree = () => {
           })}
         </div>
 
-        {/* Render Children Clusters below their respective Parent Units */}
+        {/* Render Children Branches below their respective Parent Units */}
         {parentUnits.length > 0 && (
-          <div className="flex gap-32 mt-12 relative">
-            {/* Horizontal connector bar for multiple parent units */}
-            {parentUnits.length > 1 && (
-              <div className="absolute top-0 h-px bg-stone-200 left-1/4 right-1/4" />
-            )}
+          <div className="flex gap-16 mt-10 relative">
             {parentUnits.map((unit, uIdx) => {
               // Group these children into their own peer clusters
               const childProcessed = new Set<string>();
               const childClusters: any[][] = [];
               unit.children.forEach(c => {
-                if (!childProcessed.has(c.id)) {
-                  childClusters.push(getPeerCluster(c.id, level + 1, childProcessed));
+                if (!childProcessed.has(c.id) && !parentProcessed.has(c.id)) {
+                  const cluster = getPeerCluster(c.id, level + 1, childProcessed);
+                  childClusters.push(cluster);
+                  cluster.forEach(p => parentProcessed.add(p.id));
                 }
               });
 
+              if (childClusters.length === 0) return null;
+
               return (
                 <div key={uIdx} className="flex flex-col items-center">
-                  <div className="w-px h-12 bg-stone-200" />
+                  {/* Line from this specific parent unit down */}
+                  <div className="w-px h-10 bg-stone-200" />
                   <div className="flex gap-12">
                     {childClusters.map((cc, ccIdx) => (
-                      <ClusterNode key={ccIdx} members={cc} level={level + 1} />
+                      <ClusterNode key={ccIdx} members={cc} level={level + 1} parentProcessed={parentProcessed} />
                     ))}
                   </div>
                 </div>
@@ -223,15 +226,15 @@ const FamilyTree = () => {
     const label = !me || person.id === me.id ? "You" : (relationships.find(r => (r.person_id === me.id && r.related_person_id === person.id) || (r.person_id === person.id && r.related_person_id === me.id))?.relationship_type || "Family");
     
     return (
-      <div onClick={() => navigate(getPersonUrl(person.id, person.name))} className="flex flex-col items-center space-y-4 cursor-pointer group">
+      <div onClick={() => navigate(getPersonUrl(person.id, person.name))} className="flex flex-col items-center space-y-3 cursor-pointer group">
         <SmartSuggestionHover personId={person.id} />
         <QuickAddMenu personId={person.id} personName={person.name} />
-        <div className="h-24 w-24 md:h-28 md:w-28 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all duration-500">
-          {person.photoUrl ? <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" /> : <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300"><UserCircle className="w-12 h-12" /></div>}
+        <div className="h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all duration-500">
+          {person.photoUrl ? <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" /> : <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300"><UserCircle className="w-10 h-10" /></div>}
         </div>
-        <div className="text-center space-y-1">
-          <h3 className="font-serif font-bold text-stone-800 text-sm md:text-base">{person.name.split(' ')[0]}</h3>
-          <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest">{label}</p>
+        <div className="text-center space-y-0.5">
+          <h3 className="font-serif font-bold text-stone-800 text-xs md:text-sm">{person.name.split(' ')[0]}</h3>
+          <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{label}</p>
         </div>
       </div>
     );
@@ -251,9 +254,9 @@ const FamilyTree = () => {
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the branches...</div>;
 
   return (
-    <div className="min-h-screen bg-[#FDFCF9] pb-32 overflow-x-auto">
+    <div className="min-h-screen bg-[#FDFCF9] pb-32 overflow-x-auto flex flex-col">
       <header className="bg-white/80 backdrop-blur-md border-b border-stone-100 px-8 py-6 sticky top-0 z-30">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full text-stone-500"><ArrowLeft className="w-6 h-6" /></Button>
             <div>
@@ -265,10 +268,12 @@ const FamilyTree = () => {
         </div>
       </header>
 
-      <main className="p-24 min-w-max flex flex-col items-center gap-32">
-        {rootClusters.map((cluster, idx) => (
-          <ClusterNode key={idx} members={cluster} level={0} />
-        ))}
+      <main className="p-20 flex-1 flex flex-col items-center justify-start min-w-max">
+        <div className="flex flex-col items-center gap-24">
+          {rootClusters.map((cluster, idx) => (
+            <ClusterNode key={idx} members={cluster} level={0} />
+          ))}
+        </div>
       </main>
     </div>
   );
