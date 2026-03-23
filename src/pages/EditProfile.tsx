@@ -6,14 +6,33 @@ import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Save, Loader2, UserCircle } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { ArrowLeft, Save, Loader2, UserCircle, ChevronsUpDown, Check } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+const COMMON_PLACES = [
+  "London, UK",
+  "New York, USA",
+  "Dublin, Ireland",
+  "Sicily, Italy",
+  "Paris, France",
+  "Berlin, Germany",
+  "Rome, Italy",
+  "Madrid, Spain",
+  "Sydney, Australia",
+  "Toronto, Canada",
+  "Brooklyn, NY",
+  "Chicago, IL"
+];
 
 const EditProfile = () => {
   const navigate = useNavigate();
   const { user, profiles, loading: contextLoading } = useFamily();
   const [isSaving, setIsSaving] = useState(false);
+  const [placePopoverOpen, setPlacePopoverOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -53,13 +72,12 @@ const EditProfile = () => {
           birth_date: formData.birthDate || null,
           birth_place: formData.birthPlace,
           bio: formData.bio,
-          onboarding_completed: true, // Mark as completed when they save
+          onboarding_completed: true,
           updated_at: new Date().toISOString()
         });
 
       if (error) throw error;
 
-      // Also update the 'people' record for this user so they appear in the tree
       const fullName = [formData.firstName, formData.middleName, formData.lastName].filter(Boolean).join(' ');
       await supabase.from('people').upsert({
         user_id: user.id,
@@ -90,7 +108,7 @@ const EditProfile = () => {
             <ArrowLeft className="w-6 h-6" /> Back
           </Button>
           <h1 className="text-3xl font-serif font-bold text-stone-800">Edit Your Profile</h1>
-          <div className="w-24" /> {/* Spacer */}
+          <div className="w-24" />
         </div>
       </header>
 
@@ -142,12 +160,53 @@ const EditProfile = () => {
 
             <div className="space-y-3">
               <label className="text-sm font-bold uppercase tracking-widest text-stone-400">Birth Place</label>
-              <Input 
-                value={formData.birthPlace} 
-                onChange={(e) => setFormData({...formData, birthPlace: e.target.value})} 
-                placeholder="e.g. London, UK"
-                className="h-16 bg-stone-50 border-none rounded-2xl text-xl px-6 focus-visible:ring-amber-500/20" 
-              />
+              <Popover open={placePopoverOpen} onOpenChange={setPlacePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={placePopoverOpen}
+                    className="w-full justify-between bg-stone-50 border-none rounded-2xl h-16 text-xl font-normal text-stone-600 hover:bg-stone-100 focus:ring-amber-500/20 px-6"
+                  >
+                    {formData.birthPlace || "Select or type..."}
+                    <ChevronsUpDown className="ml-2 h-6 w-6 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0 rounded-2xl border-stone-100 shadow-xl">
+                  <Command className="rounded-2xl">
+                    <CommandInput 
+                      placeholder="Search or type place..." 
+                      value={formData.birthPlace}
+                      onValueChange={(val) => setFormData({...formData, birthPlace: val})}
+                      className="h-14 text-lg"
+                    />
+                    <CommandList>
+                      <CommandEmpty>No common place found. Keep typing...</CommandEmpty>
+                      <CommandGroup heading="Suggestions">
+                        {COMMON_PLACES.map((place) => (
+                          <CommandItem
+                            key={place}
+                            value={place}
+                            onSelect={() => {
+                              setFormData({...formData, birthPlace: place});
+                              setPlacePopoverOpen(false);
+                            }}
+                            className="rounded-xl py-3 text-lg"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-5 w-5",
+                                formData.birthPlace === place ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {place}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-3">
