@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
@@ -10,11 +10,7 @@ import {
   Heart, 
   ArrowRight, 
   ArrowLeft, 
-  Sparkles, 
   User, 
-  Calendar, 
-  MapPin, 
-  Users,
   Check,
   Loader2,
   UserPlus,
@@ -101,7 +97,7 @@ const Onboarding = () => {
 
       const fullName = `${formData.firstName} ${formData.lastName}`.trim();
       
-      // 2. Upsert Person record
+      // 2. Link or Create Person record
       const personData = {
         user_id: user.id,
         name: fullName,
@@ -113,14 +109,25 @@ const Onboarding = () => {
         created_by_email: user.email,
       };
 
-      const { data: person, error: pErr } = await supabase
-        .from('people')
-        .upsert(personData, { onConflict: 'user_id' })
-        .select()
-        .single();
+      let myPersonId = formData.claimedPersonId;
 
-      if (pErr) throw pErr;
-      const myPersonId = person.id;
+      if (myPersonId) {
+        // Update existing record
+        const { error: updateErr } = await supabase
+          .from('people')
+          .update(personData)
+          .eq('id', myPersonId);
+        if (updateErr) throw updateErr;
+      } else {
+        // Create new record
+        const { data: person, error: pErr } = await supabase
+          .from('people')
+          .upsert(personData, { onConflict: 'user_id' })
+          .select()
+          .single();
+        if (pErr) throw pErr;
+        myPersonId = person.id;
+      }
 
       // 3. Add Relatives
       for (const rel of formData.newRelatives) {

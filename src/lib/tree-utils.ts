@@ -28,15 +28,12 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   const spousesOf = new Map<string, string[]>();
   const siblingsOf = new Map<string, string[]>();
 
-  relationships.forEach((r, idx) => {
+  relationships.forEach((r) => {
     const type = r.relationship_type?.toLowerCase() || 'unknown';
     const p1 = r.person_id;
     const p2 = r.related_person_id;
 
     if (!personMap.has(p1) || !personMap.has(p2)) return;
-
-    const name1 = personMap.get(p1)?.name;
-    const name2 = personMap.get(p2)?.name;
 
     if (['father', 'mother', 'parent'].includes(type)) {
       const children = childrenOf.get(p1) || [];
@@ -76,6 +73,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   const levels: Record<string, number> = {};
   people.forEach(p => levels[p.id] = 0);
 
+  // Iterative level assignment
   for (let i = 0; i < 20; i++) {
     let changed = false;
     relationships.forEach(r => {
@@ -113,27 +111,20 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     if (!person) return null;
 
     if (globalVisited.has(personId)) {
-      console.warn(`[TreeUtils] Skipping ${person.name}: Already placed in tree (prevents infinite loops from circular data).`);
+      // Use debug instead of warn to reduce console noise for expected graph overlaps
+      console.debug(`[TreeUtils] Skipping ${person.name}: Already placed in tree.`);
       return null;
     }
     globalVisited.add(personId);
 
     const spouseIds = spousesOf.get(personId) || [];
     const spouses = spouseIds
-      .map(id => {
-        if (globalVisited.has(id)) return null;
-        globalVisited.add(id);
-        return personMap.get(id);
-      })
+      .map(id => personMap.get(id))
       .filter((p): p is Person => !!p);
 
     const siblingIds = siblingsOf.get(personId) || [];
     const siblings = siblingIds
-      .map(id => {
-        if (globalVisited.has(id)) return null;
-        globalVisited.add(id);
-        return personMap.get(id);
-      })
+      .map(id => personMap.get(id))
       .filter((p): p is Person => !!p);
 
     const parentGroupIds = [personId, ...spouseIds];
@@ -162,7 +153,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     .filter(p => !parentsOf.has(p.id))
     .sort((a, b) => levels[a.id] - levels[b.id]);
   
-  potentialRoots.forEach((p, idx) => {
+  potentialRoots.forEach((p) => {
     if (globalVisited.has(p.id)) return;
     
     const spouses = spousesOf.get(p.id) || [];
