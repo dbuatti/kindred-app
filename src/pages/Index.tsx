@@ -10,7 +10,6 @@ import ProfileDialog from '../components/ProfileDialog';
 import FamilyJournal from '../components/FamilyJournal';
 import { Input } from '@/components/ui/input';
 import { Search, Mic, Share2, Sparkles, BookOpen, Heart, Users, ScrollText } from 'lucide-react';
-import { MadeWithDyad } from '@/components/made-with-dyad';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
@@ -131,7 +130,6 @@ const Index = () => {
 
       <AddPersonDialog />
       <AddMemoryDialog personName="the family" />
-      <MadeWithDyad />
     </div>
   );
 };
