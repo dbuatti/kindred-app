@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
@@ -22,27 +22,35 @@ import {
   Check,
   X,
   Briefcase,
-  Heart
+  Heart,
+  UploadCloud,
+  Camera
 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { getPersonUrl } from '@/lib/slugify';
 import ConnectionSuggestionDialog from '../components/ConnectionSuggestionDialog';
+import AddMemoryDialog from '../components/AddMemoryDialog';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { user, profiles, people, relationships, suggestions, resolveSuggestion, loading } = useFamily();
+  const { user, profiles, people, relationships, suggestions, resolveSuggestion, updatePerson, loading } = useFamily();
+
+  const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
+  const [droppedImage, setDroppedImage] = useState<string | null>(null);
+  const [isDraggingOverPage, setIsDraggingOverPage] = useState(false);
+  const [isDraggingOverProfile, setIsDraggingOverProfile] = useState(false);
 
   const profile = user ? profiles[user.id] : null;
   const isAdmin = user?.email === ADMIN_EMAIL;
   
-  // Find the "Person" record associated with this user
   const myPerson = useMemo(() => {
     return people.find(p => p.userId === user?.id);
   }, [people, user]);
 
-  // Find relatives
   const relatives = useMemo(() => {
     if (!myPerson || !relationships.length) return [];
     return relationships
@@ -57,11 +65,79 @@ const Profile = () => {
       .filter(Boolean);
   }, [myPerson, relationships, people]);
 
-  // Find suggestions about me
   const mySuggestions = useMemo(() => {
     if (!myPerson) return [];
     return suggestions.filter(s => s.personId === myPerson.id && s.status === 'pending');
   }, [myPerson, suggestions]);
+
+  const handleMemoryFile = useCallback((file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setDroppedImage(reader.result as string);
+      setIsAddMemoryOpen(true);
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const handleProfilePhotoUpdate = useCallback((file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file.");
+      return;
+    }
+    if (!myPerson) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      await updatePerson(myPerson.id, { photoUrl: base64 });
+      toast.success("Profile photo updated!");
+    };
+    reader.readAsDataURL(file);
+  }, [myPerson, updatePerson]);
+
+  const onDragOverPage = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOverPage(true);
+  };
+
+  const onDragLeavePage = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.currentTarget === e.target) {
+      setIsDraggingOverPage(false);
+    }
+  };
+
+  const onDropPage = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOverPage(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleMemoryFile(file);
+  };
+
+  const onDragOverProfile = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOverProfile(true);
+  };
+
+  const onDragLeaveProfile = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOverProfile(false);
+  };
+
+  const onDropProfile = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOverProfile(false);
+    setIsDraggingOverPage(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleProfilePhotoUpdate(file);
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -73,7 +149,22 @@ const Profile = () => {
   const fullName = profile ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') : 'Family Member';
 
   return (
-    <div className="min-h-screen bg-[#FDFCF9] pb-32">
+    <div 
+      className="min-h-screen bg-[#FDFCF9] pb-32 relative"
+      onDragOver={onDragOverPage}
+      onDragLeave={onDragLeavePage}
+      onDrop={onDropPage}
+    >
+      {/* Drag Overlay for Memories */}
+      {isDraggingOverPage && !isDraggingOverProfile && (
+        <div className="fixed inset-0 z-50 bg-amber-600/20 backdrop-blur-sm flex items-center justify-center pointer-events-none animate-in fade-in duration-300">
+          <div className="bg-white p-8 rounded-[3rem] shadow-2xl border-4 border-amber-500 flex flex-col items-center gap-4 scale-105 transition-transform">
+            <UploadCloud className="w-16 h-16 text-amber-600 animate-bounce" />
+            <p className="text-2xl font-serif font-bold text-stone-800">Drop to share a photo</p>
+          </div>
+        </div>
+      )}
+
       <header className="bg-white border-b-4 border-stone-100 px-6 py-6 sticky top-0 z-20">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -113,18 +204,37 @@ const Profile = () => {
       <main className="max-w-4xl mx-auto px-6 py-12 space-y-12">
         {/* Profile Header Section */}
         <section className="flex flex-col md:flex-row gap-10 items-start">
-          <div className="relative group shrink-0">
-            <div className="h-40 w-40 rounded-full bg-stone-100 flex items-center justify-center text-stone-300 border-8 border-white shadow-xl overflow-hidden">
+          <div 
+            className={cn(
+              "relative group shrink-0 w-40 h-40 rounded-full overflow-hidden shadow-xl ring-4 transition-all duration-300",
+              isDraggingOverProfile ? "ring-amber-500 scale-105 shadow-amber-200" : "ring-white"
+            )}
+            onDragOver={onDragOverProfile}
+            onDragLeave={onDragLeaveProfile}
+            onDrop={onDropProfile}
+          >
+            <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300">
               {myPerson?.photoUrl ? (
                 <img src={myPerson.photoUrl} className="w-full h-full object-cover grayscale-[0.2]" />
               ) : (
                 <UserCircle className="w-24 h-24" />
               )}
             </div>
+            
+            {isDraggingOverProfile && (
+              <div className="absolute inset-0 bg-amber-600/40 flex items-center justify-center">
+                <UploadCloud className="w-10 h-10 text-white animate-bounce" />
+              </div>
+            )}
+
+            <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center group/overlay cursor-pointer">
+              <Camera className="w-8 h-8 text-white opacity-0 group-hover/overlay:opacity-100 transition-opacity" />
+            </div>
+
             <Button 
               size="icon" 
               onClick={() => navigate('/edit-profile')}
-              className="absolute bottom-2 right-2 h-10 w-10 rounded-full bg-amber-600 hover:bg-amber-700 text-white shadow-lg border-4 border-white"
+              className="absolute bottom-2 right-2 h-10 w-10 rounded-full bg-amber-600 hover:bg-amber-700 text-white shadow-lg border-4 border-white z-10"
             >
               <Edit3 className="w-4 h-4" />
             </Button>
@@ -315,6 +425,15 @@ const Profile = () => {
           </div>
         </div>
       </main>
+
+      {/* Floating Action */}
+      <AddMemoryDialog 
+        personId={myPerson?.id}
+        personName={fullName} 
+        open={isAddMemoryOpen}
+        onOpenChange={setIsAddMemoryOpen}
+        initialImage={droppedImage}
+      />
     </div>
   );
 };
