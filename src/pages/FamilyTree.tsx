@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Share2, Heart, UserCircle, Users2, Link2 } from 'lucide-react';
+import { ArrowLeft, Share2, Heart, UserCircle, Users2 } from 'lucide-react';
 import { getPersonUrl } from '@/lib/slugify';
 import { getInverseRelationship } from '@/lib/relationships';
 import { cn } from '@/lib/utils';
@@ -19,48 +19,42 @@ const FamilyTree = () => {
     return people.find(p => p.userId === user?.id) || people[0];
   }, [people, user]);
 
-  // 1. Calculate Generational Levels for everyone
+  // 1. Calculate Generational Levels with high stability
   const personLevels = useMemo(() => {
     if (!people.length) return {};
     
     const levels: Record<string, number> = {};
-    const visited = new Set<string>();
-    
-    // Initialize all to a default
     people.forEach(p => levels[p.id] = 0);
 
     // Iterative relaxation to settle levels
-    // Parent -> Child = +1
-    // Spouse/Sibling/Cousin = 0
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 100; i++) {
       let changed = false;
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         const p1 = r.person_id;
         const p2 = r.related_person_id;
 
-        // Parent logic
+        // Parent/Child logic: Parent is always level - 1
         if (['mother', 'father', 'parent'].includes(type)) {
-          // p2 is parent of p1. So level(p1) = level(p2) + 1
-          if (levels[p1] !== levels[p2] + 1) {
+          // p2 is parent of p1
+          if (levels[p1] < levels[p2] + 1) {
             levels[p1] = levels[p2] + 1;
             changed = true;
           }
-        }
-        // Child logic
-        if (['son', 'daughter', 'child'].includes(type)) {
-          // p1 is parent of p2. So level(p2) = level(p1) + 1
-          if (levels[p2] !== levels[p1] + 1) {
+        } else if (['son', 'daughter', 'child'].includes(type)) {
+          // p1 is parent of p2
+          if (levels[p2] < levels[p1] + 1) {
             levels[p2] = levels[p1] + 1;
             changed = true;
           }
         }
-        // Peer logic (Spouse, Sibling, Cousin)
-        if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling', 'cousin'].includes(type)) {
-          const targetLevel = Math.max(levels[p1], levels[p2]);
-          if (levels[p1] !== targetLevel || levels[p2] !== targetLevel) {
-            levels[p1] = targetLevel;
-            levels[p2] = targetLevel;
+        
+        // Peer logic: Spouses and Siblings must be on the same level
+        if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
+          if (levels[p1] !== levels[p2]) {
+            const max = Math.max(levels[p1], levels[p2]);
+            levels[p1] = max;
+            levels[p2] = max;
             changed = true;
           }
         }
@@ -75,12 +69,54 @@ const FamilyTree = () => {
     return normalized;
   }, [people, relationships]);
 
-  // 2. Group people into "Connection Clusters" within each level
+  // 2. Helper to sort people in a cluster by their connections
+  const sortCluster = (cluster: any[]) => {
+    if (cluster.length <= 1) return cluster;
+    
+    const sorted: any[] = [];
+    const remaining = new Set(cluster.map(p => p.id));
+    
+    // Start with someone who has only one peer connection in this cluster (an "end" of the chain)
+    let currentId = cluster.find(p => {
+      const peers = relationships.filter(r => 
+        (r.person_id === p.id || r.related_person_id === p.id) &&
+        ['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()) &&
+        cluster.some(cp => cp.id === (r.person_id === p.id ? r.related_person_id : r.person_id))
+      );
+      return peers.length === 1;
+    })?.id || cluster[0].id;
+
+    while (currentId && remaining.size > 0) {
+      const currentPerson = cluster.find(p => p.id === currentId);
+      if (currentPerson) {
+        sorted.push(currentPerson);
+        remaining.delete(currentId);
+      }
+      
+      // Find next connected peer that hasn't been added yet
+      const nextRel = relationships.find(r => {
+        const otherId = r.person_id === currentId ? r.related_person_id : r.person_id;
+        return (r.person_id === currentId || r.related_person_id === currentId) &&
+               ['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()) &&
+               remaining.has(otherId);
+      });
+      
+      if (nextRel) {
+        currentId = nextRel.person_id === currentId ? nextRel.related_person_id : nextRel.person_id;
+      } else {
+        // If chain breaks, pick any remaining
+        currentId = Array.from(remaining)[0];
+      }
+    }
+    
+    return sorted;
+  };
+
+  // 3. Group people into "Connection Clusters" within each level
   const treeData = useMemo(() => {
     const levels: Record<number, any[][]> = {};
     const processed = new Set<string>();
 
-    // Sort levels
     const sortedLevelNums = Array.from(new Set(Object.values(personLevels))).sort((a, b) => a - b);
 
     sortedLevelNums.forEach(lvl => {
@@ -90,7 +126,6 @@ const FamilyTree = () => {
       peopleInLvl.forEach(person => {
         if (processed.has(person.id)) return;
 
-        // Find all connected peers (spouses/siblings) in this level
         const cluster: any[] = [];
         const queue = [person];
         processed.add(person.id);
@@ -99,7 +134,6 @@ const FamilyTree = () => {
           const curr = queue.shift();
           cluster.push(curr);
 
-          // Find peers
           relationships.forEach(r => {
             const type = r.relationship_type.toLowerCase();
             if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
@@ -112,7 +146,7 @@ const FamilyTree = () => {
             }
           });
         }
-        levels[lvl].push(cluster);
+        levels[lvl].push(sortCluster(cluster));
       });
     });
 
@@ -172,7 +206,7 @@ const FamilyTree = () => {
               <div key={cIdx} className="flex flex-col items-center gap-12">
                 
                 {/* Cluster Container */}
-                <div className="flex items-center gap-4 p-6 rounded-[4rem] bg-white/40 border-2 border-stone-50 shadow-sm relative">
+                <div className="flex items-center gap-4 p-8 rounded-[4rem] bg-white/40 border-2 border-stone-50 shadow-sm relative">
                   {cluster.map((person, pIdx) => {
                     const nextPerson = cluster[pIdx + 1];
                     const linkType = nextPerson ? getPeerLink(person.id, nextPerson.id) : null;
@@ -202,14 +236,18 @@ const FamilyTree = () => {
 
                         {/* Connector between peers in cluster */}
                         {linkType && (
-                          <div className="flex flex-col items-center gap-1 px-2">
-                            <div className="h-px w-8 bg-stone-200" />
+                          <div className="flex flex-col items-center gap-1 px-4">
+                            <div className="h-px w-12 bg-stone-200" />
                             {linkType === 'spouse' ? (
-                              <Heart className="w-4 h-4 text-red-400 fill-current" />
+                              <div className="bg-white p-1.5 rounded-full shadow-sm border border-stone-100">
+                                <Heart className="w-4 h-4 text-red-400 fill-current" />
+                              </div>
                             ) : (
-                              <Users2 className="w-4 h-4 text-amber-400" />
+                              <div className="bg-white p-1.5 rounded-full shadow-sm border border-stone-100">
+                                <Users2 className="w-4 h-4 text-amber-400" />
+                              </div>
                             )}
-                            <div className="h-px w-8 bg-stone-200" />
+                            <div className="h-px w-12 bg-stone-200" />
                           </div>
                         )}
                       </React.Fragment>
