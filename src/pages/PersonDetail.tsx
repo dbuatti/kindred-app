@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
@@ -15,10 +15,20 @@ import { parsePersonId, getPersonUrl } from '@/lib/slugify';
 const PersonDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { people, user, relationships, updatePerson } = useFamily();
+  const { people, user, relationships, updatePerson, loading } = useFamily();
   
-  const id = parsePersonId(slug);
-  const person = people.find(p => p.id === id);
+  const id = useMemo(() => {
+    const parsed = parsePersonId(slug);
+    console.log("[PersonDetail] Route slug:", slug, "-> Parsed ID:", parsed);
+    return parsed;
+  }, [slug]);
+
+  const person = useMemo(() => {
+    if (!id || loading) return null;
+    const found = people.find(p => p.id === id);
+    console.log("[PersonDetail] Searching for person with ID:", id, found ? "Found: " + found.name : "Not found");
+    return found;
+  }, [id, people, loading]);
 
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
   const [droppedImage, setDroppedImage] = useState<string | null>(null);
@@ -114,6 +124,12 @@ const PersonDetail = () => {
     const file = e.dataTransfer.files?.[0];
     if (file) handleProfilePhotoUpdate(file);
   };
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-[#FDFCF9]">
+      <p className="text-stone-400 font-serif italic">Loading person details...</p>
+    </div>
+  );
 
   if (!person) return (
     <div className="min-h-screen flex items-center justify-center bg-[#FDFCF9]">

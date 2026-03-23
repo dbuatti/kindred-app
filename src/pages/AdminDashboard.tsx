@@ -26,6 +26,7 @@ import {
   Cell
 } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
+import { getPersonUrl } from '@/lib/slugify';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
@@ -156,7 +157,11 @@ const AdminDashboard = () => {
             </h2>
             <div className="space-y-4">
               {recentMemories.map((memory) => (
-                <div key={memory.id} className="flex items-start gap-4 p-3 rounded-2xl hover:bg-stone-50 transition-colors cursor-pointer" onClick={() => navigate(`/person/${memory.personId}`)}>
+                <div 
+                  key={memory.id} 
+                  className="flex items-start gap-4 p-3 rounded-2xl hover:bg-stone-50 transition-colors cursor-pointer" 
+                  onClick={() => navigate(getPersonUrl(memory.personId, memory.personName))}
+                >
                   <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
                     <MessageSquare className="w-4 h-4" />
                   </div>

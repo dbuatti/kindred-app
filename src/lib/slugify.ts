@@ -9,11 +9,16 @@ export const slugify = (text: string) => {
 };
 
 export const getPersonUrl = (id: string, name: string) => {
-  return `/person/${id}-${slugify(name)}`;
+  const slug = slugify(name);
+  const url = `/person/${id}-${slug}`;
+  console.log(`[slugify] Generated URL for ${name}:`, url);
+  return url;
 };
 
 export const parsePersonId = (slug: string | undefined) => {
   if (!slug) return null;
   // Extract UUID (first 36 chars)
-  return slug.substring(0, 36);
+  const id = slug.substring(0, 36);
+  console.log(`[slugify] Parsed ID from slug "${slug}":`, id);
+  return id;
 };
