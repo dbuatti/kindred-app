@@ -90,6 +90,9 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         id: p.id,
         familyId: p.family_id,
         name: p.name,
+        maidenName: p.maiden_name,
+        gender: p.gender,
+        isLiving: p.is_living,
         birthYear: p.birth_year,
         birthDate: p.birth_date,
         birthPlace: p.birth_place,
@@ -153,6 +156,9 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .from('people')
         .insert([{
           name: newPerson.name,
+          gender: newPerson.gender,
+          maiden_name: newPerson.maidenName,
+          is_living: newPerson.isLiving !== false,
           birth_year: newPerson.birthYear,
           birth_date: newPerson.birthDate,
           birth_place: newPerson.birthPlace,
