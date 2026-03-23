@@ -20,7 +20,7 @@ const FamilyTree = () => {
 
   // Helper to get parents of a person
   const getParents = (personId: string) => {
-    return relationships
+    const parentIds = relationships
       .filter(r => r.person_id === personId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
       .map(r => r.related_person_id)
       .concat(
@@ -28,6 +28,7 @@ const FamilyTree = () => {
           .filter(r => r.related_person_id === personId && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
           .map(r => r.person_id)
       );
+    return Array.from(new Set(parentIds)).sort();
   };
 
   // 1. Calculate Generations (Levels)
@@ -64,28 +65,30 @@ const FamilyTree = () => {
     return levels;
   }, [people, relationships]);
 
-  // 2. Group and Sort people by generation and lineage
+  // 2. Group people by generation and then by sibling groups
   const treeData = useMemo(() => {
-    const gens: Record<number, { couples: any[][], singles: any[] }> = {};
-    const processed = new Set();
+    const gens: Record<number, { siblingGroups: Record<string, any[]> }> = {};
 
     // Sort levels
     const sortedLevels = Array.from(new Set(Object.values(generations))).sort((a, b) => a - b);
 
     sortedLevels.forEach(level => {
-      if (!gens[level]) gens[level] = { couples: [], singles: [] };
+      if (!gens[level]) gens[level] = { siblingGroups: {} };
       
-      const peopleInLevel = people
-        .filter(p => generations[p.id] === level)
-        .sort((a, b) => {
-          // Sort by parent ID to group siblings
-          const aParents = getParents(a.id).sort().join(',');
-          const bParents = getParents(b.id).sort().join(',');
-          return aParents.localeCompare(bParents);
-        });
+      const peopleInLevel = people.filter(p => generations[p.id] === level);
 
       peopleInLevel.forEach(person => {
-        if (processed.has(person.id)) return;
+        const parentsKey = getParents(person.id).join(',') || 'root';
+        if (!gens[level].siblingGroups[parentsKey]) {
+          gens[level].siblingGroups[parentsKey] = [];
+        }
+        
+        // Check if this person is already part of a couple in this group
+        const alreadyProcessed = gens[level].siblingGroups[parentsKey].some(item => 
+          Array.isArray(item) ? item.some(p => p.id === person.id) : item.id === person.id
+        );
+        
+        if (alreadyProcessed) return;
 
         // Find spouse in the same generation
         const spouseRel = relationships.find(r => 
@@ -96,13 +99,10 @@ const FamilyTree = () => {
         const spouseId = spouseRel ? (spouseRel.person_id === person.id ? spouseRel.related_person_id : spouseRel.person_id) : null;
         const spouse = spouseId ? people.find(p => p.id === spouseId) : null;
 
-        if (spouse && generations[spouse.id] === level && !processed.has(spouse.id)) {
-          gens[level].couples.push([person, spouse]);
-          processed.add(person.id);
-          processed.add(spouse.id);
+        if (spouse && generations[spouse.id] === level) {
+          gens[level].siblingGroups[parentsKey].push([person, spouse]);
         } else {
-          gens[level].singles.push(person);
-          processed.add(person.id);
+          gens[level].siblingGroups[parentsKey].push(person);
         }
       });
     });
@@ -146,75 +146,97 @@ const FamilyTree = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-8 py-16 space-y-24">
+      <main className="max-w-7xl mx-auto px-8 py-24 space-y-32">
         {treeData.map((gen, gIdx) => (
-          <div key={gen.level} className="relative">
-            {gIdx > 0 && (
-              <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                <div className="h-24 w-px bg-gradient-to-b from-stone-100 to-stone-300" />
-                <ChevronDown className="w-4 h-4 text-stone-300 -mt-1" />
-              </div>
-            )}
-
-            <div className="flex flex-wrap justify-center gap-12">
-              {gen.couples.map((couple, cIdx) => (
-                <div key={cIdx} className="flex gap-4 p-6 rounded-[3rem] bg-white shadow-sm border-2 border-amber-100 bg-amber-50/10 relative group hover:shadow-md transition-all">
-                  {couple.map((person, pIdx) => (
-                    <React.Fragment key={person.id}>
-                      {pIdx > 0 && (
-                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-                          <div className="bg-white p-1.5 rounded-full shadow-sm border border-amber-100">
-                            <Heart className="w-3 h-3 text-red-400 fill-current" />
-                          </div>
-                        </div>
-                      )}
-                      <div 
-                        onClick={() => navigate(getPersonUrl(person.id, person.name))}
-                        className="relative flex flex-col items-center space-y-3 cursor-pointer"
-                      >
-                        <QuickAddMenu personId={person.id} personName={person.name} />
-                        <div className="h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
-                          {person.photoUrl ? (
-                            <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0" />
-                          ) : (
-                            <div className="w-full h-full bg-stone-50 flex items-center justify-center text-stone-300">
-                              <UserCircle className="w-10 h-10" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-center">
-                          <h3 className="font-serif font-bold text-stone-800 text-xs md:text-sm">{person.name.split(' ')[0]}</h3>
-                          <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{getRelationshipLabel(person)}</p>
-                        </div>
-                      </div>
-                    </React.Fragment>
-                  ))}
-                </div>
-              ))}
-
-              {gen.singles.map((person) => (
-                <div 
-                  key={person.id}
-                  onClick={() => navigate(getPersonUrl(person.id, person.name))}
-                  className="group relative flex flex-col items-center space-y-3 cursor-pointer p-6 rounded-[3rem] bg-white shadow-sm border-2 border-stone-100 hover:border-amber-200 transition-all"
-                >
-                  <QuickAddMenu personId={person.id} personName={person.name} />
-                  <div className="h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
-                    {person.photoUrl ? (
-                      <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0" />
-                    ) : (
-                      <div className="w-full h-full bg-stone-50 flex items-center justify-center text-stone-300">
-                        <UserCircle className="w-10 h-10" />
-                      </div>
+          <div key={gen.level} className="relative flex flex-wrap justify-center gap-16">
+            {Object.entries(gen.siblingGroups).map(([parentsKey, members], groupIdx) => (
+              <div key={parentsKey} className="relative flex flex-col items-center">
+                {/* Parent Connection Lines */}
+                {parentsKey !== 'root' && (
+                  <div className="absolute -top-32 left-0 right-0 flex flex-col items-center pointer-events-none">
+                    {/* Vertical line from parents down to the bar */}
+                    <div className="h-16 w-px bg-stone-200" />
+                    {/* Horizontal bar connecting siblings */}
+                    {members.length > 1 && (
+                      <div className="h-px bg-stone-200 w-full" />
                     )}
                   </div>
-                  <div className="text-center">
-                    <h3 className="font-serif font-bold text-stone-800 text-xs md:text-sm">{person.name.split(' ')[0]}</h3>
-                    <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{getRelationshipLabel(person)}</p>
-                  </div>
+                )}
+
+                <div className="flex gap-12">
+                  {members.map((item, iIdx) => {
+                    const isCouple = Array.isArray(item);
+                    const person = isCouple ? item[0] : item;
+                    const spouse = isCouple ? item[1] : null;
+
+                    return (
+                      <div key={person.id} className="relative flex flex-col items-center">
+                        {/* Vertical line from sibling bar down to the person/couple */}
+                        {parentsKey !== 'root' && (
+                          <div className="absolute -top-16 h-16 w-px bg-stone-200 pointer-events-none" />
+                        )}
+
+                        <div className={cn(
+                          "flex gap-4 p-6 rounded-[3rem] bg-white shadow-sm border-2 transition-all relative group hover:shadow-md",
+                          isCouple ? "border-amber-100 bg-amber-50/10" : "border-stone-100 hover:border-amber-200"
+                        )}>
+                          {/* Person Node */}
+                          <div 
+                            onClick={() => navigate(getPersonUrl(person.id, person.name))}
+                            className="relative flex flex-col items-center space-y-3 cursor-pointer"
+                          >
+                            <QuickAddMenu personId={person.id} personName={person.name} />
+                            <div className="h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
+                              {person.photoUrl ? (
+                                <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0" />
+                              ) : (
+                                <div className="w-full h-full bg-stone-50 flex items-center justify-center text-stone-300">
+                                  <UserCircle className="w-10 h-10" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-center">
+                              <h3 className="font-serif font-bold text-stone-800 text-xs md:text-sm">{person.name.split(' ')[0]}</h3>
+                              <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{getRelationshipLabel(person)}</p>
+                            </div>
+                          </div>
+
+                          {/* Spouse Node */}
+                          {spouse && (
+                            <>
+                              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+                                <div className="bg-white p-1.5 rounded-full shadow-sm border border-amber-100">
+                                  <Heart className="w-3 h-3 text-red-400 fill-current" />
+                                </div>
+                              </div>
+                              <div 
+                                onClick={() => navigate(getPersonUrl(spouse.id, spouse.name))}
+                                className="relative flex flex-col items-center space-y-3 cursor-pointer"
+                              >
+                                <QuickAddMenu personId={spouse.id} personName={spouse.name} />
+                                <div className="h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all">
+                                  {spouse.photoUrl ? (
+                                    <img src={spouse.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0" />
+                                  ) : (
+                                    <div className="w-full h-full bg-stone-50 flex items-center justify-center text-stone-300">
+                                      <UserCircle className="w-10 h-10" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-center">
+                                  <h3 className="font-serif font-bold text-stone-800 text-xs md:text-sm">{spouse.name.split(' ')[0]}</h3>
+                                  <p className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{getRelationshipLabel(spouse)}</p>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         ))}
       </main>
