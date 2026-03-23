@@ -4,16 +4,15 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Share2, Heart, UserCircle, Users2, Activity } from 'lucide-react';
+import { ArrowLeft, Share2, Heart, UserCircle, Users2 } from 'lucide-react';
 import { getPersonUrl } from '@/lib/slugify';
 import { getInverseRelationship } from '@/lib/relationships';
 import { cn } from '@/lib/utils';
 import QuickAddMenu from '../components/QuickAddMenu';
-import SmartSuggestionHover from '../components/SmartSuggestionHover';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
-  const { people, loading, user, relationships, isAdmin } = useFamily();
+  const { people, loading, user, relationships } = useFamily();
 
   const me = useMemo(() => {
     return people.find(p => p.userId === user?.id) || people[0];
@@ -220,7 +219,6 @@ const FamilyTree = () => {
     
     return (
       <div onClick={() => navigate(getPersonUrl(person.id, person.name))} className="flex flex-col items-center space-y-3 cursor-pointer group">
-        <SmartSuggestionHover personId={person.id} />
         <QuickAddMenu personId={person.id} personName={person.name} />
         <div className="h-20 w-20 md:h-24 md:w-24 rounded-full overflow-hidden border-4 border-white shadow-lg ring-1 ring-stone-100 group-hover:ring-amber-400 transition-all duration-500">
           {person.photoUrl ? <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" /> : <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300"><UserCircle className="w-10 h-10" /></div>}
@@ -274,15 +272,6 @@ const FamilyTree = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {isAdmin && (
-              <Button 
-                variant="ghost" 
-                onClick={() => navigate('/admin')}
-                className="rounded-full text-amber-600 hover:bg-amber-50 gap-2"
-              >
-                <Activity className="w-4 h-4" /> Diagnostics
-              </Button>
-            )}
             <Button variant="outline" className="rounded-full border-stone-200 text-stone-600 gap-2"><Share2 className="w-4 h-4" /> Share Tree</Button>
           </div>
         </div>
