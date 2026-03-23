@@ -6,22 +6,32 @@ import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Users, Share2, Network } from 'lucide-react';
 import { getPersonUrl } from '@/lib/slugify';
+import { getInverseRelationship } from '@/lib/relationships';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
   const { people, loading, user, relationships } = useFamily();
 
+  const me = useMemo(() => {
+    return people.find(p => p.userId === user?.id) || people[0];
+  }, [people, user]);
+
+  const getRelationshipLabel = (person: any) => {
+    if (person.id === me?.id) return "You";
+    
+    const rel = relationships.find(r => 
+      (r.person_id === me?.id && r.related_person_id === person.id) ||
+      (r.person_id === person.id && r.related_person_id === me?.id)
+    );
+
+    if (!rel) return person.birthYear || person.personalityTags?.[0] || "Relative";
+
+    if (rel.person_id === me?.id) return rel.relationship_type;
+    return getInverseRelationship(rel.relationship_type, person.gender);
+  };
+
   const generations = useMemo(() => {
-    if (!people.length) return [];
-    
-    // 1. Find the "Root" (usually the logged-in user or the most connected person)
-    const me = people.find(p => p.userId === user?.id) || people[0];
-    
-    // 2. Calculate "Generation Depth" relative to the user
-    // Depth 0: Me, Siblings, Cousins, Spouse
-    // Depth -1: Parents, Aunts, Uncles
-    // Depth -2: Grandparents
-    // Depth 1: Children
+    if (!people.length || !me) return [];
     
     const depthMap: Record<string, number> = {};
     const queue: { id: string; depth: number }[] = [{ id: me.id, depth: 0 }];
@@ -31,7 +41,6 @@ const FamilyTree = () => {
       const { id, depth } = queue.shift()!;
       depthMap[id] = depth;
 
-      // Find all connections for this person
       relationships.forEach(r => {
         let neighborId: string | null = null;
         let nextDepth = depth;
@@ -43,11 +52,9 @@ const FamilyTree = () => {
           else if (type === 'son' || type === 'daughter' || type === 'child') nextDepth = depth + 1;
           else if (type === 'grandfather' || type === 'grandmother' || type === 'grandparent') nextDepth = depth - 2;
           else if (type === 'grandson' || type === 'granddaughter' || type === 'grandchild') nextDepth = depth + 2;
-          // Siblings, Spouses, Cousins stay at the same depth
         } else if (r.related_person_id === id) {
           neighborId = r.person_id;
           const type = r.relationship_type.toLowerCase();
-          // Inverse logic
           if (type === 'father' || type === 'mother' || type === 'parent') nextDepth = depth + 1;
           else if (type === 'son' || type === 'daughter' || type === 'child') nextDepth = depth - 1;
           else if (type === 'grandfather' || type === 'grandmother' || type === 'grandparent') nextDepth = depth + 2;
@@ -83,7 +90,6 @@ const FamilyTree = () => {
         else if (depth === 0) gen = "Current Generation";
         else if (depth >= 1) gen = "Next Generation";
       } else if (year > 0) {
-        // Fallback to year if unlinked
         if (year < 1920) gen = "Ancestors";
         else if (year < 1950) gen = "Grandparents' Generation";
         else if (year < 1980) gen = "Parents' Generation";
@@ -105,7 +111,7 @@ const FamilyTree = () => {
     return order
       .map(name => [name, groups[name]])
       .filter(([_, members]) => (members as any).length > 0);
-  }, [people, user, relationships]);
+  }, [people, me, relationships]);
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the branches...</div>;
 
@@ -164,7 +170,7 @@ const FamilyTree = () => {
                         {person.name.split(' ')[0]}
                       </h3>
                       <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
-                        {person.birthYear || (person.relationshipType || person.personalityTags?.[0])}
+                        {getRelationshipLabel(person)}
                       </p>
                     </div>
                   </div>

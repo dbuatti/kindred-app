@@ -36,6 +36,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { parsePersonIdFromSlug, getPersonUrl } from '@/lib/slugify';
+import { getInverseRelationship } from '@/lib/relationships';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
@@ -74,7 +75,10 @@ const PersonDetail = () => {
         
         if (!relative) return null;
         
-        const type = isPrimary ? r.relationship_type : 'Relative';
+        const type = isPrimary 
+          ? r.relationship_type 
+          : getInverseRelationship(r.relationship_type, person.gender);
+          
         const key = `${relative.id}-${type}`;
         if (seen.has(key)) return null;
         seen.add(key);
