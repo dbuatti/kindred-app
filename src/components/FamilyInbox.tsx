@@ -18,6 +18,30 @@ const FamilyInbox = () => {
     setIsProcessing(false);
   };
 
+  const formatSuggestionValue = (value: string) => {
+    if (value.startsWith('LINK_EXISTING:')) {
+      const match = value.match(/LINK_EXISTING: (.+) as (.+) to (.+)/);
+      if (match) {
+        const targetId = match[1];
+        const rel = match[2];
+        const personId = match[3];
+        
+        const target = people.find(p => p.id === targetId);
+        const person = people.find(p => p.id === personId);
+        
+        let text = `Link ${target?.name || 'Unknown'} as ${rel} to ${person?.name || 'Unknown'}`;
+        
+        // Check for additional connections in the string
+        if (value.includes('Additional Connections:')) {
+          text += " (plus smart connections)";
+        }
+        
+        return text;
+      }
+    }
+    return value;
+  };
+
   if (pending.length === 0) return null;
 
   return (
@@ -83,7 +107,7 @@ const FamilyInbox = () => {
                     "text-stone-700 font-serif leading-relaxed",
                     isLink ? "text-sm italic text-stone-500" : "text-lg italic"
                   )}>
-                    "{s.suggestedValue}"
+                    "{formatSuggestionValue(s.suggestedValue)}"
                   </p>
                 </div>
 
