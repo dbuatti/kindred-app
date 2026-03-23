@@ -60,13 +60,13 @@ const ProfileDialog = () => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full bg-stone-100 text-stone-500">
-          <User className="w-5 h-5" />
+        <Button variant="ghost" size="icon" className="rounded-full bg-stone-100 text-stone-500 h-20 w-20">
+          <User className="w-10 h-10" />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none bg-stone-50 p-8">
         <DialogHeader>
-          <DialogTitle className="font-serif text-2xl text-stone-800 text-center">
+          <DialogTitle className="font-serif text-3xl text-stone-800 text-center">
             Your Profile
           </DialogTitle>
         </DialogHeader>
@@ -79,7 +79,7 @@ const ProfileDialog = () => {
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="Your first name"
-                className="bg-white border-stone-200 rounded-2xl h-12 focus-visible:ring-amber-500"
+                className="bg-white border-stone-200 rounded-2xl h-14 text-lg focus-visible:ring-amber-500"
               />
             </div>
             <div className="space-y-2">
@@ -88,11 +88,11 @@ const ProfileDialog = () => {
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Your last name"
-                className="bg-white border-stone-200 rounded-2xl h-12 focus-visible:ring-amber-500"
+                className="bg-white border-stone-200 rounded-2xl h-14 text-lg focus-visible:ring-amber-500"
               />
             </div>
             <div className="pt-2">
-              <p className="text-xs text-stone-400 text-center italic">
+              <p className="text-sm text-stone-400 text-center italic">
                 Signed in as {user?.email}
               </p>
             </div>
@@ -101,35 +101,35 @@ const ProfileDialog = () => {
           <div className="flex flex-col gap-3 pt-4">
             <Button 
               variant="outline"
-              className="w-full h-14 rounded-2xl border-stone-200 text-stone-700 hover:bg-stone-100 gap-2"
+              className="w-full h-16 rounded-2xl border-stone-200 text-stone-700 hover:bg-stone-100 gap-2 text-lg"
               onClick={() => {
                 setIsOpen(false);
-                navigate('/onboarding');
+                navigate('/edit-profile');
               }}
             >
-              <Edit3 className="w-4 h-4" />
+              <Edit3 className="w-5 h-5" />
               Edit Full Profile
             </Button>
             
             {isAdmin && (
               <Button 
                 variant="outline"
-                className="w-full h-14 rounded-2xl border-amber-200 text-amber-700 hover:bg-amber-50 gap-2"
+                className="w-full h-16 rounded-2xl border-amber-200 text-amber-700 hover:bg-amber-50 gap-2 text-lg"
                 onClick={() => {
                   setIsOpen(false);
                   navigate('/admin');
                 }}
               >
-                <ShieldCheck className="w-4 h-4" />
+                <ShieldCheck className="w-5 h-5" />
                 Admin Dashboard
               </Button>
             )}
             <Button 
-              className="w-full h-14 rounded-2xl bg-stone-800 hover:bg-stone-900 text-white text-lg"
+              className="w-full h-16 rounded-2xl bg-stone-800 hover:bg-stone-900 text-white text-xl font-bold"
               onClick={handleSave}
               disabled={isLoading}
             >
-              Save Changes
+              Quick Save
             </Button>
             <Button 
               variant="ghost" 

@@ -14,6 +14,7 @@ import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
 import Onboarding from "./pages/Onboarding";
+import EditProfile from "./pages/EditProfile";
 
 const queryClient = new QueryClient();
 
@@ -41,7 +42,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// New component to handle onboarding redirect
 const OnboardingCheck = ({ children }: { children: React.ReactNode }) => {
   const { user, profiles, loading } = useFamily();
   const location = useLocation();
@@ -50,7 +50,6 @@ const OnboardingCheck = ({ children }: { children: React.ReactNode }) => {
   
   const profile = user ? profiles[user.id] : null;
   
-  // If onboarding is not completed and we aren't already on the onboarding page
   if (user && profile && !profile.onboarding_completed && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" />;
   }
@@ -70,6 +69,7 @@ const App = () => (
             <Route path="/join" element={<JoinFamily />} />
             <Route path="/auth/confirm" element={<AuthCallback />} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+            <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
             <Route path="/" element={<ProtectedRoute><OnboardingCheck><Index /></OnboardingCheck></ProtectedRoute>} />
             <Route path="/person/:id" element={<ProtectedRoute><OnboardingCheck><PersonDetail /></OnboardingCheck></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><OnboardingCheck><AdminDashboard /></OnboardingCheck></ProtectedRoute>} />
