@@ -13,7 +13,13 @@ export interface TreeNode {
 const BRANCH_COLORS = ['#d97706', '#2563eb', '#16a34a', '#dc2626', '#7c3aed'];
 
 export const buildTree = (people: Person[], relationships: any[]): TreeNode[] => {
-  if (!people.length) return [];
+  console.log("[TreeUtils] --- STARTING TREE BUILD ---");
+  console.log(`[TreeUtils] Processing ${people.length} people and ${relationships.length} relationships.`);
+
+  if (!people.length) {
+    console.warn("[TreeUtils] No people found in archive.");
+    return [];
+  }
 
   const personMap = new Map<string, Person>();
   people.forEach(p => personMap.set(p.id, p));
@@ -23,20 +29,21 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   const spousesOf = new Map<string, string[]>();
   const siblingsOf = new Map<string, string[]>();
 
-  relationships.forEach(r => {
-    const type = r.relationship_type.toLowerCase();
+  relationships.forEach((r, idx) => {
+    const type = r.relationship_type?.toLowerCase() || 'unknown';
     const p1 = r.person_id;
     const p2 = r.related_person_id;
 
-    if (['father', 'mother', 'parent'].includes(type)) {
-      const children = childrenOf.get(p2) || [];
-      if (!children.includes(p1)) children.push(p1);
-      childrenOf.set(p2, children);
+    if (!personMap.has(p1) || !personMap.has(p2)) {
+      console.error(`[TreeUtils] ANOMALY: Relationship #${idx} (${type}) references missing person ID:`, { p1, p2 });
+      return;
+    }
 
-      const parents = parentsOf.get(p1) || [];
-      if (!parents.includes(p2)) parents.push(p2);
-      parentsOf.set(p1, parents);
-    } else if (['son', 'daughter', 'child'].includes(type)) {
+    const name1 = personMap.get(p1)?.name;
+    const name2 = personMap.get(p2)?.name;
+
+    if (['father', 'mother', 'parent'].includes(type)) {
+      // p1 is the parent of p2
       const children = childrenOf.get(p1) || [];
       if (!children.includes(p2)) children.push(p2);
       childrenOf.set(p1, children);
@@ -44,6 +51,17 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       const parents = parentsOf.get(p2) || [];
       if (!parents.includes(p1)) parents.push(p1);
       parentsOf.set(p2, parents);
+      console.log(`[TreeUtils] Link: ${name1} is Parent of ${name2}`);
+    } else if (['son', 'daughter', 'child'].includes(type)) {
+      // p1 is the child of p2
+      const children = childrenOf.get(p2) || [];
+      if (!children.includes(p1)) children.push(p1);
+      childrenOf.set(p2, children);
+
+      const parents = parentsOf.get(p1) || [];
+      if (!parents.includes(p2)) parents.push(p2);
+      parentsOf.set(p1, parents);
+      console.log(`[TreeUtils] Link: ${name1} is Child of ${name2}`);
     } else if (['spouse', 'wife', 'husband'].includes(type)) {
       const s1 = spousesOf.get(p1) || [];
       if (!s1.includes(p2)) s1.push(p2);
@@ -52,6 +70,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       const s2 = spousesOf.get(p2) || [];
       if (!s2.includes(p1)) s2.push(p1);
       spousesOf.set(p2, s2);
+      console.log(`[TreeUtils] Link: ${name1} and ${name2} are Spouses`);
     } else if (['brother', 'sister', 'sibling'].includes(type)) {
       const sib1 = siblingsOf.get(p1) || [];
       if (!sib1.includes(p2)) sib1.push(p2);
@@ -60,38 +79,60 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       const sib2 = siblingsOf.get(p2) || [];
       if (!sib2.includes(p1)) sib2.push(p1);
       siblingsOf.set(p2, sib2);
+      console.log(`[TreeUtils] Link: ${name1} and ${name2} are Siblings`);
     }
   });
 
   const levels: Record<string, number> = {};
   people.forEach(p => levels[p.id] = 0);
 
-  // Iterative level calculation to handle deep trees
+  console.log("[TreeUtils] Calculating generational levels...");
   for (let i = 0; i < 20; i++) {
+    let changed = false;
     relationships.forEach(r => {
-      const type = r.relationship_type.toLowerCase();
+      const type = r.relationship_type?.toLowerCase();
+      const p1 = r.person_id;
+      const p2 = r.related_person_id;
+      if (!personMap.has(p1) || !personMap.has(p2)) return;
+
       if (['father', 'mother', 'parent'].includes(type)) {
-        levels[r.person_id] = Math.max(levels[r.person_id], levels[r.related_person_id] + 1);
+        // p1 is parent, p2 is child. p2 level should be p1 level + 1
+        if (levels[p2] <= levels[p1]) {
+          levels[p2] = levels[p1] + 1;
+          changed = true;
+        }
       } else if (['son', 'daughter', 'child'].includes(type)) {
-        levels[r.related_person_id] = Math.max(levels[r.related_person_id], levels[r.person_id] + 1);
+        // p1 is child, p2 is parent. p1 level should be p2 level + 1
+        if (levels[p1] <= levels[p2]) {
+          levels[p1] = levels[p2] + 1;
+          changed = true;
+        }
       } else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
-        const maxLvl = Math.max(levels[r.person_id], levels[r.related_person_id]);
-        levels[r.person_id] = maxLvl;
-        levels[r.related_person_id] = maxLvl;
+        const maxLvl = Math.max(levels[p1], levels[p2]);
+        if (levels[p1] !== maxLvl || levels[p2] !== maxLvl) {
+          levels[p1] = maxLvl;
+          levels[p2] = maxLvl;
+          changed = true;
+        }
       }
     });
+    if (!changed) break;
   }
 
   const globalVisited = new Set<string>();
 
   const constructNode = (personId: string, level: number, colorIndex: number): TreeNode | null => {
-    if (globalVisited.has(personId)) return null;
+    if (globalVisited.has(personId)) {
+      console.warn(`[TreeUtils] Circular or redundant path detected for ${personMap.get(personId)?.name}. Skipping.`);
+      return null;
+    }
     globalVisited.add(personId);
 
     const person = personMap.get(personId);
     if (!person) return null;
 
-    // Spouses are rendered horizontally next to the person
+    console.log(`[TreeUtils] Building node for ${person.name} at level ${level}`);
+
     const spouseIds = spousesOf.get(personId) || [];
     const spouses = spouseIds
       .map(id => {
@@ -101,7 +142,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       })
       .filter((p): p is Person => !!p);
 
-    // Siblings are also rendered horizontally in the same generation group
     const siblingIds = siblingsOf.get(personId) || [];
     const siblings = siblingIds
       .map(id => {
@@ -111,7 +151,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       })
       .filter((p): p is Person => !!p);
 
-    // Children are collected from the entire generation group (person + spouses)
     const parentGroupIds = [personId, ...spouseIds];
     const childIds = new Set<string>();
     parentGroupIds.forEach(pId => {
@@ -134,15 +173,15 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   };
 
   const roots: TreeNode[] = [];
-  // Roots are people with no parents in the database
   const potentialRoots = people
     .filter(p => !parentsOf.has(p.id))
     .sort((a, b) => levels[a.id] - levels[b.id]);
   
+  console.log(`[TreeUtils] Identified ${potentialRoots.length} potential root ancestors.`);
+
   potentialRoots.forEach((p, idx) => {
     if (globalVisited.has(p.id)) return;
     
-    // If a root's spouse or sibling was already processed, don't start a new root
     const spouses = spousesOf.get(p.id) || [];
     const siblings = siblingsOf.get(p.id) || [];
     const hasProcessedConnection = [...spouses, ...siblings].some(id => globalVisited.has(id));
@@ -153,5 +192,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     }
   });
 
+  console.log(`[TreeUtils] FINISHED: Built ${roots.length} separate tree branches.`);
+  console.log("[TreeUtils] --- END TREE BUILD ---");
   return roots;
 };

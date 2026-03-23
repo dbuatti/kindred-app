@@ -26,8 +26,11 @@ export interface TreeConnection {
 
 export const useTreeLayout = (people: Person[], relationships: Relationship[]) => {
   return useMemo(() => {
-    console.log("[TreeLayout] --- START CALCULATION ---");
-    if (!people.length) return { positions: [], connections: [], debug: "No data" };
+    console.log("[TreeLayout] --- STARTING LAYOUT CALCULATION ---");
+    if (!people.length) {
+      console.warn("[TreeLayout] No people to layout.");
+      return { positions: [], connections: [], debug: "No data" };
+    }
 
     const ROW_HEIGHT = 250;
     const COLUMN_WIDTH = 300;
@@ -36,9 +39,10 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
     const levels: Record<string, number> = {};
     people.forEach(p => levels[p.id] = 0);
 
+    console.log("[TreeLayout] Calculating generational levels for layout...");
     for (let i = 0; i < 15; i++) {
       relationships.forEach(r => {
-        const type = r.relationship_type.toLowerCase();
+        const type = r.relationship_type?.toLowerCase();
         if (['father', 'mother', 'parent'].includes(type)) {
           if (levels[r.person_id] <= levels[r.related_person_id]) {
             levels[r.person_id] = levels[r.related_person_id] + 1;
@@ -58,6 +62,8 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
       groups[lvl].push(id);
     });
 
+    console.log(`[TreeLayout] Grouped into ${Object.keys(groups).length} generations.`);
+
     let rawPositions: TreePosition[] = [];
     Object.entries(groups).forEach(([lvlStr, ids]) => {
       const lvl = parseInt(lvlStr);
@@ -74,7 +80,7 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
       });
     });
 
-    // 3. CRITICAL: Calculate Bounding Box and Center
+    // 3. Calculate Bounding Box and Center
     const minX = Math.min(...rawPositions.map(p => p.x));
     const maxX = Math.max(...rawPositions.map(p => p.x));
     const minY = Math.min(...rawPositions.map(p => p.y));
@@ -101,12 +107,12 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
         id: r.id,
         from: { x: from.x, y: from.y },
         to: { x: to.x, y: to.y },
-        type: ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase()) ? 'spouse' : 'blood'
+        type: ['spouse', 'wife', 'husband'].includes(r.relationship_type?.toLowerCase()) ? 'spouse' : 'blood'
       } as TreeConnection;
     }).filter((c): c is TreeConnection => c !== null);
 
-    console.log(`[TreeLayout] Final: ${positions.length} nodes, ${connections.length} links.`);
-    console.log("[TreeLayout] --- END CALCULATION ---");
+    console.log(`[TreeLayout] FINISHED: ${positions.length} nodes positioned, ${connections.length} links created.`);
+    console.log("[TreeLayout] --- END LAYOUT CALCULATION ---");
 
     return { 
       positions, 

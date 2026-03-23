@@ -48,12 +48,14 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
+    console.log("[FamilyContext] --- FETCHING ARCHIVE DATA ---");
     try {
       const { data: peopleData, error: peopleError } = await supabase
         .from('people')
         .select('*, memories(*)');
       
       if (peopleError) throw peopleError;
+      console.log(`[FamilyContext] Loaded ${peopleData?.length || 0} people from database.`);
 
       const { data: suggestionsData } = await supabase
         .from('suggestions')
@@ -85,6 +87,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .from('relationships')
         .select('*');
       setRelationships(relData || []);
+      console.log(`[FamilyContext] Loaded ${relData?.length || 0} relationships from database.`);
 
       const mappedPeople: Person[] = (peopleData || []).map((p: any) => ({
         id: p.id,
@@ -128,10 +131,12 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         suggestedByEmail: s.suggested_by_email,
         status: s.status
       })));
+      console.log("[FamilyContext] Data mapping complete.");
     } catch (error: any) {
       console.error("[FamilyContext] Error fetching data:", error.message);
     } finally {
       if (!silent) setLoading(false);
+      console.log("[FamilyContext] --- FETCH COMPLETE ---");
     }
   }, []);
 
