@@ -10,11 +10,13 @@ interface Relationship {
 }
 
 export const useTreeLayout = (people: Person[], relationships: Relationship[]) => {
+  // 1. Calculate Generational Levels
   const personLevels = useMemo(() => {
     if (!people.length) return {};
     const levels: Record<string, number> = {};
     people.forEach(p => levels[p.id] = 0);
 
+    // Iteratively push parents above children
     for (let i = 0; i < 50; i++) {
       let changed = false;
       relationships.forEach(r => {
@@ -22,17 +24,22 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
         const p1 = r.person_id;
         const p2 = r.related_person_id;
 
+        // Parent -> Child relationship
         if (['mother', 'father', 'parent'].includes(type)) {
-          if (levels[p1] !== levels[p2] + 1) {
+          if (levels[p1] <= levels[p2]) {
             levels[p1] = levels[p2] + 1;
             changed = true;
           }
-        } else if (['son', 'daughter', 'child'].includes(type)) {
-          if (levels[p2] !== levels[p1] + 1) {
+        } 
+        // Child -> Parent relationship
+        else if (['son', 'daughter', 'child'].includes(type)) {
+          if (levels[p2] <= levels[p1]) {
             levels[p2] = levels[p1] + 1;
             changed = true;
           }
-        } else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
+        } 
+        // Peer relationships (Spouse, Sibling)
+        else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
           if (levels[p1] !== levels[p2]) {
             const max = Math.max(levels[p1], levels[p2]);
             levels[p1] = max;
@@ -46,6 +53,7 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
     return levels;
   }, [people, relationships]);
 
+  // 2. Helper to get a cluster of peers (spouses/siblings at the same level)
   const getPeerCluster = useCallback((startId: string, level: number, processed: Set<string>) => {
     const cluster: any[] = [];
     const queue = [startId];
@@ -71,27 +79,62 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
     return cluster;
   }, [people, relationships, personLevels]);
 
+  // 3. Identify Root Clusters (Entry points for the tree)
   const rootClusters = useMemo(() => {
-    const processed = new Set<string>();
+    const globalProcessed = new Set<string>();
     const clusters: any[][] = [];
     
-    const roots = people.filter(p => {
-      const hasParent = relationships.some(r => 
-        (r.person_id === p.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) ||
-        (r.related_person_id === p.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
-      );
-      return !hasParent;
-    });
+    // A person is a "True Root" if they have NO parents in the dataset
+    const isDescendant = (id: string) => {
+      return relationships.some(r => {
+        const type = r.relationship_type.toLowerCase();
+        return (r.related_person_id === id && ['mother', 'father', 'parent'].includes(type)) ||
+               (r.person_id === id && ['son', 'daughter', 'child'].includes(type));
+      });
+    };
 
-    roots.forEach(r => {
-      if (!processed.has(r.id)) {
-        clusters.push(getPeerCluster(r.id, personLevels[r.id], processed));
+    // First pass: Start from people who have no parents
+    const trueRoots = people.filter(p => !isDescendant(p.id));
+    
+    // Sort roots by level (highest first)
+    trueRoots.sort((a, b) => personLevels[b.id] - personLevels[a.id]);
+
+    trueRoots.forEach(r => {
+      if (!globalProcessed.has(r.id)) {
+        // When we create a cluster, we need to mark ALL descendants as processed
+        // so they don't show up as roots later.
+        const cluster = getPeerCluster(r.id, personLevels[r.id], globalProcessed);
+        clusters.push(cluster);
+        
+        // Recursively find all descendants of this cluster and mark them as processed
+        const markDescendants = (ids: string[]) => {
+          ids.forEach(id => {
+            relationships.forEach(rel => {
+              const type = rel.relationship_type.toLowerCase();
+              let childId = null;
+              if (rel.person_id === id && ['mother', 'father', 'parent', 'son', 'daughter', 'child'].includes(type)) {
+                // If rel is parent->child, related is child. If rel is child->parent, person is child.
+                if (['mother', 'father', 'parent'].includes(type)) childId = rel.related_person_id;
+              } else if (rel.related_person_id === id && ['son', 'daughter', 'child'].includes(type)) {
+                childId = rel.person_id;
+              }
+
+              if (childId && !globalProcessed.has(childId)) {
+                globalProcessed.add(childId);
+                markDescendants([childId]);
+              }
+            });
+          });
+        };
+        markDescendants(cluster.map(p => p.id));
       }
     });
 
+    // Second pass: Catch any remaining disconnected components (islands with cycles or missing roots)
     people.forEach(p => {
-      if (!processed.has(p.id)) {
-        clusters.push(getPeerCluster(p.id, personLevels[p.id], processed));
+      if (!globalProcessed.has(p.id)) {
+        const cluster = getPeerCluster(p.id, personLevels[p.id], globalProcessed);
+        clusters.push(cluster);
       }
     });
 
