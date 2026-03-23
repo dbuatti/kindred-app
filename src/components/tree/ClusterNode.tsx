@@ -38,6 +38,7 @@ const ClusterNode = ({
   debugMode
 }: ClusterNodeProps) => {
   
+  // Filter out members already handled by a higher-level recursion
   const uniqueMembers = members.filter(m => !globalProcessed.has(m.id));
   uniqueMembers.forEach(m => globalProcessed.add(m.id));
 
@@ -48,6 +49,7 @@ const ClusterNode = ({
     uniqueMembers.forEach(m => {
       if (processedInThisCluster.has(m.id)) return;
 
+      // Find spouse in the same generation
       const spouseRel = relationships.find(r => 
         (r.person_id === m.id || r.related_person_id === m.id) &&
         ['spouse', 'wife', 'husband', 'ex-spouse', 'ex-wife', 'ex-husband'].includes(r.relationship_type.toLowerCase())
@@ -60,6 +62,7 @@ const ClusterNode = ({
       const unitParents = spouse ? [m, spouse] : [m];
       unitParents.forEach(p => processedInThisCluster.add(p.id));
 
+      // Find all children of this parent unit
       const childIds = new Set<string>();
       unitParents.forEach(p => {
         relationships.forEach(r => {
@@ -81,128 +84,94 @@ const ClusterNode = ({
   if (uniqueMembers.length === 0) return null;
 
   return (
-    <div className="flex flex-col items-center">
-      {/* Parent Row */}
-      <div className="flex items-start gap-24 relative">
+    <div className="flex flex-col items-center w-full">
+      <div className="flex items-start gap-32">
         {partnerUnits.map((unit, uIdx) => (
           <div key={uIdx} className="flex flex-col items-center">
-            <div className="flex items-center gap-8 relative">
+            {/* Parent Row */}
+            <div className="flex items-center gap-4 relative">
               {unit.parents.map((person, pIdx) => {
                 const isLast = pIdx === unit.parents.length - 1;
-                const hasAncestors = relationships.some(r => 
-                  (r.person_id === person.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) || 
-                  (r.related_person_id === person.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
-                );
-
                 return (
                   <React.Fragment key={person.id}>
-                    <div className="relative flex flex-col items-center">
-                      {/* Line UP to ancestors - meets the line DOWN from above */}
-                      {hasAncestors && (
-                        <div className={cn(
-                          "absolute -top-12 w-0.5 h-12",
-                          lineageIds.has(person.id) ? "bg-amber-500" : "bg-stone-200"
-                        )} />
-                      )}
-                      
-                      <PersonNode 
-                        person={person} 
-                        me={me}
-                        relationships={relationships}
-                        isHighlighted={person.id === highlightedId} 
-                        isInLineage={lineageIds.has(person.id)}
-                        isSelected={person.id === selectedPersonId}
-                        onSelect={onSelect}
-                        settings={settings}
-                        debugMode={debugMode}
-                        level={personLevels[person.id]}
-                      />
-                    </div>
-
-                    {/* Spouse Link */}
+                    <PersonNode 
+                      person={person} 
+                      me={me}
+                      relationships={relationships}
+                      isHighlighted={person.id === highlightedId} 
+                      isInLineage={lineageIds.has(person.id)}
+                      isSelected={person.id === selectedPersonId}
+                      onSelect={onSelect}
+                      settings={settings}
+                      debugMode={debugMode}
+                      level={personLevels[person.id]}
+                    />
                     {!isLast && (
-                      <div className="flex items-center px-2">
-                        <div className={cn(
-                          "h-0.5 w-10", 
-                          unit.isTerminated ? "border-t border-dashed border-stone-200" : (lineageIds.has(person.id) && lineageIds.has(unit.parents[pIdx+1].id) ? "bg-amber-500" : "bg-stone-200")
-                        )} />
-                        <div className={cn(
-                          "w-1.5 h-1.5 rounded-full",
-                          unit.isTerminated ? "bg-stone-100" : "bg-stone-200"
-                        )} />
-                        <div className={cn(
-                          "h-0.5 w-10", 
-                          unit.isTerminated ? "border-t border-dashed border-stone-200" : (lineageIds.has(person.id) && lineageIds.has(unit.parents[pIdx+1].id) ? "bg-amber-500" : "bg-stone-200")
-                        )} />
-                      </div>
+                      <div className={cn(
+                        "h-0.5 w-4",
+                        unit.isTerminated ? "border-t-2 border-dashed border-stone-200" : "bg-stone-200"
+                      )} />
                     )}
                   </React.Fragment>
                 );
               })}
-
-              {/* Vertical line DOWN from the center of the parent unit */}
-              {unit.children.length > 0 && (
-                <div className={cn(
-                  "absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-12",
-                  unit.parents.some(p => lineageIds.has(p.id)) ? "bg-amber-500" : "bg-stone-200"
-                )} />
-              )}
             </div>
 
-            {/* Children Row Area */}
+            {/* Connection Down to Children */}
             {unit.children.length > 0 && (
-              <div className="mt-12 relative flex flex-col items-center w-full">
-                {/* Horizontal "Bus" line connecting all children - positioned at the top of this container */}
-                {unit.children.length > 1 && (
-                  <div className={cn(
-                    "absolute top-0 h-0.5",
-                    unit.parents.some(p => lineageIds.has(p.id)) ? "bg-amber-500" : "bg-stone-200"
-                  )} style={{ 
-                    width: `calc(100% - 192px)`, 
-                    left: '96px'
-                  }} />
-                )}
-
-                <div className="flex gap-12 pt-12">
-                  {(() => {
-                    const childClusters: any[][] = [];
-                    const localProcessed = new Set<string>();
-                    unit.children.forEach(c => {
-                      if (!globalProcessed.has(c.id) && !localProcessed.has(c.id)) {
-                        const cluster = getPeerCluster(c.id, level + 1, localProcessed);
-                        if (cluster.length > 0) childClusters.push(cluster);
-                      }
-                    });
-
-                    return childClusters.map((cc, ccIdx) => (
-                      <div key={ccIdx} className="relative flex flex-col items-center">
-                        {/* Vertical line UP from child to the horizontal bus */}
-                        <div className={cn(
-                          "absolute -top-12 w-0.5 h-12",
-                          cc.some(p => lineageIds.has(p.id)) ? "bg-amber-500" : "bg-stone-200"
-                        )} />
-                        
-                        <ClusterNode 
-                          members={cc} 
-                          level={level + 1} 
-                          people={people}
-                          relationships={relationships}
-                          personLevels={personLevels}
-                          lineageIds={lineageIds}
-                          highlightedId={highlightedId}
-                          selectedPersonId={selectedPersonId}
-                          me={me}
-                          onSelect={onSelect}
-                          getPeerCluster={getPeerCluster}
-                          globalProcessed={globalProcessed} 
-                          settings={settings}
-                          debugMode={debugMode}
-                        />
+              <>
+                <div className="w-0.5 h-12 bg-stone-200" />
+                <div className="flex flex-col items-center w-full">
+                  {/* The "Bus" line - horizontal connector */}
+                  <div className="flex w-full">
+                    {unit.children.length > 1 ? (
+                      <div className="flex w-full">
+                        <div className="flex-1 border-t-2 border-stone-200" />
+                        <div className="flex-1 border-t-2 border-stone-200" />
                       </div>
-                    ));
-                  })()}
+                    ) : (
+                      <div className="w-0.5 h-0 bg-stone-200" />
+                    )}
+                  </div>
+
+                  {/* Children Row */}
+                  <div className="flex gap-16 pt-0">
+                    {(() => {
+                      const childClusters: any[][] = [];
+                      const localProcessed = new Set<string>();
+                      unit.children.forEach(c => {
+                        if (!globalProcessed.has(c.id) && !localProcessed.has(c.id)) {
+                          const cluster = getPeerCluster(c.id, level + 1, localProcessed);
+                          if (cluster.length > 0) childClusters.push(cluster);
+                        }
+                      });
+
+                      return childClusters.map((cc, ccIdx) => (
+                        <div key={ccIdx} className="flex flex-col items-center">
+                          {/* Vertical stem up to the bus */}
+                          <div className="w-0.5 h-12 bg-stone-200" />
+                          <ClusterNode 
+                            members={cc} 
+                            level={level + 1} 
+                            people={people}
+                            relationships={relationships}
+                            personLevels={personLevels}
+                            lineageIds={lineageIds}
+                            highlightedId={highlightedId}
+                            selectedPersonId={selectedPersonId}
+                            me={me}
+                            onSelect={onSelect}
+                            getPeerCluster={getPeerCluster}
+                            globalProcessed={globalProcessed} 
+                            settings={settings}
+                            debugMode={debugMode}
+                          />
+                        </div>
+                      ));
+                    })()}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
         ))}
