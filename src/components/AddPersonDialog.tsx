@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { UserPlus, History, CheckCircle2 } from 'lucide-react';
+import { UserPlus, History, CheckCircle2, Users } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
 
@@ -13,14 +13,27 @@ const RELATIONSHIPS = [
 
 const AddPersonDialog = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { addPerson } = useFamily();
+  const { addPerson, people, user } = useFamily();
   
   const [name, setName] = useState('');
   const [relationship, setRelationship] = useState('');
+  const [relatedToId, setRelatedToId] = useState<string>('');
+
+  // Find the current user's person record to set as default
+  const myPerson = useMemo(() => {
+    return people.find(p => p.userId === user?.id);
+  }, [people, user]);
+
+  // Set default related person when dialog opens
+  React.useEffect(() => {
+    if (isOpen && myPerson && !relatedToId) {
+      setRelatedToId(myPerson.id);
+    }
+  }, [isOpen, myPerson, relatedToId]);
 
   const handleSave = async () => {
-    if (!name || !relationship) {
-      toast.error("Please enter a name and relationship.");
+    if (!name || !relationship || !relatedToId) {
+      toast.error("Please fill in all fields.");
       return;
     }
 
@@ -28,11 +41,11 @@ const AddPersonDialog = () => {
       name,
       relationshipType: relationship,
       vibeSentence: "", 
-      personalityTags: [relationship], // Fixed: changed from personality_tags to personalityTags
+      personalityTags: [relationship],
       photoUrl: "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&q=80&w=400"
-    });
+    }, relatedToId, relationship);
 
-    toast.success(`${name} added!`);
+    toast.success(`${name} added to the family!`);
     setIsOpen(false);
     setName('');
     setRelationship('');
@@ -57,7 +70,7 @@ const AddPersonDialog = () => {
             </DialogTitle>
           </div>
           <DialogDescription className="text-stone-500">
-            Enter the details of the family member you'd like to add to the archive.
+            Tell us who this person is and how they fit into our story.
           </DialogDescription>
         </DialogHeader>
 
@@ -70,21 +83,38 @@ const AddPersonDialog = () => {
               placeholder="e.g. Aunt Martha or Grandpa Joe"
               className="h-16 bg-stone-50 border-2 border-stone-100 rounded-2xl text-xl px-6"
             />
-            <p className="text-sm text-stone-400 italic">Just a first name is fine if you don't know the rest.</p>
           </div>
 
-          <div className="space-y-3">
-            <label className="text-lg font-bold text-stone-600">Who are they to you?</label>
-            <Select onValueChange={setRelationship} value={relationship}>
-              <SelectTrigger className="h-16 bg-stone-50 border-2 border-stone-100 rounded-2xl text-xl px-6">
-                <SelectValue placeholder="Select relationship" />
-              </SelectTrigger>
-              <SelectContent className="rounded-2xl">
-                {RELATIONSHIPS.map(r => (
-                  <SelectItem key={r} value={r} className="text-lg py-3">{r}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-3">
+              <label className="text-lg font-bold text-stone-600">They are the...</label>
+              <Select onValueChange={setRelationship} value={relationship}>
+                <SelectTrigger className="h-16 bg-stone-50 border-2 border-stone-100 rounded-2xl text-xl px-6">
+                  <SelectValue placeholder="Select relationship" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl">
+                  {RELATIONSHIPS.map(r => (
+                    <SelectItem key={r} value={r} className="text-lg py-3">{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-lg font-bold text-stone-600">...of who?</label>
+              <Select onValueChange={setRelatedToId} value={relatedToId}>
+                <SelectTrigger className="h-16 bg-stone-50 border-2 border-stone-100 rounded-2xl text-xl px-6">
+                  <SelectValue placeholder="Select family member" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl">
+                  {people.map(p => (
+                    <SelectItem key={p.id} value={p.id} className="text-lg py-3">
+                      {p.name} {p.id === myPerson?.id ? "(You)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="pt-6 space-y-4">
