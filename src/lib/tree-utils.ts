@@ -66,18 +66,14 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   const levels: Record<string, number> = {};
   people.forEach(p => levels[p.id] = 0);
 
-  // Run multiple passes to propagate levels through the graph
   for (let i = 0; i < 20; i++) {
     relationships.forEach(r => {
       const type = r.relationship_type.toLowerCase();
       if (['father', 'mother', 'parent'].includes(type)) {
-        // related is parent, person is child
         levels[r.person_id] = Math.max(levels[r.person_id], levels[r.related_person_id] + 1);
       } else if (['son', 'daughter', 'child'].includes(type)) {
-        // person is parent, related is child
         levels[r.related_person_id] = Math.max(levels[r.related_person_id], levels[r.person_id] + 1);
       } else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
-        // Spouses and siblings MUST be on the same level
         const maxLvl = Math.max(levels[r.person_id], levels[r.related_person_id]);
         levels[r.person_id] = maxLvl;
         levels[r.related_person_id] = maxLvl;
@@ -103,7 +99,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       })
       .filter((p): p is Person => !!p);
 
-    // Children can come from this person OR their spouses
     const allParentIds = [personId, ...spouseIds];
     const childIds = new Set<string>();
     allParentIds.forEach(pId => {
@@ -125,7 +120,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   };
 
   const roots: TreeNode[] = [];
-  // Sort potential roots by their calculated level to ensure we start from the top
   const potentialRoots = people
     .filter(p => !parentsOf.has(p.id))
     .sort((a, b) => levels[a.id] - levels[b.id]);
@@ -135,8 +129,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     
     const spouses = spousesOf.get(p.id) || [];
     const siblings = siblingsOf.get(p.id) || [];
-    
-    // Only start a root if they aren't connected to someone already processed
     const hasProcessedConnection = [...spouses, ...siblings].some(id => globalVisited.has(id));
     
     if (!hasProcessedConnection) {

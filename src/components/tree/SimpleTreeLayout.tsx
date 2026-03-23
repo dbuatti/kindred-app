@@ -20,29 +20,26 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
     return people.find(p => p.id === sibId)?.name.split(' ')[0];
   }).filter(Boolean);
 
-  // Calculate the horizontal offset for the vertical lines
-  // If there's a spouse, the line should come from the center of the group
   const hasSpouse = node.spouses.length > 0;
-  const groupWidth = hasSpouse ? 440 : 220; // Approximate widths
-  const lineXOffset = hasSpouse ? 110 : 0; // Offset to center between person and first spouse
+  const lineXOffset = hasSpouse ? 120 : 0;
 
   return (
     <div className="flex flex-col items-center">
       <div className="relative flex flex-col items-center">
         {/* Incoming line from parent */}
         {node.level > 0 && (
-          <svg className="absolute -top-24 left-1/2 w-40 h-24 -translate-x-1/2 pointer-events-none overflow-visible">
+          <svg className="absolute -top-32 left-1/2 w-40 h-32 -translate-x-1/2 pointer-events-none overflow-visible">
             <path 
-              d="M 80 0 L 80 40 Q 80 60 80 80" 
+              d="M 80 0 L 80 60 Q 80 80 80 100" 
               fill="none" 
               stroke="#e7e5e4" 
               strokeWidth="2" 
-              strokeDasharray="4 4"
+              strokeDasharray="6 4"
             />
           </svg>
         )}
 
-        <div className="flex items-center gap-4 p-8 bg-white/30 rounded-[4rem] border border-stone-100/40 backdrop-blur-[2px] shadow-sm">
+        <div className="flex items-center gap-6 p-10 bg-white/20 rounded-[4rem] border border-stone-200/30 backdrop-blur-[1px] shadow-sm">
           {/* Main Person */}
           <div className="px-8 py-8 bg-white border-2 border-stone-200 rounded-[3rem] min-w-[220px] text-center shadow-md relative z-10 group hover:border-amber-300 transition-all duration-1000">
             <div className="w-20 h-20 rounded-full overflow-hidden bg-stone-50 mx-auto mb-4 border-4 border-white shadow-inner ring-1 ring-stone-100">
@@ -127,7 +124,6 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
 };
 
 export const SimpleTreeLayout = ({ roots }: { roots: TreeNode[] }) => {
-  // Group roots by their calculated level to ensure they start at the right height
   const rootsByLevel = roots.reduce((acc, root) => {
     if (!acc[root.level]) acc[root.level] = [];
     acc[root.level].push(root);
@@ -135,7 +131,7 @@ export const SimpleTreeLayout = ({ roots }: { roots: TreeNode[] }) => {
   }, {} as Record<number, TreeNode[]>);
 
   return (
-    <div className="flex flex-col items-center gap-64 py-40">
+    <div className="flex flex-col items-center gap-80 py-40">
       {Object.entries(rootsByLevel).sort(([a], [b]) => Number(a) - Number(b)).map(([level, levelRoots]) => (
         <div key={level} className="flex gap-64 items-start">
           {levelRoots.map(root => (
