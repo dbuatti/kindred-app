@@ -66,14 +66,18 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   const levels: Record<string, number> = {};
   people.forEach(p => levels[p.id] = 0);
 
-  for (let i = 0; i < 15; i++) {
+  // Run multiple passes to propagate levels through the graph
+  for (let i = 0; i < 20; i++) {
     relationships.forEach(r => {
       const type = r.relationship_type.toLowerCase();
       if (['father', 'mother', 'parent'].includes(type)) {
+        // related is parent, person is child
         levels[r.person_id] = Math.max(levels[r.person_id], levels[r.related_person_id] + 1);
       } else if (['son', 'daughter', 'child'].includes(type)) {
+        // person is parent, related is child
         levels[r.related_person_id] = Math.max(levels[r.related_person_id], levels[r.person_id] + 1);
       } else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
+        // Spouses and siblings MUST be on the same level
         const maxLvl = Math.max(levels[r.person_id], levels[r.related_person_id]);
         levels[r.person_id] = maxLvl;
         levels[r.related_person_id] = maxLvl;
@@ -121,6 +125,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   };
 
   const roots: TreeNode[] = [];
+  // Sort potential roots by their calculated level to ensure we start from the top
   const potentialRoots = people
     .filter(p => !parentsOf.has(p.id))
     .sort((a, b) => levels[a.id] - levels[b.id]);
