@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
@@ -15,16 +15,36 @@ interface AddMemoryDialogProps {
   personId?: string;
   personName: string;
   initialContent?: string;
+  initialImage?: string | null;
   trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-const AddMemoryDialog = ({ personId, personName, initialContent, trigger }: AddMemoryDialogProps) => {
+const AddMemoryDialog = ({ 
+  personId, 
+  personName, 
+  initialContent, 
+  initialImage,
+  trigger,
+  open: externalOpen,
+  onOpenChange: setExternalOpen
+}: AddMemoryDialogProps) => {
   const { addMemory } = useFamily();
   const { isListening, transcript, setTranscript, startListening } = useVoiceInput();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setIsOpen = setExternalOpen || setInternalOpen;
+
+  useEffect(() => {
+    if (initialImage) {
+      setImagePreview(initialImage);
+    }
+  }, [initialImage]);
 
   const handleFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) {

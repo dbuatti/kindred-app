@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext.tsx';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Quote, Mic, MessageSquare, Play, Clock, Camera, Edit3, Share2, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Quote, Mic, MessageSquare, Play, Clock, Camera, Edit3, Share2, ChevronRight, UploadCloud } from 'lucide-react';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import SuggestionDialog from '../components/SuggestionDialog';
 import ConnectionSuggestionDialog from '../components/ConnectionSuggestionDialog';
@@ -16,6 +16,43 @@ const PersonDetail = () => {
   const navigate = useNavigate();
   const { people, user } = useFamily();
   const person = people.find(p => p.id === id);
+
+  const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
+  const [droppedImage, setDroppedImage] = useState<string | null>(null);
+  const [isDraggingOverPage, setIsDraggingOverPage] = useState(false);
+
+  const handleFile = useCallback((file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setDroppedImage(reader.result as string);
+      setIsAddMemoryOpen(true);
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOverPage(true);
+  };
+
+  const onDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    // Only set to false if we're leaving the main container
+    if (e.currentTarget === e.target) {
+      setIsDraggingOverPage(false);
+    }
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOverPage(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
+  };
 
   if (!person) return (
     <div className="min-h-screen flex items-center justify-center bg-[#FDFCF9]">
@@ -48,7 +85,22 @@ const PersonDetail = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans pb-32">
+    <div 
+      className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans pb-32 relative"
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      {/* Drag Overlay */}
+      {isDraggingOverPage && (
+        <div className="fixed inset-0 z-50 bg-amber-600/20 backdrop-blur-sm flex items-center justify-center pointer-events-none animate-in fade-in duration-300">
+          <div className="bg-white p-12 rounded-[4rem] shadow-2xl border-8 border-amber-500 flex flex-col items-center gap-6 scale-110 transition-transform">
+            <UploadCloud className="w-24 h-24 text-amber-600 animate-bounce" />
+            <p className="text-4xl font-serif font-bold text-stone-800">Drop to share a photo</p>
+          </div>
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="sticky top-0 z-10 bg-[#FDFCF9]/80 backdrop-blur-md px-6 py-4 flex items-center justify-between border-b border-stone-100">
         <div className="flex items-center gap-2">
@@ -183,6 +235,9 @@ const PersonDetail = () => {
       <AddMemoryDialog 
         personId={person.id}
         personName={person.name} 
+        open={isAddMemoryOpen}
+        onOpenChange={setIsAddMemoryOpen}
+        initialImage={droppedImage}
       />
     </div>
   );
