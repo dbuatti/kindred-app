@@ -75,7 +75,7 @@ const Index = () => {
             </div>
             <p className="text-stone-600 leading-relaxed">
               This is a private place for our family to save stories. 
-              You can <strong>tap on a person</strong> to see their stories, or 
+              You can <strong>tap on a person</strong> to see their stories, or{" "}
               <strong>tap the orange button</strong> at the bottom to tell a new one.
             </p>
             <div className="flex gap-4 pt-2">
