@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import { Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PersonNode from './PersonNode';
 
@@ -99,7 +98,7 @@ const ClusterNode = ({
                       {/* Line UP to ancestors */}
                       {hasAncestors && (
                         <div className={cn(
-                          "absolute -top-16 w-0.5 h-16",
+                          "absolute -top-16 w-px h-16",
                           lineageIds.has(person.id) ? "bg-amber-500" : "bg-stone-300"
                         )} />
                       )}
@@ -120,13 +119,16 @@ const ClusterNode = ({
                     {!isLast && (
                       <div className="flex items-center px-2">
                         <div className={cn(
-                          "h-0.5 w-8", 
-                          unit.isTerminated ? "border-t-2 border-dashed border-stone-300" : (lineageIds.has(person.id) && lineageIds.has(unit.parents[pIdx+1].id) ? "bg-amber-500" : "bg-stone-800")
+                          "h-px w-10", 
+                          unit.isTerminated ? "border-t border-dashed border-stone-300" : (lineageIds.has(person.id) && lineageIds.has(unit.parents[pIdx+1].id) ? "bg-amber-500" : "bg-stone-400")
                         )} />
-                        <Heart className={cn("w-3 h-3 mx-1", unit.isTerminated ? "text-stone-300" : "text-stone-800 fill-current")} />
                         <div className={cn(
-                          "h-0.5 w-8", 
-                          unit.isTerminated ? "border-t-2 border-dashed border-stone-300" : (lineageIds.has(person.id) && lineageIds.has(unit.parents[pIdx+1].id) ? "bg-amber-500" : "bg-stone-800")
+                          "w-1.5 h-1.5 rounded-full",
+                          unit.isTerminated ? "bg-stone-200" : "bg-stone-400"
+                        )} />
+                        <div className={cn(
+                          "h-px w-10", 
+                          unit.isTerminated ? "border-t border-dashed border-stone-300" : (lineageIds.has(person.id) && lineageIds.has(unit.parents[pIdx+1].id) ? "bg-amber-500" : "bg-stone-400")
                         )} />
                       </div>
                     )}
@@ -137,8 +139,8 @@ const ClusterNode = ({
               {/* Vertical line DOWN from the center of the parent unit */}
               {unit.children.length > 0 && (
                 <div className={cn(
-                  "absolute top-[50px] left-1/2 -translate-x-1/2 w-0.5 h-24",
-                  unit.parents.some(p => lineageIds.has(p.id)) ? "bg-amber-500" : "bg-stone-800"
+                  "absolute top-[50px] left-1/2 -translate-x-1/2 w-px h-24",
+                  unit.parents.some(p => lineageIds.has(p.id)) ? "bg-amber-500" : "bg-stone-400"
                 )} />
               )}
             </div>
@@ -149,10 +151,10 @@ const ClusterNode = ({
                 {/* Horizontal "Bus" line connecting all children */}
                 {unit.children.length > 1 && (
                   <div className={cn(
-                    "absolute top-0 h-0.5",
-                    unit.parents.some(p => lineageIds.has(p.id)) ? "bg-amber-500" : "bg-stone-800"
+                    "absolute top-0 h-px",
+                    unit.parents.some(p => lineageIds.has(p.id)) ? "bg-amber-500" : "bg-stone-400"
                   )} style={{ 
-                    width: `calc(100% - 192px)`, // Width of one PersonNode (48 * 4 = 192)
+                    width: `calc(100% - 192px)`, 
                     left: '96px'
                   }} />
                 )}
@@ -172,8 +174,8 @@ const ClusterNode = ({
                       <div key={ccIdx} className="relative flex flex-col items-center">
                         {/* Vertical line UP from child to the horizontal bus */}
                         <div className={cn(
-                          "absolute -top-8 w-0.5 h-8",
-                          cc.some(p => lineageIds.has(p.id)) ? "bg-amber-500" : "bg-stone-800"
+                          "absolute -top-8 w-px h-8",
+                          cc.some(p => lineageIds.has(p.id)) ? "bg-amber-500" : "bg-stone-400"
                         )} />
                         
                         <ClusterNode 
