@@ -14,7 +14,8 @@ import {
   Clock,
   ChevronRight,
   Link as LinkIcon,
-  Activity
+  Activity,
+  Network
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -93,6 +94,19 @@ const AdminDashboard = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-12 space-y-10">
+        <div className="bg-stone-900 text-white p-8 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+          <div className="space-y-2 text-center md:text-left">
+            <h2 className="text-2xl font-serif font-bold">Tree Debugger</h2>
+            <p className="text-stone-400 text-sm">Access the full-screen logical grid to diagnose connection issues.</p>
+          </div>
+          <Button 
+            onClick={() => navigate('/admin/tree')}
+            className="bg-amber-600 hover:bg-amber-700 text-white rounded-2xl px-8 h-14 gap-2 font-bold"
+          >
+            <Network className="w-5 h-5" /> Open Debug Tree
+          </Button>
+        </div>
+
         <Tabs defaultValue="overview" className="space-y-8">
           <TabsList className="bg-stone-100 p-1 rounded-2xl h-14 w-full md:w-auto">
             <TabsTrigger value="overview" className="rounded-xl px-6 data-[state=active]:bg-white">Overview</TabsTrigger>
