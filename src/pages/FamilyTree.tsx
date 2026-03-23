@@ -86,8 +86,22 @@ const FamilyTree = () => {
       };
     };
 
-    // Find all people who have no parents (Roots)
-    const roots = people.filter(p => !hasParents(p.id));
+    // A person is a root ONLY if:
+    // 1. They have no parents.
+    // 2. AND their spouse (if any) also has no parents.
+    // 3. AND if they have a spouse, we only pick one of them as the root.
+    const roots = people.filter(p => {
+      if (hasParents(p.id)) return false;
+      
+      const spouse = getSpouseOf(p.id);
+      if (spouse) {
+        if (hasParents(spouse.id)) return false; // Spouse will be the entry point via their parents
+        return p.id < spouse.id; // If both have no parents, just pick one to avoid double branches
+      }
+      
+      return true;
+    });
+
     return roots.map(r => buildBranch(r.id)).filter(Boolean) as TreeUnit[];
   }, [people, relationships]);
 
