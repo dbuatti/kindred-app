@@ -85,7 +85,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .select('*');
       setRelationships(relData || []);
 
-      const mappedPeople = (peopleData || []).map((p: any) => ({
+      const mappedPeople: Person[] = (peopleData || []).map((p: any) => ({
         id: p.id,
         familyId: p.family_id,
         name: p.name,
@@ -220,9 +220,10 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .eq('memory_id', memoryId)
           .eq('user_id', user.id);
       } else {
+        // Use upsert to prevent 409 Conflict if clicked twice
         await supabase
           .from('reactions')
-          .insert([{ memory_id: memoryId, user_id: user.id }]);
+          .upsert({ memory_id: memoryId, user_id: user.id }, { onConflict: 'memory_id,user_id' });
       }
       fetchData();
     } catch (error: any) {

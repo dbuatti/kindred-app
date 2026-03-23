@@ -73,6 +73,7 @@ const Onboarding = () => {
     setIsSaving(true);
 
     try {
+      // 1. Update Profile
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -89,36 +90,28 @@ const Onboarding = () => {
       if (profileError) throw profileError;
 
       const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-      let myPersonId = formData.claimedPersonId;
+      
+      // 2. Upsert Person record (prevents 409 Conflict)
+      const personData = {
+        user_id: user.id,
+        name: fullName,
+        birth_year: formData.birthDate ? formData.birthDate.split('-')[0] : '',
+        birth_place: formData.birthPlace,
+        vibe_sentence: formData.bio || "A member of the family archive.",
+        personality_tags: ["✨ Family Member"],
+        created_by_email: user.email,
+      };
 
-      if (myPersonId) {
-        await supabase
-          .from('people')
-          .update({ 
-            user_id: user.id,
-            name: fullName,
-            birth_year: formData.birthDate ? formData.birthDate.split('-')[0] : undefined,
-            birth_place: formData.birthPlace
-          })
-          .eq('id', myPersonId);
-      } else {
-        const { data: newPerson, error: pErr } = await supabase
-          .from('people')
-          .insert({
-            user_id: user.id,
-            name: fullName,
-            birth_year: formData.birthDate ? formData.birthDate.split('-')[0] : '',
-            birth_place: formData.birthPlace,
-            vibe_sentence: formData.bio || "A member of the family archive.",
-            personality_tags: ["✨ Family Member"],
-            created_by_email: user.email,
-          })
-          .select()
-          .single();
-        if (pErr) throw pErr;
-        myPersonId = newPerson.id;
-      }
+      const { data: person, error: pErr } = await supabase
+        .from('people')
+        .upsert(personData, { onConflict: 'user_id' })
+        .select()
+        .single();
 
+      if (pErr) throw pErr;
+      const myPersonId = person.id;
+
+      // 3. Add Relatives
       for (const rel of formData.newRelatives) {
         const { data: relPerson, error: relErr } = await supabase
           .from('people')
