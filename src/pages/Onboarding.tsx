@@ -24,10 +24,14 @@ import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 
 const RELATIONSHIP_TYPES = [
-  { label: "Parent", value: "parent" },
-  { label: "Sibling", value: "sibling" },
-  { label: "Grandparent", value: "grandparent" },
-  { label: "Child", value: "child" },
+  { label: "Mother", value: "mother" },
+  { label: "Father", value: "father" },
+  { label: "Sister", value: "sister" },
+  { label: "Brother", value: "brother" },
+  { label: "Grandmother", value: "grandmother" },
+  { label: "Grandfather", value: "grandfather" },
+  { label: "Daughter", value: "daughter" },
+  { label: "Son", value: "son" },
   { label: "Spouse", value: "spouse" }
 ];
 
@@ -48,7 +52,7 @@ const Onboarding = () => {
   });
 
   const [relativeName, setRelativeName] = useState('');
-  const [relativeType, setRelativeType] = useState('parent');
+  const [relativeType, setRelativeType] = useState('mother');
 
   const updateField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));

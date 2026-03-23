@@ -15,7 +15,7 @@ interface ConnectionSuggestionDialogProps {
 }
 
 const RELATIONSHIPS = [
-  "Parent", "Sibling", "Spouse", "Child", "Aunt/Uncle", "Cousin"
+  "Mother", "Father", "Sister", "Brother", "Grandmother", "Grandfather", "Aunt", "Uncle", "Cousin", "Spouse", "Daughter", "Son"
 ];
 
 const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps) => {

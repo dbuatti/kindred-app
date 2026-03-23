@@ -8,7 +8,7 @@ import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
 
 const RELATIONSHIPS = [
-  "Parent", "Grandparent", "Great Grandparent", "Sibling", "Aunt/Uncle", "Cousin", "Spouse", "Child"
+  "Mother", "Father", "Grandmother", "Grandfather", "Great Grandparent", "Sister", "Brother", "Aunt", "Uncle", "Cousin", "Spouse", "Daughter", "Son"
 ];
 
 const AddPersonDialog = () => {
