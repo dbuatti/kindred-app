@@ -8,35 +8,26 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { ArrowLeft, Save, Loader2, UserCircle, ChevronsUpDown, Check, Briefcase, Heart, User, MapPin } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, UserCircle, ChevronsUpDown, Check, Briefcase, Heart, User, MapPin, Globe } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-const COMMON_PLACES = [
+const INITIAL_SUGGESTIONS = [
   "Melbourne, Australia",
   "Sydney, Australia",
-  "Perth, Australia",
-  "Brisbane, Australia",
-  "Adelaide, Australia",
   "London, UK", 
   "New York, USA", 
-  "Dublin, Ireland", 
-  "Sicily, Italy", 
-  "Paris, France", 
-  "Berlin, Germany", 
-  "Rome, Italy", 
-  "Madrid, Spain", 
-  "Toronto, Canada", 
-  "Brooklyn, NY", 
-  "Chicago, IL"
+  "Sicily, Italy"
 ];
 
 const EditProfile = () => {
   const navigate = useNavigate();
   const { user, profiles, loading: contextLoading } = useFamily();
   const [isSaving, setIsSaving] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [placePopoverOpen, setPlacePopoverOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>(INITIAL_SUGGESTIONS);
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -66,6 +57,45 @@ const EditProfile = () => {
       });
     }
   }, [user, profiles]);
+
+  // Live Location Search Effect
+  useEffect(() => {
+    if (!formData.birthPlace || formData.birthPlace.length < 3) {
+      if (!formData.birthPlace) setSuggestions(INITIAL_SUGGESTIONS);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(formData.birthPlace)}&limit=6&addressdetails=1`
+        );
+        const data = await response.json();
+        const places = data.map((item: any) => {
+          // Simplify the display name to City, State/Country
+          const addr = item.address;
+          const city = addr.city || addr.town || addr.village || addr.suburb || addr.hamlet;
+          const state = addr.state || addr.region;
+          const country = addr.country;
+          
+          if (city && country) {
+            return `${city}${state ? `, ${state}` : ''}, ${country}`;
+          }
+          return item.display_name.split(',').slice(0, 3).join(',');
+        });
+        
+        // Remove duplicates and set
+        setSuggestions(Array.from(new Set(places as string[])));
+      } catch (error) {
+        console.error("Error fetching places:", error);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 600); // Debounce to avoid too many API calls
+
+    return () => clearTimeout(timer);
+  }, [formData.birthPlace]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -220,18 +250,23 @@ const EditProfile = () => {
                       className="w-full justify-between bg-stone-50 border-none rounded-2xl h-14 text-lg font-normal text-stone-600 hover:bg-stone-100 focus:ring-amber-500/20 px-6"
                     >
                       {formData.birthPlace || "Select or type..."}
-                      <ChevronsUpDown className="ml-2 h-5 w-5 shrink-0 opacity-50" />
+                      {isSearching ? <Loader2 className="ml-2 h-5 w-5 animate-spin opacity-50" /> : <Globe className="ml-2 h-5 w-5 shrink-0 opacity-50" />}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[400px] p-0 rounded-2xl border-stone-100 shadow-xl">
-                    <Command className="rounded-2xl">
+                    <Command className="rounded-2xl" shouldFilter={false}>
                       <CommandInput 
-                        placeholder="Search or type place..." 
+                        placeholder="Search any city in the world..." 
                         value={formData.birthPlace}
                         onValueChange={(val) => setFormData({...formData, birthPlace: val})}
                         className="h-12 text-lg"
                       />
                       <CommandList>
+                        {isSearching && (
+                          <div className="p-4 text-center text-stone-400 text-sm italic flex items-center justify-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" /> Searching global database...
+                          </div>
+                        )}
                         <CommandEmpty>
                           <button 
                             className="w-full text-left px-4 py-3 text-amber-600 hover:bg-amber-50 rounded-xl flex items-center gap-2"
@@ -241,8 +276,8 @@ const EditProfile = () => {
                             Use "{formData.birthPlace}"
                           </button>
                         </CommandEmpty>
-                        <CommandGroup heading="Suggestions">
-                          {COMMON_PLACES.map((place) => (
+                        <CommandGroup heading={formData.birthPlace.length >= 3 ? "Search Results" : "Common Places"}>
+                          {suggestions.map((place) => (
                             <CommandItem
                               key={place}
                               value={place}
