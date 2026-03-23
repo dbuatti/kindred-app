@@ -35,11 +35,13 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
 
     // If suggesting a Spouse for Alfred
     if (relationship === "Spouse") {
-      // Find everyone who has Alfred as a Father or Mother
-      const children = relationships
+      // Find unique children who have Alfred as a Father or Mother
+      const childIds = Array.from(new Set(relationships
         .filter(r => (r.related_person_id === person.id) && (r.relationship_type === 'father' || r.relationship_type === 'mother'))
-        .map(r => people.find(p => p.id === r.person_id))
-        .filter(Boolean);
+        .map(r => r.person_id)
+      ));
+
+      const children = childIds.map(id => people.find(p => p.id === id)).filter(Boolean);
 
       children.forEach(child => {
         const role = person.personalityTags.includes('Father') || person.relationshipType === 'Father' ? 'Mother' : 'Father';
@@ -54,21 +56,20 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
 
     // If suggesting a Mother/Father for Alfred
     if (relationship === "Mother" || relationship === "Father") {
-      // Find Alfred's siblings
-      const siblings = relationships
+      // Find Alfred's unique siblings
+      const siblingIds = Array.from(new Set(relationships
         .filter(r => {
           // Find people who share a parent with Alfred
           const alfredParents = relationships.filter(rel => rel.person_id === person.id && (rel.relationship_type === 'mother' || rel.relationship_type === 'father'));
           const otherPersonParents = relationships.filter(rel => rel.person_id === r.person_id && (rel.relationship_type === 'mother' || rel.relationship_type === 'father'));
           return alfredParents.some(ap => otherPersonParents.some(op => op.related_person_id === ap.related_person_id)) && r.person_id !== person.id;
         })
-        .map(r => people.find(p => p.id === r.person_id))
-        .filter(Boolean);
+        .map(r => r.person_id)
+      ));
 
-      // Remove duplicates
-      const uniqueSiblings = Array.from(new Set(siblings.map(s => s!.id))).map(id => siblings.find(s => s!.id === id));
+      const siblings = siblingIds.map(id => people.find(p => p.id === id)).filter(Boolean);
 
-      uniqueSiblings.forEach(sibling => {
+      siblings.forEach(sibling => {
         inferences.push({
           id: `parent-sibling-${sibling!.id}`,
           question: `Is ${relativeName} also the ${relationship} of ${sibling!.name}?`,
