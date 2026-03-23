@@ -119,7 +119,7 @@ const EditProfile = () => {
           nickname: formData.nickname,
           maiden_name: formData.maidenName,
           occupation: formData.occupation,
-          birth_date: formData.birthDate || null,
+          birth_date: formData.birthDate,
           birth_place: formData.birthPlace,
           bio: formData.bio,
           gender: formData.gender,
@@ -130,11 +130,21 @@ const EditProfile = () => {
       if (error) throw error;
 
       const fullName = [formData.firstName, formData.middleName, formData.lastName].filter(Boolean).join(' ');
+      
+      // Extract year for the people table if it's a full date
+      let birthYear = '';
+      if (formData.birthDate && formData.birthDate.length >= 4) {
+        const parts = formData.birthDate.split(/[-/]/);
+        const yearPart = parts.find(p => p.length === 4);
+        if (yearPart) birthYear = yearPart;
+      }
+
       await supabase.from('people').upsert({
         user_id: user.id,
         name: fullName || user.email?.split('@')[0],
         gender: formData.gender,
-        birth_year: formData.birthDate ? formData.birthDate.split('-')[0] : '',
+        birth_year: birthYear,
+        birth_date: formData.birthDate,
         birth_place: formData.birthPlace,
         occupation: formData.occupation,
         vibe_sentence: formData.bio || "",
@@ -156,7 +166,7 @@ const EditProfile = () => {
   return (
     <div className="min-h-screen bg-[#FDFCF9] pb-20">
       <header className="bg-white border-b-8 border-stone-100 px-8 py-8 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-8 flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate('/profile')} className="rounded-full h-14 px-6 text-stone-500 gap-2">
             <ArrowLeft className="w-6 h-6" /> Back
           </Button>
@@ -235,11 +245,12 @@ const EditProfile = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Birth Date</label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Birth Date (DD, DD/MM, or DD/MM/YYYY)</label>
                   <Input 
-                    type="date"
+                    type="text"
                     value={formData.birthDate} 
                     onChange={(e) => setFormData({...formData, birthDate: e.target.value})} 
+                    placeholder="e.g. 15/05/1980"
                     className="h-14 bg-stone-50 border-none rounded-2xl text-lg px-6 focus-visible:ring-amber-500/20" 
                   />
                 </div>

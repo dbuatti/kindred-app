@@ -130,15 +130,19 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
       .map(tag => tag.trim())
       .filter(tag => tag !== '');
 
-    // Extract year from birthDate if birthYear is empty
+    // Extract year from birthDate if birthYear is empty and it looks like a full date
     let birthYear = formData.birthYear;
-    if (!birthYear && formData.birthDate) {
-      birthYear = formData.birthDate.split('-')[0];
+    if (!birthYear && formData.birthDate && formData.birthDate.length >= 4) {
+      const parts = formData.birthDate.split(/[-/]/);
+      const yearPart = parts.find(p => p.length === 4);
+      if (yearPart) birthYear = yearPart;
     }
 
     let deathYear = formData.deathYear;
-    if (!deathYear && formData.deathDate) {
-      deathYear = formData.deathDate.split('-')[0];
+    if (!deathYear && formData.deathDate && formData.deathDate.length >= 4) {
+      const parts = formData.deathDate.split(/[-/]/);
+      const yearPart = parts.find(p => p.length === 4);
+      if (yearPart) deathYear = yearPart;
     }
 
     await updatePerson(person.id, {
@@ -276,11 +280,12 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Date of Birth</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Date of Birth (DD, DD/MM, or DD/MM/YYYY)</label>
                   <Input 
-                    type="date"
+                    type="text"
                     value={formData.birthDate}
                     onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
+                    placeholder="e.g. 15 or 15/05 or 1920"
                     className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
                   />
                 </div>
@@ -300,9 +305,10 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Date of Death</label>
                     <Input 
-                      type="date"
+                      type="text"
                       value={formData.deathDate}
                       onChange={(e) => setFormData({...formData, deathDate: e.target.value})}
+                      placeholder="e.g. 20/12/2005"
                       className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
                     />
                   </div>
