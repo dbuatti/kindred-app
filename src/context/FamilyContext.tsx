@@ -43,20 +43,17 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     console.log("[FamilyContext] Starting data fetch...");
     setLoading(true);
     try {
-      // Fetch People & Memories
       const { data: peopleData, error: peopleError } = await supabase
         .from('people')
         .select('*, memories(*)');
       
       if (peopleError) throw peopleError;
 
-      // Fetch Suggestions
       const { data: suggestionsData } = await supabase
         .from('suggestions')
         .select('*')
         .eq('status', 'pending');
 
-      // Fetch Profiles
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('*');
@@ -67,7 +64,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
       setProfiles(profileMap);
 
-      // Fetch Reactions
       const { data: reactionsData } = await supabase
         .from('reactions')
         .select('*');
@@ -79,7 +75,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
       setReactions(reactionMap);
 
-      // Fetch Relationships
       const { data: relData } = await supabase
         .from('relationships')
         .select('*');
@@ -143,7 +138,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addPerson = useCallback(async (newPerson: Partial<Person>, relativeId?: string, relType?: string) => {
     if (!user) return;
-    console.log("[FamilyContext] Adding new person:", newPerson.name);
     try {
       const { data: person, error } = await supabase
         .from('people')
@@ -161,9 +155,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (error) throw error;
 
-      // If a relationship was specified, create it
       if (relativeId && relType && person) {
-        console.log("[FamilyContext] Creating relationship:", relType, "between", relativeId, "and", person.id);
         await supabase.from('relationships').insert({
           person_id: relativeId,
           related_person_id: person.id,
@@ -173,7 +165,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       fetchData();
     } catch (error: any) {
-      console.error("[FamilyContext] Error adding person:", error.message);
       toast.error("Failed to add person: " + error.message);
     }
   }, [fetchData, user]);
@@ -294,19 +285,70 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (updateError) throw updateError;
 
       if (status === 'approved') {
-        const { error: personError } = await supabase
-          .from('people')
-          .update({ [suggestion.fieldName]: suggestion.suggestedValue })
-          .eq('id', suggestion.personId);
-        
-        if (personError) throw personError;
+        if (suggestion.fieldName === 'new_relationship') {
+          // Complex logic for creating a new person and relationships
+          const match = suggestion.suggestedValue.match(/^(.+)\s\((.+)\)/);
+          if (match) {
+            const name = match[1];
+            const type = match[2];
+
+            // 1. Create the new person
+            const { data: newPerson, error: pErr } = await supabase
+              .from('people')
+              .insert({
+                name,
+                vibe_sentence: "",
+                personality_tags: [type],
+                created_by_email: suggestion.suggestedByEmail
+              })
+              .select()
+              .single();
+
+            if (pErr) throw pErr;
+
+            // 2. Create the primary relationship
+            await supabase.from('relationships').insert({
+              person_id: suggestion.personId,
+              related_person_id: newPerson.id,
+              relationship_type: type.toLowerCase()
+            });
+
+            // 3. Parse and create additional connections (inferences)
+            const lines = suggestion.suggestedValue.split('\n');
+            for (const line of lines) {
+              const infMatch = line.match(/- Is .+\sthe\s(.+)\sof\s(.+)\?\s\(Yes\)/);
+              if (infMatch) {
+                const infRole = infMatch[1];
+                const targetName = infMatch[2];
+                
+                // Find target person by name (best effort)
+                const target = people.find(p => p.name === targetName);
+                if (target) {
+                  await supabase.from('relationships').insert({
+                    person_id: target.id,
+                    related_person_id: newPerson.id,
+                    relationship_type: infRole.toLowerCase()
+                  });
+                }
+              }
+            }
+          }
+        } else {
+          // Standard field update
+          const { error: personError } = await supabase
+            .from('people')
+            .update({ [suggestion.fieldName]: suggestion.suggestedValue })
+            .eq('id', suggestion.personId);
+          
+          if (personError) throw personError;
+        }
       }
 
       fetchData();
     } catch (error: any) {
       toast.error("Failed to resolve suggestion: " + error.message);
     }
-  }, [suggestions, fetchData]);
+  }, [suggestions, people, fetchData]);
 
   return (
     <FamilyContext.Provider value={{ 
