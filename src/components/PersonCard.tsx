@@ -3,7 +3,7 @@ import { Person } from '../types';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Quote, MessageSquare, History, MapPin, Calendar, Share2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDisplayName } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
 
@@ -65,7 +65,7 @@ const PersonCard = ({ person, onClick, searchQuery }: PersonCardProps) => {
             <div className="flex items-start justify-between">
               <div className="space-y-0.5">
                 <h3 className="text-xl font-serif font-medium text-stone-800 group-hover:text-amber-900 transition-colors">
-                  {highlightText(person.name, searchQuery || '')}
+                  {highlightText(formatDisplayName(person.name), searchQuery || '')}
                 </h3>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-stone-400 font-medium uppercase tracking-widest">
                   <span className="flex items-center gap-1">

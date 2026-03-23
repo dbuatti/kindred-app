@@ -25,13 +25,12 @@ import BottomNav from '../components/BottomNav';
 import PersonHero from '../components/person/PersonHero';
 import PhotoGallery from '../components/person/PhotoGallery';
 import { PersonDetailSkeleton } from '../components/SkeletonLoader';
-import { cn } from '@/lib/utils';
+import { cn, formatFamilyDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { parsePersonIdFromSlug } from '@/lib/slugify';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { usePersonRelatives } from '@/hooks/use-person-relatives';
-import { format } from 'date-fns';
 import { Mic, Camera, Play } from 'lucide-react';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
@@ -229,7 +228,9 @@ const PersonDetail = () => {
                     <div className="flex items-center gap-3">
                       <span className="text-xs font-bold text-stone-800 uppercase tracking-widest">{memory.authorName || memory.createdByEmail.split('@')[0]}</span>
                       <span className="text-stone-200">•</span>
-                      <span className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em]">{format(new Date(memory.createdAt), 'MMMM d, yyyy')}</span>
+                      <span className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em]">
+                        {formatFamilyDate(memory.createdAt)}
+                      </span>
                     </div>
                     <div className={cn("p-8 rounded-[2.5rem] text-xl font-serif leading-relaxed shadow-sm transition-all duration-500", memory.type === 'voice' ? "bg-amber-50/40 border border-amber-100/50" : memory.type === 'photo' ? "bg-stone-50/50 border border-stone-100" : "bg-white border border-stone-100 group-hover:shadow-md")}>
                       {memory.type === 'voice' && <Button size="icon" variant="ghost" className="mb-6 h-14 w-14 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 shadow-sm"><Play className="w-6 h-6 fill-current" /></Button>}

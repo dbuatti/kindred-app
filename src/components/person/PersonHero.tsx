@@ -6,7 +6,7 @@ import { Camera, Calendar, MapPin, Briefcase, Quote, Edit3 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Person } from '@/types';
-import { cn } from '@/lib/utils';
+import { cn, formatDisplayName } from '@/lib/utils';
 import SuggestionDialog from '../SuggestionDialog';
 import ConnectionSuggestionDialog from '../ConnectionSuggestionDialog';
 
@@ -58,7 +58,9 @@ const PersonHero = ({
       <div className="space-y-8 flex-1">
         <div className="space-y-4">
           <div className="flex items-center gap-4 flex-wrap">
-            <h1 className="text-5xl font-serif font-bold text-stone-800 leading-tight">{person.name}</h1>
+            <h1 className="text-5xl font-serif font-bold text-stone-800 leading-tight">
+              {formatDisplayName(person.name)}
+            </h1>
             {isOwnProfile && (
               <Button 
                 variant="ghost" 

@@ -3,7 +3,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserCircle, Info, Bug, Heart, Users2, Skull } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatDisplayName } from '@/lib/utils';
 import { getPersonUrl } from '@/lib/slugify';
 import QuickAddMenu from '../QuickAddMenu';
 import SmartSuggestionHover from '../SmartSuggestionHover';
@@ -96,7 +96,7 @@ const PersonAvatar = ({ person, me, relationships, isHighlighted, isInLineage, i
           </div>
         )}
 
-        <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+        <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
           <Info className="w-6 h-6 text-white" />
         </div>
 
@@ -114,7 +114,7 @@ const PersonAvatar = ({ person, me, relationships, isHighlighted, isInLineage, i
           "font-serif font-bold text-xs md:text-sm transition-colors",
           isSelected ? "text-amber-800" : isHighlighted ? "text-amber-700" : "text-stone-800"
         )}>
-          {person.name.split(' ')[0]}
+          {formatDisplayName(person.name)}
         </h3>
         <div className="flex flex-col items-center gap-0.5">
           <div className={cn(
