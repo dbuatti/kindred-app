@@ -99,8 +99,13 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       })
       .filter((p): p is Person => !!p);
 
-    const siblingIds = siblingsOf.get(personId) || [];
-    const siblings = siblingIds
+    // Pull in siblings of the person AND siblings of their spouses
+    const siblingIds = new Set<string>(siblingsOf.get(personId) || []);
+    spouseIds.forEach(sId => {
+      (siblingsOf.get(sId) || []).forEach(sibId => siblingIds.add(sibId));
+    });
+
+    const siblings = Array.from(siblingIds)
       .map(id => {
         if (globalVisited.has(id)) return null;
         globalVisited.add(id);
@@ -108,7 +113,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       })
       .filter((p): p is Person => !!p);
 
-    const allGroupIds = [personId, ...spouseIds, ...siblingIds];
+    const allGroupIds = [personId, ...spouseIds, ...Array.from(siblingIds)];
     const childIds = new Set<string>();
     allGroupIds.forEach(pId => {
       (childrenOf.get(pId) || []).forEach(cId => childIds.add(cId));
