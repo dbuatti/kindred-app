@@ -91,7 +91,8 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
         birthDate: person.birthDate,
         birthYear: person.birthYear,
         birthPlace: person.birthPlace,
-        isLiving: person.isLiving
+        isLiving: person.isLiving,
+        gender: person.gender
       });
       
       setFormData({

@@ -25,6 +25,18 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   const parentsOf = new Map<string, string[]>();
   const childrenOf = new Map<string, string[]>();
   const spousesOf = new Map<string, string[]>();
+  const allConnections = new Map<string, string[]>();
+
+  // Helper to track any connection for island detection
+  const addConn = (a: string, b: string) => {
+    const aList = allConnections.get(a) || [];
+    if (!aList.includes(b)) aList.push(b);
+    allConnections.set(a, aList);
+    
+    const bList = allConnections.get(b) || [];
+    if (!bList.includes(a)) bList.push(a);
+    allConnections.set(b, bList);
+  };
 
   relationships.forEach((r) => {
     const type = r.relationship_type?.toLowerCase() || 'unknown';
@@ -32,6 +44,8 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     const p2 = r.related_person_id;
 
     if (!personMap.has(p1) || !personMap.has(p2)) return;
+
+    addConn(p1, p2);
 
     if (['father', 'mother', 'parent'].includes(type)) {
       const children = childrenOf.get(p1) || [];
@@ -60,10 +74,10 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     }
   });
 
+  // 1. Calculate Generational Levels
   const levels: Record<string, number> = {};
   people.forEach(p => levels[p.id] = 0);
 
-  console.log("[tree-utils] Calculating generational levels...");
   for (let i = 0; i < 20; i++) {
     let changed = false;
     relationships.forEach(r => {
@@ -94,6 +108,31 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     if (!changed) break;
   }
 
+  // 2. Group into Islands (Connected Components)
+  const visitedIslands = new Set<string>();
+  const islands: string[][] = [];
+
+  people.forEach(p => {
+    if (!visitedIslands.has(p.id)) {
+      const island: string[] = [];
+      const queue = [p.id];
+      visitedIslands.add(p.id);
+      while (queue.length > 0) {
+        const curr = queue.shift()!;
+        island.push(curr);
+        (allConnections.get(curr) || []).forEach(neighbor => {
+          if (!visitedIslands.has(neighbor)) {
+            visitedIslands.add(neighbor);
+            queue.push(neighbor);
+          }
+        });
+      }
+      islands.push(island);
+    }
+  });
+
+  console.log(`[tree-utils] Detected ${islands.length} connected islands.`);
+
   const globalVisited = new Set<string>();
 
   const constructNode = (personId: string, level: number, colorIndex: number): TreeNode | null => {
@@ -101,7 +140,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     if (!person || globalVisited.has(personId)) return null;
 
     globalVisited.add(personId);
-    console.log(`[tree-utils] Constructing node for ${person.name} at level ${level}`);
 
     const spouseIds = spousesOf.get(personId) || [];
     const spouses = spouseIds
@@ -132,17 +170,25 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   };
 
   const roots: TreeNode[] = [];
-  const potentialRoots = people
-    .filter(p => !parentsOf.has(p.id))
-    .sort((a, b) => levels[a.id] - levels[b.id]);
   
-  console.log(`[tree-utils] Identified ${potentialRoots.length} potential root nodes.`);
-  
-  potentialRoots.forEach((p) => {
-    if (globalVisited.has(p.id)) return;
-    
-    const node = constructNode(p.id, levels[p.id], roots.length);
-    if (node) roots.push(node);
+  // For each island, find the "top" nodes (those with no parents in the island)
+  islands.forEach((island, islandIdx) => {
+    const islandRoots = island
+      .filter(id => !parentsOf.has(id))
+      .sort((a, b) => levels[a] - levels[b]);
+
+    // If an island is a cycle or has no clear root, pick the one with the lowest level
+    if (islandRoots.length === 0 && island.length > 0) {
+      const minLvl = Math.min(...island.map(id => levels[id]));
+      islandRoots.push(island.find(id => levels[id] === minLvl)!);
+    }
+
+    islandRoots.forEach(rootId => {
+      if (!globalVisited.has(rootId)) {
+        const node = constructNode(rootId, levels[rootId], islandIdx);
+        if (node) roots.push(node);
+      }
+    });
   });
 
   console.log(`[tree-utils] Tree construction complete. ${roots.length} root branches created.`);
