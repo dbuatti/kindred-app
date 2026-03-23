@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 const FamilyTree = () => {
   const navigate = useNavigate();
   const { people, loading, user, relationships } = useFamily();
-  const [zoom, setZoom] = useState(0.7);
+  const [zoom, setZoom] = useState(0.8); // Increased default zoom
   const [showDebug, setShowDebug] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   
@@ -42,7 +42,7 @@ const FamilyTree = () => {
             </Button>
             <div>
               <h1 className="text-2xl font-serif font-bold text-white">Family Tree</h1>
-              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-[0.2em]">Generational Archive View</p>
+              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-[0.2em]">Logical Grid View</p>
             </div>
           </div>
 
@@ -76,7 +76,7 @@ const FamilyTree = () => {
                 <span>Links:</span>
                 <span className="text-white">{connections.length}</span>
               </div>
-              <div className="pt-2 text-stone-500 italic break-all">
+              <div className="pt-2 text-stone-500 italic break-all leading-relaxed">
                 {debug}
               </div>
             </div>
@@ -87,7 +87,7 @@ const FamilyTree = () => {
         <div className="absolute bottom-8 left-8 z-40 flex flex-col gap-2">
           <Button size="icon" variant="outline" onClick={() => setZoom(z => Math.min(z + 0.1, 2))} className="h-12 w-12 rounded-full bg-stone-900 border-stone-700 text-white shadow-lg"><ZoomIn className="w-5 h-5" /></Button>
           <Button size="icon" variant="outline" onClick={() => setZoom(z => Math.max(z - 0.1, 0.1))} className="h-12 w-12 rounded-full bg-stone-900 border-stone-700 text-white shadow-lg"><ZoomOut className="w-5 h-5" /></Button>
-          <Button size="icon" variant="outline" onClick={() => setZoom(0.7)} className="h-12 w-12 rounded-full bg-stone-900 border-stone-700 text-white shadow-lg"><Maximize className="w-5 h-5" /></Button>
+          <Button size="icon" variant="outline" onClick={() => setZoom(0.8)} className="h-12 w-12 rounded-full bg-stone-900 border-stone-700 text-white shadow-lg"><Maximize className="w-5 h-5" /></Button>
           <Button size="icon" variant="outline" onClick={() => { setZoom(1); setSelectedId(me?.id || null); }} className="h-12 w-12 rounded-full bg-amber-600 text-white border-none shadow-xl"><Target className="w-5 h-5" /></Button>
         </div>
 

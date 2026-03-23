@@ -28,14 +28,14 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
   return useMemo(() => {
     if (!people.length) return { positions: [], connections: [], debug: "No data" };
 
-    const ROW_HEIGHT = 200;
-    const COLUMN_WIDTH = 250;
+    const ROW_HEIGHT = 250;
+    const COLUMN_WIDTH = 280;
 
     // 1. Assign Generations (Simple Rank)
     const levels: Record<string, number> = {};
     people.forEach(p => levels[p.id] = 0);
 
-    // Iterate to push children below parents
+    // Push children below parents (up to 10 iterations for deep trees)
     for (let i = 0; i < 10; i++) {
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
@@ -53,14 +53,15 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
       });
     }
 
-    // 2. Group by Level and Calculate X (Centered)
+    // 2. Group by Level
     const groups: Record<number, string[]> = {};
     Object.entries(levels).forEach(([id, lvl]) => {
       if (!groups[lvl]) groups[lvl] = [];
       groups[lvl].push(id);
     });
 
-    const finalPositions: TreePosition[] = [];
+    // 3. Calculate Initial Positions
+    let rawPositions: TreePosition[] = [];
     Object.entries(groups).forEach(([lvlStr, ids]) => {
       const lvl = parseInt(lvlStr);
       const rowWidth = (ids.length - 1) * COLUMN_WIDTH;
@@ -69,7 +70,7 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
         const person = people.find(p => p.id === id);
         if (!person) return;
         
-        finalPositions.push({
+        rawPositions.push({
           id,
           x: (idx * COLUMN_WIDTH) - (rowWidth / 2),
           y: lvl * ROW_HEIGHT,
@@ -78,10 +79,27 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
       });
     });
 
-    // 3. Create Connections
-    const finalConnections: TreeConnection[] = relationships.map(r => {
-      const from = finalPositions.find(p => p.id === r.person_id);
-      const to = finalPositions.find(p => p.id === r.related_person_id);
+    // 4. CENTER THE ENTIRE TREE
+    // Find the bounding box of all nodes
+    const minX = Math.min(...rawPositions.map(p => p.x));
+    const maxX = Math.max(...rawPositions.map(p => p.x));
+    const minY = Math.min(...rawPositions.map(p => p.y));
+    const maxY = Math.max(...rawPositions.map(p => p.y));
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    // Shift everything so the center of the tree is at 0,0
+    const positions = rawPositions.map(p => ({
+      ...p,
+      x: p.x - centerX,
+      y: p.y - centerY
+    }));
+
+    // 5. Create Connections using shifted positions
+    const connections: TreeConnection[] = relationships.map(r => {
+      const from = positions.find(p => p.id === r.person_id);
+      const to = positions.find(p => p.id === r.related_person_id);
       if (!from || !to) return null;
 
       const type = r.relationship_type.toLowerCase();
@@ -93,16 +111,10 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
       } as TreeConnection;
     }).filter((c): c is TreeConnection => c !== null);
 
-    // Calculate Bounding Box for Debugging
-    const minX = Math.min(...finalPositions.map(p => p.x));
-    const maxX = Math.max(...finalPositions.map(p => p.x));
-    const minY = Math.min(...finalPositions.map(p => p.y));
-    const maxY = Math.max(...finalPositions.map(p => p.y));
-
     return { 
-      positions: finalPositions, 
-      connections: finalConnections,
-      debug: `Bounds: [${Math.round(minX)}, ${Math.round(minY)}] to [${Math.round(maxX)}, ${Math.round(maxY)}]`
+      positions, 
+      connections,
+      debug: `Tree Size: ${Math.round(maxX - minX)}x${Math.round(maxY - minY)}. Centered at 0,0.`
     };
   }, [people, relationships]);
 };
