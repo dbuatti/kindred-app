@@ -19,6 +19,7 @@ import Help from "./pages/Help";
 import Profile from "./pages/Profile";
 import FamilyTree from "./pages/FamilyTree";
 import CompleteArchive from "./pages/CompleteArchive";
+import DataExportButton from "./components/DataExportButton";
 
 const queryClient = new QueryClient();
 
@@ -83,6 +84,7 @@ const App = () => (
             <Route path="/admin" element={<ProtectedRoute><OnboardingCheck><AdminDashboard /></OnboardingCheck></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <DataExportButton />
         </BrowserRouter>
       </TooltipProvider>
     </FamilyProvider>

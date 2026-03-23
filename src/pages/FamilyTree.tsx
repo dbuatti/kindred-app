@@ -26,15 +26,18 @@ const FamilyTree = () => {
     people.forEach(p => levels[p.id] = 0);
 
     // Simple relaxation algorithm to settle levels based on relationships
-    // We run it multiple times to ensure deep trees settle correctly
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 20; i++) {
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         
-        // Parent -> Child link
+        // Parent -> Child link (r.related_person_id is parent, r.person_id is child)
         if (['mother', 'father', 'parent'].includes(type)) {
-          // r.related_person_id is parent, r.person_id is child
           levels[r.person_id] = Math.max(levels[r.person_id], levels[r.related_person_id] + 1);
+        }
+        
+        // Child -> Parent link (r.person_id is parent, r.related_person_id is child)
+        if (['son', 'daughter', 'child'].includes(type)) {
+          levels[r.related_person_id] = Math.max(levels[r.related_person_id], levels[r.person_id] + 1);
         }
         
         // Spouse/Sibling links (should be on same level)
@@ -45,6 +48,13 @@ const FamilyTree = () => {
         }
       });
     }
+
+    // Normalize levels so the minimum is 0
+    const minLevel = Math.min(...Object.values(levels));
+    Object.keys(levels).forEach(id => {
+      levels[id] -= minLevel;
+    });
+
     return levels;
   }, [people, relationships]);
 
