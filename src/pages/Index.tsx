@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import PersonCard from '../components/PersonCard';
@@ -9,8 +9,10 @@ import MemoryHighlight from '../components/MemoryHighlight';
 import FamilyInbox from '../components/FamilyInbox';
 import StoryStarter from '../components/StoryStarter';
 import FloatingMenu from '../components/FloatingMenu';
+import ScrollToTop from '../components/ScrollToTop';
+import { PersonCardSkeleton } from '../components/SkeletonLoader';
 import { Input } from '@/components/ui/input';
-import { Search, Share2, ScrollText, X, HelpCircle, UserCircle, Network, Users, ShieldCheck, Sparkles } from 'lucide-react';
+import { Search, Share2, ScrollText, X, HelpCircle, UserCircle, Network, Users, ShieldCheck, Sparkles, Command } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
@@ -25,6 +27,18 @@ const Index = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   
   const isAdmin = user?.email === ADMIN_EMAIL;
+
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const filteredPeople = people.filter(p => {
     const nameMatch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -43,8 +57,6 @@ const Index = () => {
       toast.success("Link copied! Send it to family.");
     }
   };
-
-  if (loading) return <div className="p-20 text-center text-2xl font-serif">Loading the archive...</div>;
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-stone-900 pb-32">
@@ -118,29 +130,35 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-stone-400" />
+          <div className="relative group">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-stone-400 group-focus-within:text-amber-600 transition-colors" />
             <Input 
               ref={searchInputRef}
               placeholder="Search names or stories..."
-              className="pl-14 h-16 bg-stone-100 border-4 border-transparent focus:border-amber-500 rounded-2xl text-xl placeholder:text-stone-400"
+              className="pl-14 h-16 bg-stone-100 border-4 border-transparent focus:border-amber-500 rounded-2xl text-xl placeholder:text-stone-400 transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')} 
-                className="absolute right-6 top-1/2 -translate-y-1/2 p-2 bg-stone-200 rounded-full"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
+            <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              {searchQuery ? (
+                <button 
+                  onClick={() => setSearchQuery('')} 
+                  className="p-2 bg-stone-200 rounded-full hover:bg-stone-300 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              ) : (
+                <div className="hidden md:flex items-center gap-1 px-2 py-1 bg-stone-200/50 rounded-md text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                  <Command className="w-3 h-3" /> /
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-12 space-y-12">
-        {!searchQuery && (
+        {!searchQuery && !loading && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <MemoryHighlight />
@@ -170,9 +188,19 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="people" className="space-y-8">
-            {filteredPeople.length === 0 ? (
-              <div className="text-center py-16 space-y-3">
-                <p className="text-stone-400 font-serif italic text-xl">No matches found in the archive...</p>
+            {loading ? (
+              <div className="space-y-6">
+                {[1, 2, 3].map(i => <PersonCardSkeleton key={i} />)}
+              </div>
+            ) : filteredPeople.length === 0 ? (
+              <div className="text-center py-24 space-y-6 bg-white rounded-[3rem] border-4 border-dashed border-stone-100">
+                <div className="h-20 w-20 bg-stone-50 rounded-full flex items-center justify-center mx-auto">
+                  <Search className="w-8 h-8 text-stone-200" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-stone-400 font-serif italic text-xl">No matches found in the archive...</p>
+                  <p className="text-stone-300 text-sm">Try searching for a different name or keyword.</p>
+                </div>
               </div>
             ) : (
               filteredPeople.map((person) => (
@@ -193,6 +221,7 @@ const Index = () => {
       </main>
 
       <FloatingMenu />
+      <ScrollToTop />
     </div>
   );
 };

@@ -32,6 +32,8 @@ import ConnectionSuggestionDialog from '../components/ConnectionSuggestionDialog
 import FamilyConnections from '../components/FamilyConnections';
 import EditPersonDialog from '../components/EditPersonDialog';
 import ProfileCompletionCard from '../components/ProfileCompletionCard';
+import ScrollToTop from '../components/ScrollToTop';
+import { PersonDetailSkeleton } from '../components/SkeletonLoader';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -166,8 +168,13 @@ const PersonDetail = () => {
   };
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FDFCF9]">
-      <p className="text-stone-400 font-serif italic">Loading person details...</p>
+    <div className="min-h-screen bg-[#FDFCF9]">
+      <nav className="sticky top-0 z-30 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full text-stone-500 h-12 w-12"><ArrowLeft className="w-6 h-6" /></Button>
+        </div>
+      </nav>
+      <PersonDetailSkeleton />
     </div>
   );
 
@@ -480,6 +487,7 @@ const PersonDetail = () => {
         onOpenChange={setIsAddMemoryOpen}
         initialImage={droppedImage}
       />
+      <ScrollToTop />
     </div>
   );
 };
