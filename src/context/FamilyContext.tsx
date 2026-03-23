@@ -20,6 +20,7 @@ interface FamilyContextType {
   user: any;
   addPerson: (person: Partial<Person>) => Promise<void>;
   updatePerson: (id: string, updates: Partial<Person>) => Promise<void>;
+  deletePerson: (id: string) => Promise<void>;
   addMemory: (personId: string, content: string, type: MemoryType) => Promise<void>;
   addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'status'>) => Promise<void>;
   resolveSuggestion: (id: string, status: 'approved' | 'rejected') => Promise<void>;
@@ -207,6 +208,25 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [fetchData, user]);
 
+  const deletePerson = useCallback(async (id: string) => {
+    if (!user) return;
+    console.log("[FamilyContext] Deleting person:", id);
+    try {
+      const { error } = await supabase
+        .from('people')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      console.log("[FamilyContext] Person deleted successfully.");
+      toast.success("Person removed from archive.");
+      fetchData();
+    } catch (error: any) {
+      console.error("[FamilyContext] Error deleting person:", error.message);
+      toast.error("Failed to delete: " + error.message);
+    }
+  }, [fetchData, user]);
+
   const addMemory = useCallback(async (personId: string, content: string, type: MemoryType) => {
     if (!user) return;
     console.log("[FamilyContext] Adding memory for person:", personId, "Type:", type);
@@ -325,6 +345,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       user,
       addPerson, 
       updatePerson,
+      deletePerson,
       addMemory, 
       addSuggestion, 
       resolveSuggestion,

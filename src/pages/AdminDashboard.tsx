@@ -13,7 +13,10 @@ import {
   UserCircle,
   Mail,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Edit3,
+  Trash2,
+  UserPlus
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -27,6 +30,8 @@ import {
 } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
 import { getPersonUrl } from '@/lib/slugify';
+import EditPersonDialog from '../components/EditPersonDialog';
+import AddPersonDialog from '../components/AddPersonDialog';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
@@ -177,6 +182,51 @@ const AdminDashboard = () => {
               ))}
             </div>
           </Card>
+        </div>
+
+        {/* Manage People */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
+              <Users className="w-5 h-5 text-stone-400" />
+              Manage Archive Entries
+            </h2>
+            <AddPersonDialog />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {people.map((person) => (
+              <Card key={person.id} className="p-6 bg-white border-stone-100 shadow-sm rounded-3xl flex items-center justify-between group hover:border-amber-200 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full overflow-hidden bg-stone-100 shrink-0">
+                    {person.photoUrl ? (
+                      <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.5]" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-stone-300">
+                        <UserCircle className="w-6 h-6" />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-bold text-stone-800">{person.name}</p>
+                    <p className="text-[10px] text-stone-400 uppercase tracking-widest">
+                      {person.memories.length} memories
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <EditPersonDialog person={person} />
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => navigate(getPersonUrl(person.id, person.name))}
+                    className="rounded-full text-stone-400 hover:text-stone-800"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
 
         {/* Family Profiles */}
