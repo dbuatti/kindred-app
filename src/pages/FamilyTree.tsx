@@ -32,41 +32,24 @@ const FamilyTree = () => {
     return Array.from(new Set(parentIds)).sort();
   };
 
-  // Helper to get siblings
-  const getDirectSiblings = (personId: string) => {
-    return relationships
-      .filter(r => (r.person_id === personId || r.related_person_id === personId) && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
-      .map(r => r.person_id === personId ? r.related_person_id : r.person_id);
-  };
-
-  // Normalize parents to include spouses
-  const getNormalizedParents = (personId: string) => {
-    let parents = getDirectParents(personId);
+  // Generate a unique key for a sibling group based on their parent unit (single or couple)
+  const getParentUnitKey = (personId: string) => {
+    const parents = getDirectParents(personId);
+    if (parents.length === 0) return null;
     
-    if (parents.length === 0) {
-      const sibs = getDirectSiblings(personId);
-      for (const sibId of sibs) {
-        const sibParents = getDirectParents(sibId);
-        if (sibParents.length > 0) {
-          parents = sibParents;
-          break;
-        }
-      }
-    }
-
-    if (parents.length === 0) return [];
-
-    const fullSet = new Set(parents);
+    const unitSet = new Set<string>();
     parents.forEach(pId => {
+      unitSet.add(pId);
+      // If this parent has a spouse, they are part of the same parent unit
       const spouseRel = relationships.find(r => 
         (r.person_id === pId || r.related_person_id === pId) && 
         ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
       );
       if (spouseRel) {
-        fullSet.add(spouseRel.person_id === pId ? spouseRel.related_person_id : spouseRel.person_id);
+        unitSet.add(spouseRel.person_id === pId ? spouseRel.related_person_id : spouseRel.person_id);
       }
     });
-    return Array.from(fullSet).sort();
+    return Array.from(unitSet).sort().join('-');
   };
 
   // 1. Calculate Generations (Levels)
@@ -114,21 +97,15 @@ const FamilyTree = () => {
       peopleInLevel.forEach(person => {
         if (renderedIds.has(person.id)) return;
 
-        const parents = getNormalizedParents(person.id);
-        let groupKey = parents.length > 0 ? `parents-${parents.join('-')}` : 'root';
-        
-        if (groupKey === 'root') {
-          const sibs = getDirectSiblings(person.id);
-          if (sibs.length > 0) {
-            const allSibs = [person.id, ...sibs].sort();
-            groupKey = `sibs-${allSibs[0]}`;
-          }
-        }
+        // Group by parent unit. If no parents, they are a "root" group.
+        const parentKey = getParentUnitKey(person.id);
+        const groupKey = parentKey ? `parents-${parentKey}` : `root-${person.id}`;
 
         if (!gens[level].siblingGroups[groupKey]) {
           gens[level].siblingGroups[groupKey] = [];
         }
 
+        // Find spouse to render them together
         const spouseRel = relationships.find(r => 
           (r.person_id === person.id || r.related_person_id === person.id) && 
           ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
@@ -193,7 +170,8 @@ const FamilyTree = () => {
             {Object.entries(gen.siblingGroups).map(([groupKey, members]) => (
               <div key={groupKey} className="relative flex flex-col items-center">
                 
-                {groupKey !== 'root' && (
+                {/* Sibling Connector Bar */}
+                {!groupKey.startsWith('root') && (
                   <div className="absolute -top-32 left-0 right-0 flex flex-col items-center pointer-events-none">
                     <div className="h-16 w-px bg-stone-200" />
                     {members.length > 1 && (
@@ -211,7 +189,7 @@ const FamilyTree = () => {
                     return (
                       <div key={person.id} className="relative flex flex-col items-center">
                         
-                        {groupKey !== 'root' && (
+                        {!groupKey.startsWith('root') && (
                           <div className="absolute -top-16 h-16 w-px bg-stone-200 pointer-events-none" />
                         )}
 
