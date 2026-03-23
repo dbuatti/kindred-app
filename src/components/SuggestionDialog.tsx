@@ -10,9 +10,10 @@ import { toast } from 'sonner';
 
 interface SuggestionDialogProps {
   person: Person;
+  trigger?: React.ReactNode;
 }
 
-const SuggestionDialog = ({ person }: SuggestionDialogProps) => {
+const SuggestionDialog = ({ person, trigger }: SuggestionDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const { addSuggestion } = useFamily();
   const [value, setValue] = useState('');
@@ -37,9 +38,11 @@ const SuggestionDialog = ({ person }: SuggestionDialogProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" className="text-stone-400 hover:text-amber-600 gap-2 text-sm font-light italic">
-          <Edit3 className="w-4 h-4" /> I remember this slightly differently...
-        </Button>
+        {trigger || (
+          <Button variant="ghost" className="text-stone-400 hover:text-amber-600 gap-2 text-sm font-light italic">
+            <Edit3 className="w-4 h-4" /> I remember this slightly differently...
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md rounded-3xl border-none bg-stone-50">
         <DialogHeader>

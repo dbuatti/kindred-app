@@ -31,6 +31,7 @@ import SuggestionDialog from '../components/SuggestionDialog';
 import ConnectionSuggestionDialog from '../components/ConnectionSuggestionDialog';
 import FamilyConnections from '../components/FamilyConnections';
 import EditPersonDialog from '../components/EditPersonDialog';
+import ProfileCompletionCard from '../components/ProfileCompletionCard';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -143,17 +144,6 @@ const PersonDetail = () => {
   const photos = useMemo(() => {
     if (!person) return [];
     return person.memories.filter(m => m.type === 'photo' && m.imageUrl);
-  }, [person]);
-
-  const missingInfo = useMemo(() => {
-    if (!person) return [];
-    const missing = [];
-    if (!person.birthYear) missing.push('Birth Year');
-    if (!person.birthPlace) missing.push('Birth Place');
-    if (!person.occupation) missing.push('Occupation');
-    if (!person.photoUrl) missing.push('Photo');
-    if (!person.gender) missing.push('Gender');
-    return missing;
   }, [person]);
 
   const handleMemoryFile = useCallback((file: File) => {
@@ -439,21 +429,8 @@ const PersonDetail = () => {
           </section>
         )}
 
-        {/* Missing Info Prompt */}
-        {missingInfo.length > 0 && !isOwnProfile && (
-          <section className="bg-amber-50/50 border-2 border-dashed border-amber-200 p-8 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <div className="space-y-2 text-center md:text-left">
-              <h3 className="text-xl font-serif font-bold text-amber-900 flex items-center justify-center md:justify-start gap-2">
-                <Sparkles className="w-5 h-5" />
-                Help us complete the story
-              </h3>
-              <p className="text-amber-800/70">
-                We're missing {missingInfo.join(', ')} for {person.name.split(' ')[0]}. Do you remember?
-              </p>
-            </div>
-            <SuggestionDialog person={person} />
-          </section>
-        )}
+        {/* Profile Completion Card (Replaces the old missing info prompt) */}
+        {!isOwnProfile && <ProfileCompletionCard person={person} />}
 
         {/* Family Connections Section */}
         <section className="space-y-8">
