@@ -11,8 +11,7 @@ import {
   Maximize, 
   Target,
   Bug,
-  Activity,
-  Database
+  Activity
 } from 'lucide-react';
 import { useTreeLayout } from '../hooks/use-tree-layout';
 import PersonNode from '../components/tree/PersonNode';
@@ -22,8 +21,8 @@ import { cn } from '@/lib/utils';
 const FamilyTree = () => {
   const navigate = useNavigate();
   const { people, loading, user, relationships } = useFamily();
-  const [zoom, setZoom] = useState(0.5);
-  const [showDebug, setShowDebug] = useState(true);
+  const [zoom, setZoom] = useState(0.7);
+  const [showDebug, setShowDebug] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   
   const constraintsRef = useRef<HTMLDivElement>(null);
@@ -31,11 +30,10 @@ const FamilyTree = () => {
 
   const me = useMemo(() => people.find(p => p.userId === user?.id) || people[0], [people, user]);
 
-  if (loading) return <div className="min-h-screen bg-[#0c0a09] flex items-center justify-center text-stone-400 font-serif italic text-xl">Summoning the ancestors...</div>;
+  if (loading) return <div className="min-h-screen bg-[#0c0a09] flex items-center justify-center text-stone-400 font-serif italic text-xl">Loading the archive...</div>;
 
   return (
     <div className="min-h-screen bg-[#0c0a09] flex flex-col overflow-hidden select-none text-stone-100">
-      {/* Header */}
       <header className="bg-stone-900/80 backdrop-blur-md border-b border-stone-800 px-8 py-6 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-6">
@@ -43,39 +41,33 @@ const FamilyTree = () => {
               <ArrowLeft className="w-6 h-6" />
             </Button>
             <div>
-              <h1 className="text-2xl font-serif font-bold text-white">Family Web</h1>
-              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-[0.2em]">Gravity-Based Archive View</p>
+              <h1 className="text-2xl font-serif font-bold text-white">Family Tree</h1>
+              <p className="text-[10px] text-amber-500 font-bold uppercase tracking-[0.2em]">Generational Archive View</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowDebug(!showDebug)}
-              className={cn(
-                "h-10 rounded-full border-stone-700 gap-2 text-xs font-bold px-4",
-                showDebug ? "bg-amber-500 text-stone-900 border-amber-500" : "text-stone-400"
-              )}
-            >
-              <Bug className="w-4 h-4" /> Debug Mode
-            </Button>
-          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowDebug(!showDebug)}
+            className={cn(
+              "h-10 rounded-full border-stone-700 gap-2 text-xs font-bold px-4",
+              showDebug ? "bg-amber-500 text-stone-900 border-amber-500" : "text-stone-400"
+            )}
+          >
+            <Bug className="w-4 h-4" /> Debug
+          </Button>
         </div>
       </header>
 
       <div className="flex-1 relative overflow-hidden" ref={constraintsRef}>
         {/* Debug Panel */}
         {showDebug && (
-          <div className="absolute top-8 right-8 z-50 w-72 bg-stone-900/90 backdrop-blur-xl border border-stone-800 rounded-2xl p-6 shadow-2xl space-y-4 animate-in slide-in-from-right-4">
+          <div className="absolute top-8 right-8 z-50 w-72 bg-stone-900/90 backdrop-blur-xl border border-stone-800 rounded-2xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-2 text-amber-500">
               <Activity className="w-4 h-4" />
-              <h3 className="text-[10px] font-bold uppercase tracking-widest">Flight Recorder</h3>
+              <h3 className="text-[10px] font-bold uppercase tracking-widest">Diagnostics</h3>
             </div>
             <div className="space-y-2 font-mono text-[10px] text-stone-400">
-              <div className="flex justify-between border-b border-stone-800 pb-1">
-                <span>Status:</span>
-                <span className="text-green-500">Active</span>
-              </div>
               <div className="flex justify-between border-b border-stone-800 pb-1">
                 <span>Nodes:</span>
                 <span className="text-white">{positions.length}</span>
@@ -84,24 +76,19 @@ const FamilyTree = () => {
                 <span>Links:</span>
                 <span className="text-white">{connections.length}</span>
               </div>
-              <div className="pt-2 text-stone-500 italic">
+              <div className="pt-2 text-stone-500 italic break-all">
                 {debug}
               </div>
-            </div>
-            <div className="pt-2">
-              <p className="text-[9px] text-stone-600 leading-relaxed">
-                If the screen is blank, try clicking "Center View" below.
-              </p>
             </div>
           </div>
         )}
 
         {/* Controls */}
         <div className="absolute bottom-8 left-8 z-40 flex flex-col gap-2">
-          <Button size="icon" variant="outline" onClick={() => setZoom(z => Math.min(z + 0.1, 2))} className="h-12 w-12 rounded-full bg-stone-900 border-stone-700 text-white shadow-lg hover:bg-stone-800"><ZoomIn className="w-5 h-5" /></Button>
-          <Button size="icon" variant="outline" onClick={() => setZoom(z => Math.max(z - 0.1, 0.1))} className="h-12 w-12 rounded-full bg-stone-900 border-stone-700 text-white shadow-lg hover:bg-stone-800"><ZoomOut className="w-5 h-5" /></Button>
-          <Button size="icon" variant="outline" onClick={() => setZoom(0.5)} className="h-12 w-12 rounded-full bg-stone-900 border-stone-700 text-white shadow-lg hover:bg-stone-800"><Maximize className="w-5 h-5" /></Button>
-          <Button size="icon" variant="outline" onClick={() => { setZoom(0.8); setSelectedId(me?.id || null); }} className="h-12 w-12 rounded-full bg-amber-600 text-white border-none shadow-xl hover:bg-amber-700"><Target className="w-5 h-5" /></Button>
+          <Button size="icon" variant="outline" onClick={() => setZoom(z => Math.min(z + 0.1, 2))} className="h-12 w-12 rounded-full bg-stone-900 border-stone-700 text-white shadow-lg"><ZoomIn className="w-5 h-5" /></Button>
+          <Button size="icon" variant="outline" onClick={() => setZoom(z => Math.max(z - 0.1, 0.1))} className="h-12 w-12 rounded-full bg-stone-900 border-stone-700 text-white shadow-lg"><ZoomOut className="w-5 h-5" /></Button>
+          <Button size="icon" variant="outline" onClick={() => setZoom(0.7)} className="h-12 w-12 rounded-full bg-stone-900 border-stone-700 text-white shadow-lg"><Maximize className="w-5 h-5" /></Button>
+          <Button size="icon" variant="outline" onClick={() => { setZoom(1); setSelectedId(me?.id || null); }} className="h-12 w-12 rounded-full bg-amber-600 text-white border-none shadow-xl"><Target className="w-5 h-5" /></Button>
         </div>
 
         {/* Infinite Canvas */}
@@ -158,7 +145,7 @@ const FamilyTree = () => {
       <div className="absolute bottom-8 right-8 bg-stone-900/80 backdrop-blur-md p-4 rounded-2xl border border-stone-800 flex flex-col gap-3 z-40">
         <div className="flex items-center gap-3">
           <div className="w-3 h-3 rounded-full bg-amber-600" />
-          <span className="text-xs font-medium text-stone-400">Selected Person</span>
+          <span className="text-xs font-medium text-stone-400">Selected</span>
         </div>
         <div className="flex items-center gap-3">
           <div className="w-8 h-0.5 bg-stone-600" />

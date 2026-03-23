@@ -26,105 +26,83 @@ export interface TreeConnection {
 
 export const useTreeLayout = (people: Person[], relationships: Relationship[]) => {
   return useMemo(() => {
-    console.log("[useTreeLayout] Starting layout calculation...", { 
-      peopleCount: people.length, 
-      relCount: relationships.length 
-    });
+    if (!people.length) return { positions: [], connections: [], debug: "No data" };
 
-    if (!people.length) return { positions: [], connections: [], debug: "No people found" };
+    const ROW_HEIGHT = 200;
+    const COLUMN_WIDTH = 250;
 
-    const ITERATIONS = 50;
-    const SPRING_LENGTH = 300;
-    const REPULSION = 100000;
-    const DAMPING = 0.85;
+    // 1. Assign Generations (Simple Rank)
+    const levels: Record<string, number> = {};
+    people.forEach(p => levels[p.id] = 0);
 
-    // 1. Initialize positions randomly to avoid overlaps
-    const pos: Record<string, { x: number, y: number, vx: number, vy: number }> = {};
-    people.forEach((p, i) => {
-      pos[p.id] = {
-        x: Math.cos(i) * 500,
-        y: Math.sin(i) * 500,
-        vx: 0,
-        vy: 0
-      };
-    });
-
-    // 2. Run Physics Simulation (Force-Directed)
-    for (let i = 0; i < ITERATIONS; i++) {
-      // Repulsion (Push everyone apart)
-      people.forEach(p1 => {
-        people.forEach(p2 => {
-          if (p1.id === p2.id) return;
-          const dx = pos[p1.id].x - pos[p2.id].x;
-          const dy = pos[p1.id].y - pos[p2.id].y;
-          const distSq = dx * dx + dy * dy + 0.1;
-          const force = REPULSION / distSq;
-          pos[p1.id].vx += (dx / Math.sqrt(distSq)) * force * 0.01;
-          pos[p1.id].vy += (dy / Math.sqrt(distSq)) * force * 0.01;
-        });
-      });
-
-      // Attraction (Pull relatives together)
+    // Iterate to push children below parents
+    for (let i = 0; i < 10; i++) {
       relationships.forEach(r => {
-        if (!pos[r.person_id] || !pos[r.related_person_id]) return;
-        const p1 = pos[r.person_id];
-        const p2 = pos[r.related_person_id];
-        const dx = p2.x - p1.x;
-        const dy = p2.y - p1.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const force = (dist - SPRING_LENGTH) * 0.05;
-        
-        const fx = (dx / dist) * force;
-        const fy = (dy / dist) * force;
-        
-        p1.vx += fx;
-        p1.vy += fy;
-        p2.vx -= fx;
-        p2.vy -= fy;
-      });
-
-      // Apply velocity and damping
-      people.forEach(p => {
-        const node = pos[p.id];
-        node.x += node.vx;
-        node.y += node.vy;
-        node.vx *= DAMPING;
-        node.vy *= DAMPING;
+        const type = r.relationship_type.toLowerCase();
+        if (['father', 'mother', 'parent'].includes(type)) {
+          // person_id is child, related_person_id is parent
+          if (levels[r.person_id] <= levels[r.related_person_id]) {
+            levels[r.person_id] = levels[r.related_person_id] + 1;
+          }
+        } else if (['son', 'daughter', 'child'].includes(type)) {
+          // person_id is parent, related_person_id is child
+          if (levels[r.related_person_id] <= levels[r.person_id]) {
+            levels[r.related_person_id] = levels[r.person_id] + 1;
+          }
+        }
       });
     }
 
-    const finalPositions: TreePosition[] = people.map(p => ({
-      id: p.id,
-      x: pos[p.id].x,
-      y: pos[p.id].y,
-      person: p
-    }));
+    // 2. Group by Level and Calculate X (Centered)
+    const groups: Record<number, string[]> = {};
+    Object.entries(levels).forEach(([id, lvl]) => {
+      if (!groups[lvl]) groups[lvl] = [];
+      groups[lvl].push(id);
+    });
 
-    const finalConnections: TreeConnection[] = relationships.map(r => {
-      const from = pos[r.person_id];
-      const to = pos[r.related_person_id];
-      if (!from || !to) return null;
+    const finalPositions: TreePosition[] = [];
+    Object.entries(groups).forEach(([lvlStr, ids]) => {
+      const lvl = parseInt(lvlStr);
+      const rowWidth = (ids.length - 1) * COLUMN_WIDTH;
       
-      const type = r.relationship_type.toLowerCase();
-      const isSpouse = ['spouse', 'wife', 'husband'].includes(type);
+      ids.forEach((id, idx) => {
+        const person = people.find(p => p.id === id);
+        if (!person) return;
+        
+        finalPositions.push({
+          id,
+          x: (idx * COLUMN_WIDTH) - (rowWidth / 2),
+          y: lvl * ROW_HEIGHT,
+          person
+        });
+      });
+    });
 
+    // 3. Create Connections
+    const finalConnections: TreeConnection[] = relationships.map(r => {
+      const from = finalPositions.find(p => p.id === r.person_id);
+      const to = finalPositions.find(p => p.id === r.related_person_id);
+      if (!from || !to) return null;
+
+      const type = r.relationship_type.toLowerCase();
       return {
         id: r.id,
         from: { x: from.x, y: from.y },
         to: { x: to.x, y: to.y },
-        type: isSpouse ? 'spouse' : 'blood'
+        type: ['spouse', 'wife', 'husband'].includes(type) ? 'spouse' : 'blood'
       } as TreeConnection;
     }).filter((c): c is TreeConnection => c !== null);
 
-    console.log("[useTreeLayout] Layout complete.", { 
-      nodes: finalPositions.length, 
-      links: finalConnections.length 
-    });
+    // Calculate Bounding Box for Debugging
+    const minX = Math.min(...finalPositions.map(p => p.x));
+    const maxX = Math.max(...finalPositions.map(p => p.x));
+    const minY = Math.min(...finalPositions.map(p => p.y));
+    const maxY = Math.max(...finalPositions.map(p => p.y));
 
     return { 
       positions: finalPositions, 
       connections: finalConnections,
-      debug: `Calculated ${finalPositions.length} nodes and ${finalConnections.length} links.`
+      debug: `Bounds: [${Math.round(minX)}, ${Math.round(minY)}] to [${Math.round(maxX)}, ${Math.round(maxY)}]`
     };
   }, [people, relationships]);
 };
