@@ -178,9 +178,10 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (error) throw error;
 
       if (relativeId && relType && person) {
+        // Correct Direction: The NEW person IS the relType OF the EXISTING person
         await supabase.from('relationships').insert({
-          person_id: relativeId,
-          related_person_id: person.id,
+          person_id: person.id,
+          related_person_id: relativeId,
           relationship_type: relType.toLowerCase()
         });
       }
@@ -305,6 +306,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addRelationship = useCallback(async (personId: string, relatedId: string, type: string) => {
     if (!user) return;
     try {
+      // Correct Direction: personId IS THE type OF relatedId
       const { error } = await supabase
         .from('relationships')
         .insert({
@@ -342,9 +344,10 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const relType = match[2].toLowerCase();
             const personId = match[3];
 
+            // Correct Direction: targetId IS THE relType OF personId
             await supabase.from('relationships').insert({
-              person_id: personId,
-              related_person_id: targetId,
+              person_id: targetId,
+              related_person_id: personId,
               relationship_type: relType
             });
           }
@@ -367,49 +370,12 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             if (pErr) throw pErr;
 
-            const { data: existingRel } = await supabase
-              .from('relationships')
-              .select('id')
-              .eq('person_id', suggestion.personId)
-              .eq('related_person_id', newPerson.id)
-              .eq('relationship_type', type.toLowerCase())
-              .maybeSingle();
-
-            if (!existingRel) {
-              await supabase.from('relationships').insert({
-                person_id: suggestion.personId,
-                related_person_id: newPerson.id,
-                relationship_type: type.toLowerCase()
-              });
-            }
-
-            const lines = suggestion.suggestedValue.split('\n');
-            for (const line of lines) {
-              const infMatch = line.match(/- Is .+\sthe\s(.+)\sof\s(.+)\?\s\(Yes\)/);
-              if (infMatch) {
-                const infRole = infMatch[1];
-                const targetName = infMatch[2];
-                const target = people.find(p => p.name === targetName);
-                
-                if (target) {
-                  const { data: existingInf } = await supabase
-                    .from('relationships')
-                    .select('id')
-                    .eq('person_id', target.id)
-                    .eq('related_person_id', newPerson.id)
-                    .eq('relationship_type', infRole.toLowerCase())
-                    .maybeSingle();
-
-                  if (!existingInf) {
-                    await supabase.from('relationships').insert({
-                      person_id: target.id,
-                      related_person_id: newPerson.id,
-                      relationship_type: infRole.toLowerCase()
-                    });
-                  }
-                }
-              }
-            }
+            // Correct Direction: newPerson IS THE type OF suggestion.personId
+            await supabase.from('relationships').insert({
+              person_id: newPerson.id,
+              related_person_id: suggestion.personId,
+              relationship_type: type.toLowerCase()
+            });
           }
         } else {
           const { error: personError } = await supabase

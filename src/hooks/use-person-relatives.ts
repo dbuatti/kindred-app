@@ -18,12 +18,12 @@ export const usePersonRelatives = (person: Person | null, people: Person[], rela
         
         if (!relative) return null;
         
-        // If the record describes the current person (isPrimary), 
-        // we need to invert it to describe the relative.
-        // We pass the relative's gender to get the correct specific role.
-        const type = isPrimary 
-          ? getInverseRelationship(r.relationship_type, relative.gender)
-          : r.relationship_type;
+        // If we are the related_person_id (Object), the relationship_type 
+        // already describes the person_id (Relative).
+        // If we are the person_id (Subject), we need to invert it to describe the relative.
+        const type = !isPrimary 
+          ? r.relationship_type
+          : getInverseRelationship(r.relationship_type, relative.gender);
           
         const key = `${relative.id}-${type.toLowerCase()}`;
         if (seen.has(key)) return null;
