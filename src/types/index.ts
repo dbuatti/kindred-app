@@ -10,6 +10,9 @@ export interface Profile {
   first_name: string;
   last_name: string;
   middle_name?: string;
+  nickname?: string;
+  maiden_name?: string;
+  occupation?: string;
   avatar_url?: string;
   birth_date?: string;
   birth_place?: string;
