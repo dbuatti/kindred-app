@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserCircle, Info, Bug, Heart, Users2, Skull } from 'lucide-react';
+import { UserCircle, Info, Bug, Heart, Users2, Skull, MapPin, Briefcase } from 'lucide-react';
 import { cn, formatDisplayName } from '@/lib/utils';
 import { getPersonUrl } from '@/lib/slugify';
 import QuickAddMenu from '../QuickAddMenu';
@@ -18,9 +18,25 @@ interface PersonAvatarProps {
   debugMode?: boolean;
   level?: number;
   onSelect: (id: string) => void;
+  settings?: {
+    showDates: boolean;
+    showPlaces: boolean;
+    showOccupation: boolean;
+  };
 }
 
-const PersonAvatar = ({ person, me, relationships, isHighlighted, isInLineage, isSelected, debugMode, level, onSelect }: PersonAvatarProps) => {
+const PersonAvatar = ({ 
+  person, 
+  me, 
+  relationships, 
+  isHighlighted, 
+  isInLineage, 
+  isSelected, 
+  debugMode, 
+  level, 
+  onSelect,
+  settings = { showDates: true, showPlaces: false, showOccupation: false }
+}: PersonAvatarProps) => {
   const navigate = useNavigate();
   
   const isMe = me && person.id === me.id;
@@ -28,14 +44,12 @@ const PersonAvatar = ({ person, me, relationships, isHighlighted, isInLineage, i
   const getLabel = () => {
     if (isMe) return "You";
 
-    // 1. Direct Relationship
     const directRel = relationships.find(r => 
       (r.person_id === me?.id && r.related_person_id === person.id) || 
       (r.person_id === person.id && r.related_person_id === me?.id)
     );
     if (directRel) return directRel.relationship_type;
     
-    // 2. Cousin Logic (Parent -> Sibling -> Child)
     const myParents = relationships
       .filter(r => (r.person_id === me?.id || r.related_person_id === me?.id) && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
       .map(r => r.person_id === me?.id ? r.related_person_id : r.person_id);
@@ -96,7 +110,7 @@ const PersonAvatar = ({ person, me, relationships, isHighlighted, isInLineage, i
           </div>
         )}
 
-        <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+        <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
           <Info className="w-6 h-6 text-white" />
         </div>
 
@@ -124,10 +138,25 @@ const PersonAvatar = ({ person, me, relationships, isHighlighted, isInLineage, i
           )}>
             {label}
           </div>
-          {(person.birthYear || person.deathYear) && (
+          
+          {settings.showDates && (person.birthYear || person.deathYear) && (
             <span className="text-[8px] text-stone-400 font-medium">
               {person.birthYear || '?'}{isDeceased ? `—${person.deathYear || '?'}` : ''}
             </span>
+          )}
+
+          {settings.showPlaces && person.birthPlace && (
+            <div className="flex items-center gap-1 text-[8px] text-stone-400">
+              <MapPin className="w-2 h-2" />
+              <span className="truncate max-w-[80px]">{person.birthPlace}</span>
+            </div>
+          )}
+
+          {settings.showOccupation && person.occupation && (
+            <div className="flex items-center gap-1 text-[8px] text-stone-400">
+              <Briefcase className="w-2 h-2" />
+              <span className="truncate max-w-[80px]">{person.occupation}</span>
+            </div>
           )}
         </div>
       </div>

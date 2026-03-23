@@ -9,16 +9,69 @@ interface Relationship {
   relationship_type: string;
 }
 
-export const useTreeLayout = (people: Person[], relationships: Relationship[]) => {
-  // 1. Calculate Generational Levels
+export type TreeMode = 'all' | 'ancestors' | 'descendants';
+
+export const useTreeLayout = (people: Person[], relationships: Relationship[], mode: TreeMode = 'all', rootId: string | null = null) => {
+  
+  // 1. Filter people based on mode
+  const filteredPeople = useMemo(() => {
+    if (mode === 'all' || !rootId) return people;
+
+    const resultIds = new Set<string>([rootId]);
+    const queue = [rootId];
+
+    while (queue.length > 0) {
+      const currId = queue.shift()!;
+      
+      relationships.forEach(r => {
+        const type = r.relationship_type.toLowerCase();
+        const isParentRel = ['mother', 'father', 'parent', 'grandmother', 'grandfather'].includes(type);
+        const isChildRel = ['son', 'daughter', 'child', 'grandson', 'granddaughter'].includes(type);
+
+        if (mode === 'ancestors') {
+          // Follow parent links UP
+          if (r.person_id === currId && isParentRel) {
+            if (!resultIds.has(r.related_person_id)) {
+              resultIds.add(r.related_person_id);
+              queue.push(r.related_person_id);
+            }
+          } else if (r.related_person_id === currId && isChildRel) {
+            if (!resultIds.has(r.person_id)) {
+              resultIds.add(r.person_id);
+              queue.push(r.person_id);
+            }
+          }
+        } else if (mode === 'descendants') {
+          // Follow child links DOWN
+          if (r.person_id === currId && isChildRel) {
+            if (!resultIds.has(r.related_person_id)) {
+              resultIds.add(r.related_person_id);
+              queue.push(r.related_person_id);
+            }
+          } else if (r.related_person_id === currId && isParentRel) {
+            if (!resultIds.has(r.person_id)) {
+              resultIds.add(r.person_id);
+              queue.push(r.person_id);
+            }
+          }
+        }
+      });
+    }
+
+    return people.filter(p => resultIds.has(p.id));
+  }, [people, relationships, mode, rootId]);
+
+  // 2. Calculate Generational Levels
   const personLevels = useMemo(() => {
-    if (!people.length) return {};
+    if (!filteredPeople.length) return {};
     const levels: Record<string, number> = {};
-    people.forEach(p => levels[p.id] = 0);
+    filteredPeople.forEach(p => levels[p.id] = 0);
 
     for (let i = 0; i < 50; i++) {
       let changed = false;
       relationships.forEach(r => {
+        if (!levels.hasOwnProperty(r.person_id) || !levels.hasOwnProperty(r.related_person_id)) return;
+
         const type = r.relationship_type.toLowerCase();
         const p1 = r.person_id;
         const p2 = r.related_person_id;
@@ -38,7 +91,6 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
           }
         } 
         else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
-          // NOTE: We EXCLUDE 'cousin' here to prevent branches from merging horizontally
           if (levels[p1] !== levels[p2]) {
             const max = Math.max(levels[p1], levels[p2]);
             levels[p1] = max;
@@ -56,9 +108,9 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
     });
 
     return levels;
-  }, [people, relationships]);
+  }, [filteredPeople, relationships]);
 
-  // 2. Helper to get a cluster of peers (Only Spouses and Siblings)
+  // 3. Helper to get a cluster of peers
   const getPeerCluster = useCallback((startId: string, level: number, processed: Set<string>) => {
     const cluster: any[] = [];
     const queue = [startId];
@@ -68,13 +120,12 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
       const currId = queue.shift()!;
       if (processed.has(currId)) continue;
       
-      const person = people.find(p => p.id === currId);
+      const person = filteredPeople.find(p => p.id === currId);
       if (person) cluster.push(person);
       processed.add(currId);
 
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
-        // We ONLY follow spouse and sibling links for horizontal clustering
         if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
           const otherId = r.person_id === currId ? r.related_person_id : r.person_id;
           if (personLevels[otherId] === level && !clusterIds.has(otherId) && !processed.has(otherId)) {
@@ -85,15 +136,16 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
       });
     }
     return cluster;
-  }, [people, relationships, personLevels]);
+  }, [filteredPeople, relationships, personLevels]);
 
-  // 3. Identify Root Clusters (Elders)
+  // 4. Identify Root Clusters
   const rootClusters = useMemo(() => {
     const globalProcessed = new Set<string>();
     const clusters: any[][] = [];
     
     const hasAncestors = (id: string) => {
       return relationships.some(r => {
+        if (!personLevels.hasOwnProperty(r.person_id) || !personLevels.hasOwnProperty(r.related_person_id)) return false;
         const type = r.relationship_type.toLowerCase();
         if (r.person_id === id && ['mother', 'father', 'parent', 'grandmother', 'grandfather'].includes(type)) return true;
         if (r.related_person_id === id && ['son', 'daughter', 'child', 'grandson', 'granddaughter'].includes(type)) return true;
@@ -101,7 +153,7 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
       });
     };
 
-    const sortedPeople = [...people].sort((a, b) => personLevels[a.id] - personLevels[b.id]);
+    const sortedPeople = [...filteredPeople].sort((a, b) => personLevels[a.id] - personLevels[b.id]);
 
     sortedPeople.forEach(p => {
       if (!globalProcessed.has(p.id) && !hasAncestors(p.id)) {
@@ -118,7 +170,7 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
     });
 
     return clusters;
-  }, [people, personLevels, relationships, getPeerCluster]);
+  }, [filteredPeople, personLevels, relationships, getPeerCluster]);
 
-  return { personLevels, rootClusters, getPeerCluster };
+  return { personLevels, rootClusters, getPeerCluster, filteredPeople };
 };

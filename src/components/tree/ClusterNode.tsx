@@ -20,6 +20,7 @@ interface ClusterNodeProps {
   getPeerCluster: (id: string, level: number, processed: Set<string>) => any[];
   globalProcessed?: Set<string>;
   isFirstInRow?: boolean;
+  settings?: any;
 }
 
 const ClusterNode = ({ 
@@ -36,14 +37,15 @@ const ClusterNode = ({
   onSelect, 
   getPeerCluster,
   globalProcessed = new Set(),
-  isFirstInRow = false
+  isFirstInRow = false,
+  settings
 }: ClusterNodeProps) => {
   
   const uniqueMembers = members.filter(m => !globalProcessed.has(m.id));
   uniqueMembers.forEach(m => globalProcessed.add(m.id));
 
   const partnerUnits = useMemo(() => {
-    const units: { parents: any[], children: any[] }[] = [];
+    const units: { parents: any[], children: any[], isTerminated: boolean }[] = [];
     const processedInThisCluster = new Set<string>();
 
     uniqueMembers.forEach(m => {
@@ -51,11 +53,12 @@ const ClusterNode = ({
 
       const spouseRel = relationships.find(r => 
         (r.person_id === m.id || r.related_person_id === m.id) &&
-        ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
+        ['spouse', 'wife', 'husband', 'ex-spouse', 'ex-wife', 'ex-husband'].includes(r.relationship_type.toLowerCase())
       );
       
       const spouseId = spouseRel ? (spouseRel.person_id === m.id ? spouseRel.related_person_id : spouseRel.person_id) : null;
       const spouse = spouseId ? uniqueMembers.find(p => p.id === spouseId) : null;
+      const isTerminated = spouseRel?.relationship_type.toLowerCase().includes('ex-') || false;
 
       const unitParents = spouse ? [m, spouse] : [m];
       unitParents.forEach(p => processedInThisCluster.add(p.id));
@@ -71,7 +74,8 @@ const ClusterNode = ({
 
       units.push({ 
         parents: unitParents, 
-        children: Array.from(childIds).map(id => people.find(p => p.id === id)).filter(Boolean) 
+        children: Array.from(childIds).map(id => people.find(p => p.id === id)).filter(Boolean),
+        isTerminated
       });
     });
     return units;
@@ -83,7 +87,6 @@ const ClusterNode = ({
 
   return (
     <div className="flex flex-col items-center relative">
-      {/* Generational Label - Anchored to the first node of each row */}
       {isFirstInRow && (
         <div className="absolute -left-48 top-1/2 -translate-y-1/2 hidden lg:flex flex-col items-center gap-2 opacity-30">
           <div className="h-px w-12 bg-stone-400" />
@@ -93,7 +96,6 @@ const ClusterNode = ({
         </div>
       )}
 
-      {/* The Generation Row */}
       <div className={cn(
         "flex items-center gap-16 p-10 rounded-[5rem] bg-white/40 backdrop-blur-sm border-2 border-stone-50 shadow-sm relative z-10 transition-all duration-700",
         isClusterHighlighted ? "border-amber-400 bg-amber-50/30 shadow-amber-100" : "",
@@ -106,7 +108,6 @@ const ClusterNode = ({
               return (
                 <React.Fragment key={person.id}>
                   <div className="relative flex flex-col items-center">
-                    {/* Vertical line UP to parents */}
                     {relationships.some(r => 
                       (r.person_id === person.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) || 
                       (r.related_person_id === person.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
@@ -126,15 +127,21 @@ const ClusterNode = ({
                       debugMode={debugMode}
                       level={level}
                       onSelect={onSelect}
+                      settings={settings}
                     />
                   </div>
                   {!isLast && (
                     <div className="flex flex-col items-center gap-1 px-2 relative">
-                      <div className={cn("h-px w-8 transition-colors", lineageIds.has(person.id) && lineageIds.has(unit.parents[pIdx+1].id) ? "bg-amber-400 h-0.5" : "bg-stone-200")} />
-                      <Heart className="w-4 h-4 text-red-400 fill-current" />
-                      <div className={cn("h-px w-8 transition-colors", lineageIds.has(person.id) && lineageIds.has(unit.parents[pIdx+1].id) ? "bg-amber-400 h-0.5" : "bg-stone-200")} />
+                      <div className={cn(
+                        "h-px w-8 transition-colors", 
+                        unit.isTerminated ? "border-t-2 border-dashed border-stone-200" : (lineageIds.has(person.id) && lineageIds.has(unit.parents[pIdx+1].id) ? "bg-amber-400 h-0.5" : "bg-stone-200")
+                      )} />
+                      <Heart className={cn("w-4 h-4 fill-current", unit.isTerminated ? "text-stone-200" : "text-red-400")} />
+                      <div className={cn(
+                        "h-px w-8 transition-colors", 
+                        unit.isTerminated ? "border-t-2 border-dashed border-stone-200" : (lineageIds.has(person.id) && lineageIds.has(unit.parents[pIdx+1].id) ? "bg-amber-400 h-0.5" : "bg-stone-200")
+                      )} />
                       
-                      {/* Marriage Trunk - The line that drops down to children */}
                       {unit.children.length > 0 && (
                         <div className={cn(
                           "absolute top-10 w-px h-32 transition-colors duration-500",
@@ -143,7 +150,6 @@ const ClusterNode = ({
                       )}
                     </div>
                   )}
-                  {/* Single Parent Trunk */}
                   {isLast && unit.parents.length === 1 && unit.children.length > 0 && (
                     <div className={cn(
                       "absolute top-24 w-px h-24 transition-colors duration-500",
@@ -153,7 +159,6 @@ const ClusterNode = ({
                 </React.Fragment>
               );
             })}
-            {/* Sibling link between units */}
             {uIdx < partnerUnits.length - 1 && (
               <div className="flex flex-col items-center gap-1 px-4">
                 <div className="h-px w-16 bg-stone-100" />
@@ -165,7 +170,6 @@ const ClusterNode = ({
         ))}
       </div>
 
-      {/* The Children Branches */}
       <div className="flex gap-24 mt-32 relative">
         {partnerUnits.map((unit, uIdx) => {
           if (unit.children.length === 0) return null;
@@ -188,7 +192,6 @@ const ClusterNode = ({
 
           return (
             <div key={uIdx} className="flex flex-col items-center relative">
-              {/* Horizontal connector for multiple child branches */}
               {childClusters.length > 1 && (
                 <div className={cn(
                   "absolute top-0 h-px bg-stone-200 transition-colors",
@@ -216,6 +219,7 @@ const ClusterNode = ({
                     onSelect={onSelect}
                     getPeerCluster={getPeerCluster}
                     globalProcessed={globalProcessed} 
+                    settings={settings}
                   />
                 ))}
               </div>
