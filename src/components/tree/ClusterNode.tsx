@@ -19,7 +19,7 @@ interface ClusterNodeProps {
   debugMode?: boolean;
   onSelect: (id: string) => void;
   getPeerCluster: (id: string, level: number, processed: Set<string>) => any[];
-  parentProcessed?: Set<string>;
+  globalProcessed?: Set<string>; // Track everyone rendered so far
 }
 
 const ClusterNode = ({ 
@@ -35,35 +35,43 @@ const ClusterNode = ({
   debugMode,
   onSelect, 
   getPeerCluster,
-  parentProcessed = new Set() 
+  globalProcessed = new Set() 
 }: ClusterNodeProps) => {
   
-  // Track which members of this cluster have already been assigned to a unit
-  const processedInCluster = new Set<string>();
+  // Filter out members who have already been rendered elsewhere in the tree
+  const uniqueMembers = members.filter(m => !globalProcessed.has(m.id));
+  
+  // Mark these members as processed immediately
+  uniqueMembers.forEach(m => globalProcessed.add(m.id));
 
   const parentUnits = useMemo(() => {
     const units: { parents: any[], children: any[] }[] = [];
+    const processedInThisCluster = new Set<string>();
 
-    members.forEach(m => {
-      if (processedInCluster.has(m.id)) return;
+    uniqueMembers.forEach(m => {
+      if (processedInThisCluster.has(m.id)) return;
 
+      // Find spouse within the same cluster
       const spouseRel = relationships.find(r => 
         (r.person_id === m.id || r.related_person_id === m.id) &&
         ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
       );
       
       const spouseId = spouseRel ? (spouseRel.person_id === m.id ? spouseRel.related_person_id : spouseRel.person_id) : null;
-      const spouse = spouseId ? members.find(p => p.id === spouseId) : null;
+      const spouse = spouseId ? uniqueMembers.find(p => p.id === spouseId) : null;
 
       const unitParents = spouse ? [m, spouse] : [m];
-      unitParents.forEach(p => processedInCluster.add(p.id));
+      unitParents.forEach(p => processedInThisCluster.add(p.id));
 
+      // Find all children of these parents
       const childIds = new Set<string>();
       unitParents.forEach(p => {
         relationships.forEach(r => {
           const type = r.relationship_type.toLowerCase();
-          if (['son', 'daughter', 'child'].includes(type) && r.person_id === p.id) childIds.add(r.related_person_id);
-          if (['mother', 'father', 'parent'].includes(type) && r.related_person_id === p.id) childIds.add(r.person_id);
+          // p is parent of someone
+          if (['mother', 'father', 'parent'].includes(type) && r.person_id === p.id) childIds.add(r.related_person_id);
+          // someone is child of p
+          if (['son', 'daughter', 'child'].includes(type) && r.related_person_id === p.id) childIds.add(r.person_id);
         });
       });
 
@@ -75,12 +83,11 @@ const ClusterNode = ({
       }
     });
     return units;
-  }, [members, relationships, people]);
+  }, [uniqueMembers, relationships, people]);
 
-  const isClusterHighlighted = members.some(m => lineageIds.has(m.id));
+  if (uniqueMembers.length === 0) return null;
 
-  // Track children processed across ALL units in this cluster to prevent duplicates
-  const clusterChildrenProcessed = new Set<string>(parentProcessed);
+  const isClusterHighlighted = uniqueMembers.some(m => lineageIds.has(m.id));
 
   return (
     <div className="flex flex-col items-center">
@@ -91,19 +98,23 @@ const ClusterNode = ({
       )}>
         {debugMode && (
           <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-stone-800 text-amber-400 text-[8px] font-mono px-2 py-0.5 rounded-full flex items-center gap-1">
-            <Bug className="w-2 h-2" /> CLUSTER: {members.length} members
+            <Bug className="w-2 h-2" /> CLUSTER: {uniqueMembers.length} members
           </div>
         )}
 
-        {members.map((person, idx) => {
-          const next = members[idx + 1];
+        {uniqueMembers.map((person, idx) => {
+          const next = uniqueMembers[idx + 1];
           const rel = next ? relationships.find(r => (r.person_id === person.id && r.related_person_id === next.id) || (r.person_id === next.id && r.related_person_id === person.id)) : null;
           const linkType = rel?.relationship_type.toLowerCase();
 
           return (
             <React.Fragment key={person.id}>
               <div className="relative flex flex-col items-center">
-                {relationships.some(r => (r.person_id === person.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) || (r.related_person_id === person.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))) && (
+                {/* Vertical line to parents */}
+                {relationships.some(r => 
+                  (r.related_person_id === person.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) || 
+                  (r.person_id === person.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
+                ) && (
                   <div className={cn(
                     "absolute -top-10 w-px h-10 transition-colors duration-500",
                     lineageIds.has(person.id) ? "bg-amber-400 w-0.5" : "bg-stone-200"
@@ -153,8 +164,9 @@ const ClusterNode = ({
             const childClusters: any[][] = [];
             
             unit.children.forEach(c => {
-              if (!clusterChildrenProcessed.has(c.id)) {
-                const cluster = getPeerCluster(c.id, level + 1, clusterChildrenProcessed);
+              // Only process children who haven't been rendered yet
+              if (!globalProcessed.has(c.id)) {
+                const cluster = getPeerCluster(c.id, level + 1, new Set()); // Temporary set for peer finding
                 if (cluster.length > 0) {
                   childClusters.push(cluster);
                 }
@@ -198,7 +210,7 @@ const ClusterNode = ({
                       debugMode={debugMode}
                       onSelect={onSelect}
                       getPeerCluster={getPeerCluster}
-                      parentProcessed={clusterChildrenProcessed} 
+                      globalProcessed={globalProcessed} 
                     />
                   ))}
                 </div>
