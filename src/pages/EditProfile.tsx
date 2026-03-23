@@ -8,16 +8,28 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { ArrowLeft, Save, Loader2, UserCircle, ChevronsUpDown, Check, Briefcase, Heart, User } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, UserCircle, ChevronsUpDown, Check, Briefcase, Heart, User, MapPin } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 const COMMON_PLACES = [
-  "London, UK", "New York, USA", "Dublin, Ireland", "Sicily, Italy", 
-  "Paris, France", "Berlin, Germany", "Rome, Italy", "Madrid, Spain", 
-  "Sydney, Australia", "Toronto, Canada", "Brooklyn, NY", "Chicago, IL",
-  "Melbourne, Australia"
+  "Melbourne, Australia",
+  "Sydney, Australia",
+  "Perth, Australia",
+  "Brisbane, Australia",
+  "Adelaide, Australia",
+  "London, UK", 
+  "New York, USA", 
+  "Dublin, Ireland", 
+  "Sicily, Italy", 
+  "Paris, France", 
+  "Berlin, Germany", 
+  "Rome, Italy", 
+  "Madrid, Spain", 
+  "Toronto, Canada", 
+  "Brooklyn, NY", 
+  "Chicago, IL"
 ];
 
 const EditProfile = () => {
@@ -79,7 +91,6 @@ const EditProfile = () => {
 
       if (error) throw error;
 
-      // Update the corresponding 'person' record as well
       const fullName = [formData.firstName, formData.middleName, formData.lastName].filter(Boolean).join(' ');
       await supabase.from('people').upsert({
         user_id: user.id,
@@ -124,7 +135,6 @@ const EditProfile = () => {
           </div>
 
           <div className="grid grid-cols-1 gap-10">
-            {/* Names Section */}
             <div className="space-y-6">
               <h3 className="text-xl font-serif font-bold text-stone-800 flex items-center gap-2 border-b border-stone-100 pb-2">
                 <User className="w-5 h-5 text-amber-600" /> Names
@@ -175,7 +185,6 @@ const EditProfile = () => {
               </div>
             </div>
 
-            {/* Life Section */}
             <div className="space-y-6">
               <h3 className="text-xl font-serif font-bold text-stone-800 flex items-center gap-2 border-b border-stone-100 pb-2">
                 <Briefcase className="w-5 h-5 text-amber-600" /> Life & Work
@@ -223,7 +232,15 @@ const EditProfile = () => {
                         className="h-12 text-lg"
                       />
                       <CommandList>
-                        <CommandEmpty>No common place found. Keep typing...</CommandEmpty>
+                        <CommandEmpty>
+                          <button 
+                            className="w-full text-left px-4 py-3 text-amber-600 hover:bg-amber-50 rounded-xl flex items-center gap-2"
+                            onClick={() => setPlacePopoverOpen(false)}
+                          >
+                            <MapPin className="w-4 h-4" />
+                            Use "{formData.birthPlace}"
+                          </button>
+                        </CommandEmpty>
                         <CommandGroup heading="Suggestions">
                           {COMMON_PLACES.map((place) => (
                             <CommandItem
@@ -252,7 +269,6 @@ const EditProfile = () => {
               </div>
             </div>
 
-            {/* Bio Section */}
             <div className="space-y-6">
               <h3 className="text-xl font-serif font-bold text-stone-800 flex items-center gap-2 border-b border-stone-100 pb-2">
                 <Heart className="w-5 h-5 text-amber-600" /> Your Story
