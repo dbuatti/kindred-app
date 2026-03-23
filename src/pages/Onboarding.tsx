@@ -109,7 +109,7 @@ const Onboarding = () => {
         name: fullName,
         birth_year: formData.birthDate ? formData.birthDate.split('-')[0] : '',
         birth_place: formData.birthPlace,
-        vibe_sentence: formData.bio || "A member of the family archive.",
+        vibe_sentence: formData.bio || "", // Removed autopopulated sentence
         personality_tags: ["✨ Family Member"],
         created_by_email: user.email,
       };
@@ -132,7 +132,7 @@ const Onboarding = () => {
           .from('people')
           .insert({
             name: rel.name,
-            vibe_sentence: `A beloved ${rel.type} in our family.`,
+            vibe_sentence: "", // Removed autopopulated sentence
             personality_tags: [rel.type],
             created_by_email: user.email
           })

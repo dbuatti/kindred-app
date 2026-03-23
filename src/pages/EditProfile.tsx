@@ -107,8 +107,8 @@ const EditProfile = () => {
         .upsert({
           id: user.id,
           first_name: formData.firstName,
-          middle_name: formData.middleName,
           last_name: formData.lastName,
+          middle_name: formData.middleName,
           nickname: formData.nickname,
           maiden_name: formData.maidenName,
           occupation: formData.occupation,
@@ -128,7 +128,7 @@ const EditProfile = () => {
         birth_year: formData.birthDate ? formData.birthDate.split('-')[0] : '',
         birth_place: formData.birthPlace,
         occupation: formData.occupation,
-        vibe_sentence: formData.bio || "A member of the family archive.",
+        vibe_sentence: formData.bio || "", // Removed autopopulated sentence
         personality_tags: ["✨ Family Member"],
         created_by_email: user.email,
       }, { onConflict: 'user_id' });

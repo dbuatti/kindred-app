@@ -27,8 +27,8 @@ const AddPersonDialog = () => {
     await addPerson({
       name,
       relationshipType: relationship,
-      vibeSentence: `A beloved ${relationship.toLowerCase()} in our family.`,
-      personality_tags: [relationship],
+      vibeSentence: "", 
+      personalityTags: [relationship], // Fixed: changed from personality_tags to personalityTags
       photoUrl: "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&q=80&w=400"
     });
 
