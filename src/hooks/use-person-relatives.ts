@@ -18,11 +18,14 @@ export const usePersonRelatives = (person: Person | null, people: Person[], rela
         
         if (!relative) return null;
         
+        // If the current person is the 'person_id', the relative is the 'related_person_id'.
+        // The relationship type (e.g. 'father') describes the 'person_id'.
+        // So if I am the 'person_id' and the type is 'father', the relative is my 'son/daughter'.
         const type = isPrimary 
-          ? r.relationship_type 
-          : getInverseRelationship(r.relationship_type, person.gender);
+          ? getInverseRelationship(r.relationship_type, person.gender)
+          : r.relationship_type;
           
-        const key = `${relative.id}-${type}`;
+        const key = `${relative.id}-${type.toLowerCase()}`;
         if (seen.has(key)) return null;
         seen.add(key);
         
