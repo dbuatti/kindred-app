@@ -40,111 +40,111 @@ const Index = () => {
     }
   };
 
-  if (loading) return <div className="p-20 text-center text-3xl font-serif">Loading the archive...</div>;
+  if (loading) return <div className="p-20 text-center text-2xl font-serif">Loading the archive...</div>;
 
   return (
-    <div className="min-h-screen bg-[#FDFCF9] text-stone-900 pb-48">
-      <header className="bg-white border-b-8 border-stone-100 px-8 py-12">
-        <div className="max-w-4xl mx-auto space-y-10">
+    <div className="min-h-screen bg-[#FDFCF9] text-stone-900 pb-32">
+      <header className="bg-white border-b-4 border-stone-100 px-6 py-8">
+        <div className="max-w-4xl mx-auto space-y-8">
           <div className="flex items-center justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-4">
-                <h1 className="text-6xl font-serif font-bold text-stone-800">Kindred</h1>
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <h1 className="text-4xl font-serif font-bold text-stone-800">Kindred</h1>
                 <FamilyInbox />
               </div>
-              <p className="text-stone-500 text-2xl italic">Our Family Storybook</p>
+              <p className="text-stone-500 text-lg italic">Our Family Storybook</p>
             </div>
-            <div className="flex gap-8">
+            <div className="flex gap-4">
               <button 
                 onClick={() => navigate('/tree')}
-                className="flex flex-col items-center gap-2 text-stone-500 hover:text-amber-600 transition-colors"
+                className="flex flex-col items-center gap-1 text-stone-500 hover:text-amber-600 transition-colors"
               >
-                <div className="h-20 w-20 rounded-full bg-stone-100 flex items-center justify-center">
-                  <Network className="w-10 h-10" />
+                <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center">
+                  <Network className="w-6 h-6" />
                 </div>
-                <span className="text-sm font-bold uppercase tracking-widest">Tree</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">Tree</span>
               </button>
               <button 
                 onClick={() => navigate('/help')}
-                className="flex flex-col items-center gap-2 text-stone-500 hover:text-amber-600 transition-colors"
+                className="flex flex-col items-center gap-1 text-stone-500 hover:text-amber-600 transition-colors"
               >
-                <div className="h-20 w-20 rounded-full bg-stone-100 flex items-center justify-center">
-                  <HelpCircle className="w-10 h-10" />
+                <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center">
+                  <HelpCircle className="w-6 h-6" />
                 </div>
-                <span className="text-sm font-bold uppercase tracking-widest">Help</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">Help</span>
               </button>
               <button 
                 onClick={handleInvite}
-                className="flex flex-col items-center gap-2 text-stone-500 hover:text-amber-600 transition-colors"
+                className="flex flex-col items-center gap-1 text-stone-500 hover:text-amber-600 transition-colors"
               >
-                <div className="h-20 w-20 rounded-full bg-stone-100 flex items-center justify-center">
-                  <Share2 className="w-10 h-10" />
+                <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center">
+                  <Share2 className="w-6 h-6" />
                 </div>
-                <span className="text-sm font-bold uppercase tracking-widest">Invite</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">Invite</span>
               </button>
               <button 
                 onClick={() => navigate('/profile')}
-                className="flex flex-col items-center gap-2 text-stone-500 hover:text-amber-600 transition-colors"
+                className="flex flex-col items-center gap-1 text-stone-500 hover:text-amber-600 transition-colors"
               >
-                <div className="h-20 w-20 rounded-full bg-stone-100 flex items-center justify-center">
-                  <UserCircle className="w-10 h-10" />
+                <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center">
+                  <UserCircle className="w-6 h-6" />
                 </div>
-                <span className="text-sm font-bold uppercase tracking-widest">Profile</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">Profile</span>
               </button>
             </div>
           </div>
 
           <div className="relative">
-            <Search className="absolute left-8 top-1/2 -translate-y-1/2 w-10 h-10 text-stone-400" />
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-stone-400" />
             <Input 
               ref={searchInputRef}
               placeholder="Search names or stories..."
-              className="pl-20 h-24 bg-stone-100 border-8 border-transparent focus:border-amber-500 rounded-[2.5rem] text-3xl placeholder:text-stone-400"
+              className="pl-14 h-16 bg-stone-100 border-4 border-transparent focus:border-amber-500 rounded-2xl text-xl placeholder:text-stone-400"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery('')} 
-                className="absolute right-8 top-1/2 -translate-y-1/2 p-3 bg-stone-200 rounded-full"
+                className="absolute right-6 top-1/2 -translate-y-1/2 p-2 bg-stone-200 rounded-full"
               >
-                <X className="w-8 h-8" />
+                <X className="w-5 h-5" />
               </button>
             )}
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-8 py-16 space-y-16">
+      <main className="max-w-4xl mx-auto px-6 py-12 space-y-12">
         {!searchQuery && (
-          <div className="space-y-16">
+          <div className="space-y-12">
             <MemoryHighlight />
             <StoryStarter />
           </div>
         )}
 
         <Tabs defaultValue="people" className="w-full" onValueChange={setActiveTab}>
-          <TabsList className="bg-stone-100 p-3 rounded-[2.5rem] h-24 w-full mb-16">
+          <TabsList className="bg-stone-100 p-2 rounded-2xl h-16 w-full mb-12">
             <TabsTrigger 
               value="people" 
-              className="flex-1 rounded-[2rem] text-2xl data-[state=active]:bg-white data-[state=active]:shadow-lg gap-4"
+              className="flex-1 rounded-xl text-lg data-[state=active]:bg-white data-[state=active]:shadow-md gap-3"
             >
-              <Users className="w-8 h-8" />
+              <Users className="w-6 h-6" />
               Family Tree
             </TabsTrigger>
             <TabsTrigger 
               value="journal" 
-              className="flex-1 rounded-[2rem] text-2xl data-[state=active]:bg-white data-[state=active]:shadow-lg gap-4"
+              className="flex-1 rounded-xl text-lg data-[state=active]:bg-white data-[state=active]:shadow-md gap-3"
             >
-              <ScrollText className="w-8 h-8" />
+              <ScrollText className="w-6 h-6" />
               Recent Stories
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="people" className="space-y-12">
+          <TabsContent value="people" className="space-y-8">
             {filteredPeople.length === 0 ? (
-              <div className="text-center py-20 space-y-4">
-                <p className="text-stone-400 font-serif italic text-2xl">No matches found in the archive...</p>
+              <div className="text-center py-16 space-y-3">
+                <p className="text-stone-400 font-serif italic text-xl">No matches found in the archive...</p>
               </div>
             ) : (
               filteredPeople.map((person) => (
@@ -164,7 +164,7 @@ const Index = () => {
         </Tabs>
       </main>
 
-      <div className="fixed bottom-8 left-0 right-0 flex justify-center gap-8 px-8 z-30">
+      <div className="fixed bottom-6 left-0 right-0 flex justify-center gap-6 px-6 z-30">
         <AddPersonDialog />
         <AddMemoryDialog personName="the family" />
       </div>
