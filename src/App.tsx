@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import PersonDetail from "./pages/PersonDetail";
 import JoinFamily from "./pages/JoinFamily";
 import Login from "./pages/Login";
+import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/join" element={<JoinFamily />} />
+            <Route path="/auth/confirm" element={<AuthCallback />} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/person/:id" element={<ProtectedRoute><PersonDetail /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
