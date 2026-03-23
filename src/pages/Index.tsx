@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MOCK_PEOPLE } from '../data/mock';
 import PersonCard from '../components/PersonCard';
 import AddMemoryDialog from '../components/AddMemoryDialog';
@@ -7,6 +8,7 @@ import { Search, Heart, Plus } from 'lucide-react';
 import { MadeWithDyad } from '@/components/made-with-dyad';
 
 const Index = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [people, setPeople] = useState(MOCK_PEOPLE);
 
@@ -47,7 +49,10 @@ const Index = () => {
         <div className="grid gap-10">
           {filteredPeople.map((person) => (
             <div key={person.id} className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <PersonCard person={person} />
+              <PersonCard 
+                person={person} 
+                onClick={() => navigate(`/person/${person.id}`)}
+              />
             </div>
           ))}
           
@@ -73,7 +78,6 @@ const Index = () => {
         personName="the family" 
         onAdd={(content, type) => {
           console.log('New memory:', { content, type });
-          // In a real app, this would trigger a Supabase action
         }} 
       />
 
