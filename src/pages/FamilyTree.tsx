@@ -12,9 +12,7 @@ const FamilyTree = () => {
   const navigate = useNavigate();
   const { people, loading } = useFamily();
 
-  // Simple logic to determine "generations" or levels
-  // In a real app, this would use the relationships table to build a graph
-  // For now, we'll group by birth year as a proxy for generations
+  // Improved logic to determine generations
   const generations = useMemo(() => {
     if (!people.length) return [];
     
@@ -25,19 +23,51 @@ const FamilyTree = () => {
     });
 
     const groups: Record<string, typeof people> = {};
+    
     sorted.forEach(p => {
       const year = parseInt(p.birthYear || '0');
-      let gen = "Ancestors";
-      if (year > 1990) gen = "Current Generation";
-      else if (year > 1960) gen = "Parents & Uncles";
-      else if (year > 1930) gen = "Grandparents";
-      else if (year > 1900) gen = "Great Grandparents";
+      const rel = (p.relationshipType || p.personalityTags?.[0] || "").toLowerCase();
+      
+      let gen = "Legacy & Ancestors";
+
+      // 1. Try to group by specific relationship if year is missing or as a priority
+      if (rel.includes('father') || rel.includes('mother') || rel.includes('aunt') || rel.includes('uncle')) {
+        gen = "Parents' Generation";
+      } else if (rel.includes('grand')) {
+        gen = "Grandparents' Generation";
+      } else if (rel.includes('son') || rel.includes('daughter') || rel.includes('child')) {
+        gen = "Current Generation";
+      } 
+      // 2. Fallback to year-based grouping if the above didn't match or to refine
+      else if (year > 0) {
+        if (year > 1990) gen = "Current Generation";
+        else if (year > 1960) gen = "Parents' Generation";
+        else if (year > 1930) gen = "Grandparents' Generation";
+        else if (year > 1900) gen = "Great Grandparents";
+        else gen = "Ancestors";
+      }
+      // 3. Final catch-all for people with no data
+      else if (gen === "Legacy & Ancestors") {
+        gen = "To be Discovered";
+      }
       
       if (!groups[gen]) groups[gen] = [];
       groups[gen].push(p);
     });
 
-    return Object.entries(groups);
+    // Define the order we want generations to appear (top to bottom)
+    const order = [
+      "Ancestors", 
+      "Great Grandparents", 
+      "Grandparents' Generation", 
+      "Parents' Generation", 
+      "Current Generation",
+      "To be Discovered"
+    ];
+
+    return Object.entries(groups).sort((a, b) => {
+      return order.indexOf(a[0]) - order.indexOf(b[0]);
+    });
   }, [people]);
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the branches...</div>;
@@ -115,7 +145,7 @@ const FamilyTree = () => {
                         {person.name.split(' ')[0]}
                       </h3>
                       <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
-                        {person.birthYear}
+                        {person.birthYear || (person.relationshipType || person.personalityTags?.[0])}
                       </p>
                     </div>
                   </div>
