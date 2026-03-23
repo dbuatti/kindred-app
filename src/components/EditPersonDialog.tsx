@@ -64,8 +64,10 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
     maidenName: person.maidenName || '',
     gender: person.gender || '',
     birthYear: person.birthYear || '',
+    birthDate: person.birthDate || '',
     birthPlace: person.birthPlace || '',
     deathYear: person.deathYear || '',
+    deathDate: person.deathDate || '',
     deathPlace: person.deathPlace || '',
     isLiving: person.isLiving !== false,
     occupation: person.occupation || '',
@@ -84,8 +86,10 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
         maidenName: person.maidenName || '',
         gender: person.gender || '',
         birthYear: person.birthYear || '',
+        birthDate: person.birthDate || '',
         birthPlace: person.birthPlace || '',
         deathYear: person.deathYear || '',
+        deathDate: person.deathDate || '',
         deathPlace: person.deathPlace || '',
         isLiving: person.isLiving !== false,
         occupation: person.occupation || '',
@@ -123,8 +127,21 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
       .map(tag => tag.trim())
       .filter(tag => tag !== '');
 
+    // Extract year from birthDate if birthYear is empty
+    let birthYear = formData.birthYear;
+    if (!birthYear && formData.birthDate) {
+      birthYear = formData.birthDate.split('-')[0];
+    }
+
+    let deathYear = formData.deathYear;
+    if (!deathYear && formData.deathDate) {
+      deathYear = formData.deathDate.split('-')[0];
+    }
+
     await updatePerson(person.id, {
       ...formData,
+      birthYear,
+      deathYear,
       personalityTags: tagsArray
     });
     
@@ -241,13 +258,13 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
                 <Sparkles className="w-3 h-3" /> Life Events
               </h3>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Birth Year</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Date of Birth</label>
                   <Input 
-                    value={formData.birthYear}
-                    onChange={(e) => setFormData({...formData, birthYear: e.target.value})}
-                    placeholder="e.g. 1945"
+                    type="date"
+                    value={formData.birthDate}
+                    onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
                     className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
                   />
                 </div>
@@ -263,13 +280,13 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
               </div>
 
               {!formData.isLiving && (
-                <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Death Year</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Date of Death</label>
                     <Input 
-                      value={formData.deathYear}
-                      onChange={(e) => setFormData({...formData, deathYear: e.target.value})}
-                      placeholder="e.g. 2010"
+                      type="date"
+                      value={formData.deathDate}
+                      onChange={(e) => setFormData({...formData, deathDate: e.target.value})}
                       className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
                     />
                   </div>

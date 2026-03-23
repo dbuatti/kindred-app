@@ -3,7 +3,7 @@ import { Person } from '../types';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Quote, MessageSquare, History, MapPin, Calendar, Share2 } from 'lucide-react';
-import { cn, formatDisplayName } from '@/lib/utils';
+import { cn, formatDisplayName, formatFamilyDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
 
@@ -39,6 +39,8 @@ const PersonCard = ({ person, onClick, searchQuery }: PersonCardProps) => {
     }
   };
 
+  const birthDisplay = person.birthDate ? formatFamilyDate(person.birthDate) : (person.birthYear || 'Unknown');
+
   return (
     <Card 
       onClick={onClick}
@@ -69,7 +71,7 @@ const PersonCard = ({ person, onClick, searchQuery }: PersonCardProps) => {
                 </h3>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-stone-400 font-medium uppercase tracking-widest">
                   <span className="flex items-center gap-1">
-                    <Calendar className="w-2.5 h-2.5" /> {person.birthYear || 'Unknown'}
+                    <Calendar className="w-2.5 h-2.5" /> {birthDisplay}
                   </span>
                   {person.birthPlace && (
                     <span className="flex items-center gap-1">

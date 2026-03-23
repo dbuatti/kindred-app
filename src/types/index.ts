@@ -50,8 +50,10 @@ export interface Person {
   name: string;
   maidenName?: string;
   birthYear?: string;
+  birthDate?: string;
   birthPlace?: string;
   deathYear?: string;
+  deathDate?: string;
   deathPlace?: string;
   occupation?: string;
   vibeSentence: string;

@@ -6,7 +6,7 @@ import { Camera, Calendar, MapPin, Briefcase, Quote, Edit3 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Person } from '@/types';
-import { cn, formatDisplayName } from '@/lib/utils';
+import { cn, formatDisplayName, formatFamilyDate } from '@/lib/utils';
 import SuggestionDialog from '../SuggestionDialog';
 import ConnectionSuggestionDialog from '../ConnectionSuggestionDialog';
 
@@ -29,6 +29,8 @@ const PersonHero = ({
   onProfileDragOver,
   onProfileDragLeave
 }: PersonHeroProps) => {
+  const birthDisplay = person.birthDate ? formatFamilyDate(person.birthDate) : (person.birthYear || 'Unknown');
+
   return (
     <section className="flex flex-col md:flex-row gap-12 items-start">
       <motion.div 
@@ -74,12 +76,10 @@ const PersonHero = ({
           </div>
           
           <div className="flex flex-wrap gap-6 text-stone-500">
-            {person.birthYear && (
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-amber-600" />
-                <span className="text-lg font-medium">Born {person.birthYear}</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-amber-600" />
+              <span className="text-lg font-medium">Born {birthDisplay}</span>
+            </div>
             {person.birthPlace && (
               <div className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-amber-600" />

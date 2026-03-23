@@ -91,7 +91,11 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         familyId: p.family_id,
         name: p.name,
         birthYear: p.birth_year,
+        birthDate: p.birth_date,
         birthPlace: p.birth_place,
+        deathYear: p.death_year,
+        deathDate: p.death_date,
+        deathPlace: p.death_place,
         occupation: p.occupation,
         vibeSentence: p.vibe_sentence,
         personalityTags: p.personality_tags || [],
@@ -150,6 +154,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .insert([{
           name: newPerson.name,
           birth_year: newPerson.birthYear,
+          birth_date: newPerson.birthDate,
           birth_place: newPerson.birthPlace,
           vibe_sentence: newPerson.vibeSentence,
           personality_tags: newPerson.personalityTags,
@@ -184,11 +189,18 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .update({
           name: updates.name,
           birth_year: updates.birthYear,
+          birth_date: updates.birthDate,
           birth_place: updates.birthPlace,
+          death_year: updates.deathYear,
+          death_date: updates.deathDate,
+          death_place: updates.deathPlace,
           occupation: updates.occupation,
           vibe_sentence: updates.vibeSentence,
           personality_tags: updates.personalityTags,
           photo_url: updates.photoUrl,
+          is_living: updates.isLiving,
+          gender: updates.gender,
+          maiden_name: updates.maidenName
         })
         .eq('id', id);
 
