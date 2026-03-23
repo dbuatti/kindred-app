@@ -1,7 +1,7 @@
 import React from 'react';
 import { useFamily } from '../context/FamilyContext';
 import { formatDistanceToNow } from 'date-fns';
-import { Mic, MessageSquare, Heart, ArrowRight, Camera } from 'lucide-react';
+import { Mic, MessageSquare, Heart, ArrowRight, Camera, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -49,6 +49,7 @@ const FamilyJournal = () => {
         {allMemories.map((memory, idx) => {
           const memoryReactions = reactions[memory.id] || [];
           const isWarmed = memoryReactions.includes(user?.id);
+          const isGeneral = !memory.personId || memory.personId === 'general';
           
           return (
             <motion.div 
@@ -75,13 +76,19 @@ const FamilyJournal = () => {
                       {formatDistanceToNow(new Date(memory.createdAt), { addSuffix: true })}
                     </span>
                     <span className="text-stone-200">/</span>
-                    <button 
-                      onClick={() => navigate(getPersonUrl(memory.personId, memory.personName))}
-                      className="text-xs font-medium text-stone-400 hover:text-stone-800 transition-colors flex items-center gap-1 group/link"
-                    >
-                      About {memory.personName} 
-                      <ArrowRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover/link:opacity-100 group-hover/link:translate-x-0 transition-all" />
-                    </button>
+                    {isGeneral ? (
+                      <div className="flex items-center gap-1 text-xs font-medium text-stone-400">
+                        <Users className="w-3 h-3" /> Family Lore
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => navigate(getPersonUrl(memory.personId, memory.personName))}
+                        className="text-xs font-medium text-stone-400 hover:text-stone-800 transition-colors flex items-center gap-1 group/link"
+                      >
+                        About {memory.personName} 
+                        <ArrowRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover/link:opacity-100 group-hover/link:translate-x-0 transition-all" />
+                      </button>
+                    )}
                   </div>
                 </div>
 

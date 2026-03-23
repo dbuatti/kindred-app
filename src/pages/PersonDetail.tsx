@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { 
   ArrowLeft, 
   Quote, 
@@ -24,7 +25,9 @@ import {
   Briefcase,
   Sparkles,
   Plus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Search,
+  X
 } from 'lucide-react';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import SuggestionDialog from '../components/SuggestionDialog';
@@ -33,6 +36,7 @@ import FamilyConnections from '../components/FamilyConnections';
 import EditPersonDialog from '../components/EditPersonDialog';
 import ProfileCompletionCard from '../components/ProfileCompletionCard';
 import ScrollToTop from '../components/ScrollToTop';
+import BottomNav from '../components/BottomNav';
 import { PersonDetailSkeleton } from '../components/SkeletonLoader';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -47,6 +51,8 @@ const PersonDetail = () => {
   const navigate = useNavigate();
   const { people, user, relationships, updatePerson, loading } = useFamily();
   
+  const [memorySearch, setMemorySearch] = useState('');
+
   const shortId = useMemo(() => {
     return parsePersonIdFromSlug(slug);
   }, [slug]);
@@ -92,6 +98,15 @@ const PersonDetail = () => {
       })
       .filter(Boolean);
   }, [person, relationships, people]);
+
+  const filteredMemories = useMemo(() => {
+    if (!person) return [];
+    if (!memorySearch) return person.memories;
+    return person.memories.filter(m => 
+      m.content.toLowerCase().includes(memorySearch.toLowerCase()) ||
+      (m.authorName && m.authorName.toLowerCase().includes(memorySearch.toLowerCase()))
+    );
+  }, [person, memorySearch]);
 
   const photos = useMemo(() => {
     if (!person) return [];
@@ -403,39 +418,61 @@ const PersonDetail = () => {
 
         {/* Memories Section */}
         <section className="space-y-12">
-          <div className="flex items-center justify-between border-b-4 border-stone-100 pb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b-4 border-stone-100 pb-6">
             <h2 className="text-3xl font-serif font-bold text-stone-800 flex items-center gap-3">
               <MessageSquare className="w-8 h-8 text-stone-300" />
               The Archive
             </h2>
-            <Button 
-              onClick={() => setIsAddMemoryOpen(true)}
-              className="rounded-full bg-stone-800 hover:bg-stone-900 text-white gap-2 px-6"
-            >
-              <Plus className="w-4 h-4" /> Add Story
-            </Button>
+            <div className="flex items-center gap-4">
+              <div className="relative group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 group-focus-within:text-amber-600 transition-colors" />
+                <Input 
+                  placeholder="Search memories..." 
+                  value={memorySearch}
+                  onChange={(e) => setMemorySearch(e.target.value)}
+                  className="pl-10 h-10 bg-stone-100 border-none rounded-full text-sm w-48 md:w-64 focus-visible:ring-amber-500/20"
+                />
+                {memorySearch && (
+                  <button onClick={() => setMemorySearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              <Button 
+                onClick={() => setIsAddMemoryOpen(true)}
+                className="rounded-full bg-stone-800 hover:bg-stone-900 text-white gap-2 px-6"
+              >
+                <Plus className="w-4 h-4" /> Add Story
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-12 relative before:absolute before:left-[23px] before:top-4 before:bottom-4 before:w-1 before:bg-stone-100">
-            {person.memories.length === 0 ? (
+            {filteredMemories.length === 0 ? (
               <div className="text-center py-20 space-y-6 bg-white rounded-[3rem] border border-stone-100 shadow-sm">
                 <div className="h-20 w-20 bg-stone-50 rounded-full flex items-center justify-center mx-auto">
                   <MessageSquare className="w-8 h-8 text-stone-200" />
                 </div>
                 <div className="space-y-2">
-                  <p className="text-stone-400 font-serif italic text-xl">No stories shared yet...</p>
-                  <p className="text-stone-300 text-sm">Be the first to add a memory of {person.name.split(' ')[0]}.</p>
+                  <p className="text-stone-400 font-serif italic text-xl">
+                    {memorySearch ? "No matching memories found..." : "No stories shared yet..."}
+                  </p>
+                  <p className="text-stone-300 text-sm">
+                    {memorySearch ? "Try a different keyword." : `Be the first to add a memory of ${person.name.split(' ')[0]}.`}
+                  </p>
                 </div>
-                <Button 
-                  onClick={() => setIsAddMemoryOpen(true)}
-                  variant="outline"
-                  className="rounded-full border-stone-200 text-stone-500"
-                >
-                  Tell a Story
-                </Button>
+                {!memorySearch && (
+                  <Button 
+                    onClick={() => setIsAddMemoryOpen(true)}
+                    variant="outline"
+                    className="rounded-full border-stone-200 text-stone-500"
+                  >
+                    Tell a Story
+                  </Button>
+                )}
               </div>
             ) : (
-              person.memories.map((memory, idx) => (
+              filteredMemories.map((memory, idx) => (
                 <div key={memory.id} className="relative pl-16 group animate-in fade-in slide-in-from-left-4 duration-700" style={{ animationDelay: `${idx * 100}ms` }}>
                   <div className="absolute left-0 top-2 w-12 h-12 rounded-full bg-white border-4 border-stone-50 flex items-center justify-center z-10 shadow-sm group-hover:border-amber-100 transition-colors">
                     {memory.type === 'voice' ? <Mic className="w-5 h-5 text-amber-600" /> : memory.type === 'photo' ? <Camera className="w-5 h-5 text-stone-400" /> : <MessageSquare className="w-5 h-5 text-stone-400" />}
@@ -488,6 +525,7 @@ const PersonDetail = () => {
         initialImage={droppedImage}
       />
       <ScrollToTop />
+      <BottomNav />
     </div>
   );
 };
