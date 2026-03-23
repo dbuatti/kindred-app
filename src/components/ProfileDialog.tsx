@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { User, Settings, LogOut } from 'lucide-react';
+import { User, Settings, LogOut, ShieldCheck } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext.tsx';
 import { supabase } from '../integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+const ADMIN_EMAIL = "daniele.buatti@gmail.com";
+
 const ProfileDialog = () => {
+  const navigate = useNavigate();
   const { user, profiles } = useFamily();
   const [isOpen, setIsOpen] = useState(false);
   const [firstName, setFirstName] = useState('');
@@ -15,6 +19,7 @@ const ProfileDialog = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const profile = user ? profiles[user.id] : null;
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   useEffect(() => {
     if (profile) {
@@ -94,6 +99,19 @@ const ProfileDialog = () => {
           </div>
 
           <div className="flex flex-col gap-3 pt-4">
+            {isAdmin && (
+              <Button 
+                variant="outline"
+                className="w-full h-14 rounded-2xl border-amber-200 text-amber-700 hover:bg-amber-50 gap-2"
+                onClick={() => {
+                  setIsOpen(false);
+                  navigate('/admin');
+                }}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                Admin Dashboard
+              </Button>
+            )}
             <Button 
               className="w-full h-14 rounded-2xl bg-stone-800 hover:bg-stone-900 text-white text-lg"
               onClick={handleSave}
