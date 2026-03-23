@@ -18,8 +18,8 @@ const FamilyTree = () => {
     return people.find(p => p.userId === user?.id) || people[0];
   }, [people, user]);
 
-  // Helper to get parents of a person
-  const getParents = (personId: string) => {
+  // 1. Helper to get direct parents
+  const getDirectParents = (personId: string) => {
     const parentIds = relationships
       .filter(r => r.person_id === personId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
       .map(r => r.related_person_id)
@@ -31,29 +31,53 @@ const FamilyTree = () => {
     return Array.from(new Set(parentIds)).sort();
   };
 
-  // Helper to get siblings
-  const getSiblings = (personId: string) => {
+  // 2. Helper to get siblings
+  const getDirectSiblings = (personId: string) => {
     return relationships
       .filter(r => (r.person_id === personId || r.related_person_id === personId) && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
       .map(r => r.person_id === personId ? r.related_person_id : r.person_id);
   };
 
-  // 1. Calculate Generations (Levels)
+  // 3. Advanced Parent Inference (e.g., if Stefano is Daniele's brother, Stefano gets Daniele's parents)
+  const getInferredParents = (personId: string) => {
+    let parents = getDirectParents(personId);
+    if (parents.length > 0) return parents;
+
+    // Try to find parents via siblings
+    const siblings = getDirectSiblings(personId);
+    for (const sibId of siblings) {
+      const sibParents = getDirectParents(sibId);
+      if (sibParents.length > 0) return sibParents;
+    }
+
+    return [];
+  };
+
+  // 4. Calculate Generations (Levels) - Ancestors = Low Numbers (Top)
   const generations = useMemo(() => {
     if (!people.length) return {};
     
     const levels: Record<string, number> = {};
     people.forEach(p => levels[p.id] = 0);
 
-    for (let i = 0; i < 30; i++) {
+    // Relaxation algorithm: parent level must be less than child level
+    for (let i = 0; i < 50; i++) {
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
+        
+        // Parent -> Child link
         if (['mother', 'father', 'parent'].includes(type)) {
+          // related_person_id is parent, person_id is child
           levels[r.person_id] = Math.max(levels[r.person_id], levels[r.related_person_id] + 1);
         }
+        
+        // Child -> Parent link
         if (['son', 'daughter', 'child'].includes(type)) {
+          // person_id is parent, related_person_id is child
           levels[r.related_person_id] = Math.max(levels[r.related_person_id], levels[r.person_id] + 1);
         }
+        
+        // Sibling/Spouse link (same level)
         if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
           const max = Math.max(levels[r.person_id], levels[r.related_person_id]);
           levels[r.person_id] = max;
@@ -62,17 +86,15 @@ const FamilyTree = () => {
       });
     }
 
-    const minLevel = Math.min(...Object.values(levels));
-    Object.keys(levels).forEach(id => levels[id] -= minLevel);
     return levels;
   }, [people, relationships]);
 
-  // 2. Group people by generation and then by sibling groups
+  // 5. Group people by generation and sibling groups
   const treeData = useMemo(() => {
     const gens: Record<number, { siblingGroups: Record<string, any[]> }> = {};
-    const renderedPersonIds = new Set<string>();
+    const renderedIds = new Set<string>();
 
-    const sortedLevels = Array.from(new Set(Object.values(generations))).sort((a, b) => b - a);
+    const sortedLevels = Array.from(new Set(Object.values(generations))).sort((a, b) => a - b);
 
     sortedLevels.forEach(level => {
       if (!gens[level]) gens[level] = { siblingGroups: {} };
@@ -80,19 +102,19 @@ const FamilyTree = () => {
       const peopleInLevel = people.filter(p => generations[p.id] === level);
 
       peopleInLevel.forEach(person => {
-        if (renderedPersonIds.has(person.id)) return;
+        if (renderedIds.has(person.id)) return;
 
-        // Determine the best grouping key
-        // If they have parents, use parents. If they have siblings, group them by the "oldest" sibling's ID.
-        const parents = getParents(person.id);
-        const siblings = getSiblings(person.id);
+        // Determine grouping key
+        const parents = getInferredParents(person.id);
+        let groupKey = parents.length > 0 ? `parents-${parents.join('-')}` : 'root';
         
-        let groupKey = 'root';
-        if (parents.length > 0) {
-          groupKey = `parents-${parents.join('-')}`;
-        } else if (siblings.length > 0) {
-          const allSibs = [person.id, ...siblings].sort();
-          groupKey = `sibs-${allSibs[0]}`;
+        // If no parents, check if they are part of a sibling group with no parents
+        if (groupKey === 'root') {
+          const sibs = getDirectSiblings(person.id);
+          if (sibs.length > 0) {
+            const allSibs = [person.id, ...sibs].sort();
+            groupKey = `sibs-${allSibs[0]}`;
+          }
         }
 
         if (!gens[level].siblingGroups[groupKey]) {
@@ -108,19 +130,19 @@ const FamilyTree = () => {
         const spouseId = spouseRel ? (spouseRel.person_id === person.id ? spouseRel.related_person_id : spouseRel.person_id) : null;
         const spouse = spouseId ? people.find(p => p.id === spouseId) : null;
 
-        if (spouse && generations[spouse.id] === level && !renderedPersonIds.has(spouse.id)) {
+        if (spouse && generations[spouse.id] === level && !renderedIds.has(spouse.id)) {
           gens[level].siblingGroups[groupKey].push([person, spouse]);
-          renderedPersonIds.add(person.id);
-          renderedPersonIds.add(spouse.id);
+          renderedIds.add(person.id);
+          renderedIds.add(spouse.id);
         } else {
           gens[level].siblingGroups[groupKey].push(person);
-          renderedPersonIds.add(person.id);
+          renderedIds.add(person.id);
         }
       });
     });
 
     return Object.entries(gens)
-      .sort(([a], [b]) => Number(b) - Number(a))
+      .sort(([a], [b]) => Number(a) - Number(b))
       .map(([level, data]) => ({ level: Number(level), ...data }));
   }, [people, generations, relationships]);
 
@@ -161,12 +183,15 @@ const FamilyTree = () => {
       <main className="max-w-7xl mx-auto px-8 py-24 space-y-32">
         {treeData.map((gen) => (
           <div key={gen.level} className="relative flex flex-wrap justify-center gap-16">
-            {Object.entries(gen.siblingGroups).map(([parentsKey, members]) => (
-              <div key={parentsKey} className="relative flex flex-col items-center">
-                {/* Parent Connection Lines */}
-                {parentsKey !== 'root' && parentsKey.startsWith('parents-') && (
+            {Object.entries(gen.siblingGroups).map(([groupKey, members]) => (
+              <div key={groupKey} className="relative flex flex-col items-center">
+                
+                {/* Sibling Connector Bar (Above the group) */}
+                {groupKey !== 'root' && (
                   <div className="absolute -top-32 left-0 right-0 flex flex-col items-center pointer-events-none">
+                    {/* Vertical line coming from parents above */}
                     <div className="h-16 w-px bg-stone-200" />
+                    {/* Horizontal bar connecting siblings */}
                     {members.length > 1 && (
                       <div className="h-px bg-stone-200 w-full" />
                     )}
@@ -181,7 +206,9 @@ const FamilyTree = () => {
 
                     return (
                       <div key={person.id} className="relative flex flex-col items-center">
-                        {parentsKey !== 'root' && parentsKey.startsWith('parents-') && (
+                        
+                        {/* Vertical line from sibling bar down to node */}
+                        {groupKey !== 'root' && (
                           <div className="absolute -top-16 h-16 w-px bg-stone-200 pointer-events-none" />
                         )}
 
