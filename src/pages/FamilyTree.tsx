@@ -51,7 +51,7 @@ const FamilyTree = () => {
         }
 
         // Same-level: Spouses and Siblings must be on the same level
-        if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
+        if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling', 'cousin'].includes(type)) {
           const max = Math.max(levels[p1], levels[p2]);
           if (levels[p1] !== max || levels[p2] !== max) {
             levels[p1] = max;
