@@ -7,12 +7,15 @@ interface FamilyContextType {
   people: Person[];
   suggestions: Suggestion[];
   profiles: Record<string, Profile>;
+  reactions: Record<string, string[]>; // memoryId -> array of userIds
   loading: boolean;
   user: any;
   addPerson: (person: Partial<Person>) => Promise<void>;
   addMemory: (personId: string, content: string, type: MemoryType) => Promise<void>;
   addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'status'>) => Promise<void>;
   resolveSuggestion: (id: string, status: 'approved' | 'rejected') => Promise<void>;
+  toggleReaction: (memoryId: string) => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 const FamilyContext = createContext<FamilyContextType | undefined>(undefined);
@@ -21,6 +24,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [people, setPeople] = useState<Person[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+  const [reactions, setReactions] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
@@ -42,7 +46,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (suggestionsError) throw suggestionsError;
 
-      // Fetch Profiles (if table exists)
+      // Fetch Profiles
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('*');
@@ -52,6 +56,18 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         profileMap[p.id] = p;
       });
       setProfiles(profileMap);
+
+      // Fetch Reactions
+      const { data: reactionsData } = await supabase
+        .from('reactions')
+        .select('*');
+
+      const reactionMap: Record<string, string[]> = {};
+      (reactionsData || []).forEach((r: any) => {
+        if (!reactionMap[r.memory_id]) reactionMap[r.memory_id] = [];
+        reactionMap[r.memory_id].push(r.user_id);
+      });
+      setReactions(reactionMap);
 
       const mappedPeople = (peopleData || []).map((p: any) => ({
         id: p.id,
@@ -64,6 +80,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         personalityTags: p.personality_tags || [],
         photoUrl: p.photo_url,
         createdByEmail: p.created_by_email,
+        userId: p.user_id,
         memories: (p.memories || []).map((m: any) => ({
           id: m.id,
           personId: m.person_id,
@@ -136,7 +153,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const { error } = await supabase
         .from('memories')
         .insert([{
-          person_id: personId,
+          person_id: personId === 'general' ? null : personId,
           content,
           type,
           created_by_email: user.email,
@@ -149,6 +166,30 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       toast.error("Failed to save story: " + error.message);
     }
   }, [fetchData, user]);
+
+  const toggleReaction = useCallback(async (memoryId: string) => {
+    if (!user) return;
+    
+    const userReactions = reactions[memoryId] || [];
+    const hasReacted = userReactions.includes(user.id);
+
+    try {
+      if (hasReacted) {
+        await supabase
+          .from('reactions')
+          .delete()
+          .eq('memory_id', memoryId)
+          .eq('user_id', user.id);
+      } else {
+        await supabase
+          .from('reactions')
+          .insert([{ memory_id: memoryId, user_id: user.id }]);
+      }
+      fetchData();
+    } catch (error: any) {
+      console.error("Reaction error:", error);
+    }
+  }, [user, reactions, fetchData]);
 
   const addSuggestion = useCallback(async (s: Omit<Suggestion, 'id' | 'status'>) => {
     if (!user) return;
@@ -202,12 +243,15 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       people, 
       suggestions, 
       profiles,
+      reactions,
       loading,
       user,
       addPerson, 
       addMemory, 
       addSuggestion, 
-      resolveSuggestion 
+      resolveSuggestion,
+      toggleReaction,
+      refreshData: fetchData
     }}>
       {children}
     </FamilyContext.Provider>

@@ -1,20 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import PersonCard from '../components/PersonCard';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import AddPersonDialog from '../components/AddPersonDialog';
-import FamilyInbox from '../components/FamilyInbox';
 import StoryStarter from '../components/StoryStarter';
 import FamilyJournal from '../components/FamilyJournal';
+import MemoryHighlight from '../components/MemoryHighlight';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Search, Share2, Users, ScrollText, X, HelpCircle, UserCircle, Network } from 'lucide-react';
+import { Search, Share2, ScrollText, X, HelpCircle, UserCircle, Network, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -23,9 +21,11 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('people');
   const searchInputRef = useRef<HTMLInputElement>(null);
   
-  const filteredPeople = people.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredPeople = people.filter(p => {
+    const nameMatch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const memoryMatch = p.memories.some(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()));
+    return nameMatch || memoryMatch;
+  });
 
   const handleInvite = async () => {
     const inviteUrl = window.location.origin + '/join?code=KINDRED2024';
@@ -94,7 +94,7 @@ const Index = () => {
             <Search className="absolute left-8 top-1/2 -translate-y-1/2 w-10 h-10 text-stone-400" />
             <Input 
               ref={searchInputRef}
-              placeholder="Search for a family member..."
+              placeholder="Search names or stories..."
               className="pl-20 h-24 bg-stone-100 border-8 border-transparent focus:border-amber-500 rounded-[2.5rem] text-3xl placeholder:text-stone-400"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -112,7 +112,12 @@ const Index = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-8 py-16 space-y-16">
-        {!searchQuery && <StoryStarter />}
+        {!searchQuery && (
+          <div className="space-y-16">
+            <MemoryHighlight />
+            <StoryStarter />
+          </div>
+        )}
 
         <Tabs defaultValue="people" className="w-full" onValueChange={setActiveTab}>
           <TabsList className="bg-stone-100 p-3 rounded-[2.5rem] h-24 w-full mb-16">
@@ -133,13 +138,20 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="people" className="space-y-12">
-            {filteredPeople.map((person) => (
-              <PersonCard 
-                key={person.id}
-                person={person} 
-                onClick={() => navigate(`/person/${person.id}`)}
-              />
-            ))}
+            {filteredPeople.length === 0 ? (
+              <div className="text-center py-20 space-y-4">
+                <p className="text-stone-400 font-serif italic text-2xl">No matches found in the archive...</p>
+              </div>
+            ) : (
+              filteredPeople.map((person) => (
+                <PersonCard 
+                  key={person.id}
+                  person={person} 
+                  onClick={() => navigate(`/person/${person.id}`)}
+                  searchQuery={searchQuery}
+                />
+              ))
+            )}
           </TabsContent>
 
           <TabsContent value="journal">
