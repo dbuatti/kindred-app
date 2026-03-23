@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import { Heart, Users2, Bug } from 'lucide-react';
+import { Heart, Users2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import PersonAvatar from './PersonAvatar';
+import PersonNode from './PersonNode';
 
 interface ClusterNodeProps {
   members: any[];
@@ -15,7 +15,6 @@ interface ClusterNodeProps {
   highlightedId: string | null;
   selectedPersonId: string | null;
   me: any;
-  debugMode?: boolean;
   onSelect: (id: string) => void;
   getPeerCluster: (id: string, level: number, processed: Set<string>) => any[];
   globalProcessed?: Set<string>;
@@ -33,7 +32,6 @@ const ClusterNode = ({
   highlightedId, 
   selectedPersonId, 
   me, 
-  debugMode,
   onSelect, 
   getPeerCluster,
   globalProcessed = new Set(),
@@ -83,94 +81,85 @@ const ClusterNode = ({
 
   if (uniqueMembers.length === 0) return null;
 
-  const isClusterHighlighted = uniqueMembers.some(m => lineageIds.has(m.id));
-
   return (
     <div className="flex flex-col items-center relative">
+      {/* Generational Label */}
       {isFirstInRow && (
-        <div className="absolute -left-48 top-1/2 -translate-y-1/2 hidden lg:flex flex-col items-center gap-2 opacity-30">
-          <div className="h-px w-12 bg-stone-400" />
-          <span className="text-[10px] font-bold text-stone-600 uppercase tracking-[0.5em] vertical-text">
-            {level === 0 ? "Elders" : level === 1 ? "Parents" : "Children"}
+        <div className="absolute -left-32 top-0 flex flex-col items-center gap-2 opacity-40">
+          <span className="text-[10px] font-mono font-bold text-stone-500 uppercase tracking-widest vertical-text">
+            GEN {level}
           </span>
+          <div className="h-32 w-px bg-stone-300" />
         </div>
       )}
 
-      <div className={cn(
-        "flex items-center gap-16 p-10 rounded-[5rem] bg-white/40 backdrop-blur-sm border-2 border-stone-50 shadow-sm relative z-10 transition-all duration-700",
-        isClusterHighlighted ? "border-amber-400 bg-amber-50/30 shadow-amber-100" : "",
-        highlightedId && !isClusterHighlighted ? "opacity-40 grayscale-[0.5]" : ""
-      )}>
+      {/* Parent Row */}
+      <div className="flex items-center gap-20 p-8 border-2 border-stone-200 bg-stone-50/50 relative z-10">
         {partnerUnits.map((unit, uIdx) => (
-          <div key={uIdx} className="flex items-center gap-6 relative">
+          <div key={uIdx} className="flex items-center gap-8 relative">
             {unit.parents.map((person, pIdx) => {
               const isLast = pIdx === unit.parents.length - 1;
               return (
                 <React.Fragment key={person.id}>
                   <div className="relative flex flex-col items-center">
+                    {/* Vertical line UP to ancestors */}
                     {relationships.some(r => 
                       (r.person_id === person.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) || 
                       (r.related_person_id === person.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
                     ) && (
                       <div className={cn(
-                        "absolute -top-32 w-px h-32 transition-colors duration-500",
-                        lineageIds.has(person.id) ? "bg-amber-400 w-0.5" : "bg-stone-200"
+                        "absolute -top-24 w-0.5 h-24",
+                        lineageIds.has(person.id) ? "bg-amber-500" : "bg-stone-300"
                       )} />
                     )}
-                    <PersonAvatar 
+                    
+                    <PersonNode 
                       person={person} 
                       me={me}
                       relationships={relationships}
                       isHighlighted={person.id === highlightedId} 
                       isInLineage={lineageIds.has(person.id)}
                       isSelected={person.id === selectedPersonId}
-                      debugMode={debugMode}
-                      level={level}
                       onSelect={onSelect}
                       settings={settings}
                     />
                   </div>
+
+                  {/* Spouse Connection */}
                   {!isLast && (
                     <div className="flex flex-col items-center gap-1 px-2 relative">
                       <div className={cn(
-                        "h-px w-8 transition-colors", 
-                        unit.isTerminated ? "border-t-2 border-dashed border-stone-200" : (lineageIds.has(person.id) && lineageIds.has(unit.parents[pIdx+1].id) ? "bg-amber-400 h-0.5" : "bg-stone-200")
+                        "h-0.5 w-12", 
+                        unit.isTerminated ? "border-t-2 border-dashed border-stone-400" : (lineageIds.has(person.id) && lineageIds.has(unit.parents[pIdx+1].id) ? "bg-amber-500" : "bg-stone-800")
                       )} />
-                      <Heart className={cn("w-4 h-4 fill-current", unit.isTerminated ? "text-stone-200" : "text-red-400")} />
-                      <div className={cn(
-                        "h-px w-8 transition-colors", 
-                        unit.isTerminated ? "border-t-2 border-dashed border-stone-200" : (lineageIds.has(person.id) && lineageIds.has(unit.parents[pIdx+1].id) ? "bg-amber-400 h-0.5" : "bg-stone-200")
-                      )} />
+                      <Heart className={cn("w-4 h-4", unit.isTerminated ? "text-stone-300" : "text-stone-800 fill-current")} />
                       
+                      {/* Vertical line DOWN to children */}
                       {unit.children.length > 0 && (
                         <div className={cn(
-                          "absolute top-10 w-px h-32 transition-colors duration-500",
-                          lineageIds.has(person.id) ? "bg-amber-400 w-0.5" : "bg-stone-200"
+                          "absolute top-10 w-0.5 h-32",
+                          lineageIds.has(person.id) ? "bg-amber-500" : "bg-stone-800"
                         )} />
                       )}
                     </div>
                   )}
+
+                  {/* Single Parent vertical line DOWN */}
                   {isLast && unit.parents.length === 1 && unit.children.length > 0 && (
                     <div className={cn(
-                      "absolute top-24 w-px h-24 transition-colors duration-500",
-                      lineageIds.has(person.id) ? "bg-amber-400 w-0.5" : "bg-stone-200"
+                      "absolute top-24 w-0.5 h-24",
+                      lineageIds.has(person.id) ? "bg-amber-500" : "bg-stone-800"
                     )} />
                   )}
                 </React.Fragment>
               );
             })}
-            {uIdx < partnerUnits.length - 1 && (
-              <div className="flex flex-col items-center gap-1 px-4">
-                <div className="h-px w-16 bg-stone-100" />
-                <Users2 className="w-4 h-4 text-stone-200" />
-                <div className="h-px w-16 bg-stone-100" />
-              </div>
-            )}
           </div>
         ))}
       </div>
 
-      <div className="flex gap-24 mt-32 relative">
+      {/* Children Row */}
+      <div className="flex gap-32 mt-32 relative">
         {partnerUnits.map((unit, uIdx) => {
           if (unit.children.length === 0) return null;
 
@@ -180,9 +169,7 @@ const ClusterNode = ({
           unit.children.forEach(c => {
             if (!globalProcessed.has(c.id) && !localProcessed.has(c.id)) {
               const cluster = getPeerCluster(c.id, level + 1, localProcessed);
-              if (cluster.length > 0) {
-                childClusters.push(cluster);
-              }
+              if (cluster.length > 0) childClusters.push(cluster);
             }
           });
 
@@ -192,17 +179,18 @@ const ClusterNode = ({
 
           return (
             <div key={uIdx} className="flex flex-col items-center relative">
+              {/* Horizontal connector for multiple children */}
               {childClusters.length > 1 && (
                 <div className={cn(
-                  "absolute top-0 h-px bg-stone-200 transition-colors",
-                  isUnitInLineage ? "bg-amber-400 h-0.5" : "bg-stone-200"
+                  "absolute top-0 h-0.5",
+                  isUnitInLineage ? "bg-amber-500" : "bg-stone-800"
                 )} style={{ 
-                  width: 'calc(100% - 100px)',
-                  left: '50px'
+                  width: 'calc(100% - 224px)', // Width of one PersonNode
+                  left: '112px'
                 }} />
               )}
 
-              <div className="flex gap-16">
+              <div className="flex gap-20">
                 {childClusters.map((cc, ccIdx) => (
                   <ClusterNode 
                     key={ccIdx} 
@@ -215,7 +203,6 @@ const ClusterNode = ({
                     highlightedId={highlightedId}
                     selectedPersonId={selectedPersonId}
                     me={me}
-                    debugMode={debugMode}
                     onSelect={onSelect}
                     getPeerCluster={getPeerCluster}
                     globalProcessed={globalProcessed} 
