@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Share2, Heart, UserCircle, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Share2, Heart, UserCircle } from 'lucide-react';
 import { getPersonUrl } from '@/lib/slugify';
 import { getInverseRelationship } from '@/lib/relationships';
 import { cn } from '@/lib/utils';
@@ -31,6 +31,13 @@ const FamilyTree = () => {
     return Array.from(new Set(parentIds)).sort();
   };
 
+  // Helper to get siblings
+  const getSiblings = (personId: string) => {
+    return relationships
+      .filter(r => (r.person_id === personId || r.related_person_id === personId) && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
+      .map(r => r.person_id === personId ? r.related_person_id : r.person_id);
+  };
+
   // 1. Calculate Generations (Levels)
   const generations = useMemo(() => {
     if (!people.length) return {};
@@ -38,19 +45,15 @@ const FamilyTree = () => {
     const levels: Record<string, number> = {};
     people.forEach(p => levels[p.id] = 0);
 
-    // Relaxation algorithm to settle levels
     for (let i = 0; i < 30; i++) {
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
-        
         if (['mother', 'father', 'parent'].includes(type)) {
           levels[r.person_id] = Math.max(levels[r.person_id], levels[r.related_person_id] + 1);
         }
-        
         if (['son', 'daughter', 'child'].includes(type)) {
           levels[r.related_person_id] = Math.max(levels[r.related_person_id], levels[r.person_id] + 1);
         }
-        
         if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
           const max = Math.max(levels[r.person_id], levels[r.related_person_id]);
           levels[r.person_id] = max;
@@ -61,16 +64,15 @@ const FamilyTree = () => {
 
     const minLevel = Math.min(...Object.values(levels));
     Object.keys(levels).forEach(id => levels[id] -= minLevel);
-
     return levels;
   }, [people, relationships]);
 
   // 2. Group people by generation and then by sibling groups
   const treeData = useMemo(() => {
     const gens: Record<number, { siblingGroups: Record<string, any[]> }> = {};
+    const renderedPersonIds = new Set<string>();
 
-    // Sort levels
-    const sortedLevels = Array.from(new Set(Object.values(generations))).sort((a, b) => a - b);
+    const sortedLevels = Array.from(new Set(Object.values(generations))).sort((a, b) => b - a);
 
     sortedLevels.forEach(level => {
       if (!gens[level]) gens[level] = { siblingGroups: {} };
@@ -78,19 +80,26 @@ const FamilyTree = () => {
       const peopleInLevel = people.filter(p => generations[p.id] === level);
 
       peopleInLevel.forEach(person => {
-        const parentsKey = getParents(person.id).join(',') || 'root';
-        if (!gens[level].siblingGroups[parentsKey]) {
-          gens[level].siblingGroups[parentsKey] = [];
-        }
-        
-        // Check if this person is already part of a couple in this group
-        const alreadyProcessed = gens[level].siblingGroups[parentsKey].some(item => 
-          Array.isArray(item) ? item.some(p => p.id === person.id) : item.id === person.id
-        );
-        
-        if (alreadyProcessed) return;
+        if (renderedPersonIds.has(person.id)) return;
 
-        // Find spouse in the same generation
+        // Determine the best grouping key
+        // If they have parents, use parents. If they have siblings, group them by the "oldest" sibling's ID.
+        const parents = getParents(person.id);
+        const siblings = getSiblings(person.id);
+        
+        let groupKey = 'root';
+        if (parents.length > 0) {
+          groupKey = `parents-${parents.join('-')}`;
+        } else if (siblings.length > 0) {
+          const allSibs = [person.id, ...siblings].sort();
+          groupKey = `sibs-${allSibs[0]}`;
+        }
+
+        if (!gens[level].siblingGroups[groupKey]) {
+          gens[level].siblingGroups[groupKey] = [];
+        }
+
+        // Find spouse
         const spouseRel = relationships.find(r => 
           (r.person_id === person.id || r.related_person_id === person.id) && 
           ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
@@ -99,16 +108,19 @@ const FamilyTree = () => {
         const spouseId = spouseRel ? (spouseRel.person_id === person.id ? spouseRel.related_person_id : spouseRel.person_id) : null;
         const spouse = spouseId ? people.find(p => p.id === spouseId) : null;
 
-        if (spouse && generations[spouse.id] === level) {
-          gens[level].siblingGroups[parentsKey].push([person, spouse]);
+        if (spouse && generations[spouse.id] === level && !renderedPersonIds.has(spouse.id)) {
+          gens[level].siblingGroups[groupKey].push([person, spouse]);
+          renderedPersonIds.add(person.id);
+          renderedPersonIds.add(spouse.id);
         } else {
-          gens[level].siblingGroups[parentsKey].push(person);
+          gens[level].siblingGroups[groupKey].push(person);
+          renderedPersonIds.add(person.id);
         }
       });
     });
 
     return Object.entries(gens)
-      .sort(([a], [b]) => Number(a) - Number(b))
+      .sort(([a], [b]) => Number(b) - Number(a))
       .map(([level, data]) => ({ level: Number(level), ...data }));
   }, [people, generations, relationships]);
 
@@ -147,16 +159,14 @@ const FamilyTree = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-8 py-24 space-y-32">
-        {treeData.map((gen, gIdx) => (
+        {treeData.map((gen) => (
           <div key={gen.level} className="relative flex flex-wrap justify-center gap-16">
-            {Object.entries(gen.siblingGroups).map(([parentsKey, members], groupIdx) => (
+            {Object.entries(gen.siblingGroups).map(([parentsKey, members]) => (
               <div key={parentsKey} className="relative flex flex-col items-center">
                 {/* Parent Connection Lines */}
-                {parentsKey !== 'root' && (
+                {parentsKey !== 'root' && parentsKey.startsWith('parents-') && (
                   <div className="absolute -top-32 left-0 right-0 flex flex-col items-center pointer-events-none">
-                    {/* Vertical line from parents down to the bar */}
                     <div className="h-16 w-px bg-stone-200" />
-                    {/* Horizontal bar connecting siblings */}
                     {members.length > 1 && (
                       <div className="h-px bg-stone-200 w-full" />
                     )}
@@ -164,15 +174,14 @@ const FamilyTree = () => {
                 )}
 
                 <div className="flex gap-12">
-                  {members.map((item, iIdx) => {
+                  {members.map((item) => {
                     const isCouple = Array.isArray(item);
                     const person = isCouple ? item[0] : item;
                     const spouse = isCouple ? item[1] : null;
 
                     return (
                       <div key={person.id} className="relative flex flex-col items-center">
-                        {/* Vertical line from sibling bar down to the person/couple */}
-                        {parentsKey !== 'root' && (
+                        {parentsKey !== 'root' && parentsKey.startsWith('parents-') && (
                           <div className="absolute -top-16 h-16 w-px bg-stone-200 pointer-events-none" />
                         )}
 
@@ -180,7 +189,6 @@ const FamilyTree = () => {
                           "flex gap-4 p-6 rounded-[3rem] bg-white shadow-sm border-2 transition-all relative group hover:shadow-md",
                           isCouple ? "border-amber-100 bg-amber-50/10" : "border-stone-100 hover:border-amber-200"
                         )}>
-                          {/* Person Node */}
                           <div 
                             onClick={() => navigate(getPersonUrl(person.id, person.name))}
                             className="relative flex flex-col items-center space-y-3 cursor-pointer"
@@ -201,7 +209,6 @@ const FamilyTree = () => {
                             </div>
                           </div>
 
-                          {/* Spouse Node */}
                           {spouse && (
                             <>
                               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
