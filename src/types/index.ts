@@ -5,15 +5,24 @@ export type PersonalityTag = {
 
 export type MemoryType = 'text' | 'voice' | 'photo';
 
+export interface Profile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  avatar_url?: string;
+}
+
 export interface Memory {
   id: string;
   personId: string;
   content: string;
   type: MemoryType;
   createdByEmail: string;
+  createdById?: string;
   createdAt: string;
   voiceUrl?: string;
   imageUrl?: string;
+  authorName?: string; // Derived from profile
 }
 
 export interface Suggestion {
@@ -29,18 +38,18 @@ export interface Person {
   id: string;
   familyId: string;
   name: string;
-  birthYear?: string; // Fuzzy: "Around 1930s"
+  birthYear?: string;
   birthPlace?: string;
   occupation?: string;
-  vibeSentence: string; // The "heart" of the profile
-  personalityTags: string[]; // Array of emoji labels
+  vibeSentence: string;
+  personalityTags: string[];
   photoUrl?: string;
   createdByEmail: string;
   memories: Memory[];
 }
 
-export interface Family {
+export interface StoryPrompt {
   id: string;
-  name: string;
-  inviteCode: string;
+  question: string;
+  category: 'childhood' | 'wisdom' | 'humor' | 'tradition';
 }

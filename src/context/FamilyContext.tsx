@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Person, Memory, Suggestion, MemoryType } from '../types';
+import { Person, Memory, Suggestion, MemoryType, Profile } from '../types';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface FamilyContextType {
   people: Person[];
   suggestions: Suggestion[];
+  profiles: Record<string, Profile>;
   loading: boolean;
   user: any;
   addPerson: (person: Partial<Person>) => Promise<void>;
@@ -19,24 +20,38 @@ const FamilyContext = createContext<FamilyContextType | undefined>(undefined);
 export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [people, setPeople] = useState<Person[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      // Fetch People & Memories
       const { data: peopleData, error: peopleError } = await supabase
         .from('people')
         .select('*, memories(*)');
       
       if (peopleError) throw peopleError;
 
+      // Fetch Suggestions
       const { data: suggestionsData, error: suggestionsError } = await supabase
         .from('suggestions')
         .select('*')
         .eq('status', 'pending');
 
       if (suggestionsError) throw suggestionsError;
+
+      // Fetch Profiles (if table exists)
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('*');
+
+      const profileMap: Record<string, Profile> = {};
+      (profilesData || []).forEach((p: any) => {
+        profileMap[p.id] = p;
+      });
+      setProfiles(profileMap);
 
       const mappedPeople = (peopleData || []).map((p: any) => ({
         id: p.id,
@@ -57,21 +72,20 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           createdByEmail: m.created_by_email,
           createdAt: m.created_at,
           voiceUrl: m.voice_url,
-          imageUrl: m.image_url
+          imageUrl: m.image_url,
+          authorName: profileMap[m.user_id]?.first_name || m.created_by_email.split('@')[0]
         }))
       }));
 
-      const mappedSuggestions = (suggestionsData || []).map((s: any) => ({
+      setPeople(mappedPeople);
+      setSuggestions((suggestionsData || []).map((s: any) => ({
         id: s.id,
         personId: s.person_id,
         fieldName: s.field_name,
         suggestedValue: s.suggested_value,
         suggestedByEmail: s.suggested_by_email,
         status: s.status
-      }));
-
-      setPeople(mappedPeople);
-      setSuggestions(mappedSuggestions);
+      })));
     } catch (error: any) {
       console.error("Error fetching data:", error.message);
     } finally {
@@ -106,7 +120,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           personality_tags: newPerson.personalityTags,
           photo_url: newPerson.photoUrl,
           created_by_email: user.email,
-          family_id: null
+          user_id: user.id
         }]);
 
       if (error) throw error;
@@ -125,7 +139,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           person_id: personId,
           content,
           type,
-          created_by_email: user.email
+          created_by_email: user.email,
+          user_id: user.id
         }]);
 
       if (error) throw error;
@@ -144,7 +159,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           person_id: s.personId,
           field_name: s.fieldName,
           suggested_value: s.suggestedValue,
-          suggested_by_email: user.email
+          suggested_by_email: user.email,
+          user_id: user.id
         }]);
 
       if (error) throw error;
@@ -185,6 +201,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     <FamilyContext.Provider value={{ 
       people, 
       suggestions, 
+      profiles,
       loading,
       user,
       addPerson, 
