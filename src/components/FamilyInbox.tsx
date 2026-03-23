@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Button } from './ui/button';
-import { Sparkles, Check, X, UserPlus, Edit3 } from 'lucide-react';
+import { Sparkles, Check, X } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext.tsx';
 import { cn } from '@/lib/utils';
 
@@ -33,17 +33,10 @@ const FamilyInbox = () => {
         <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
           {pending.map(s => {
             const person = people.find(p => p.id === s.personId);
-            const isNewRel = s.fieldName === 'new_relationship';
-            
             return (
               <div key={s.id} className="bg-white p-6 rounded-3xl border border-stone-100 space-y-4 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {isNewRel ? <UserPlus className="w-3 h-3 text-amber-600" /> : <Edit3 className="w-3 h-3 text-stone-400" />}
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">
-                      {isNewRel ? `New Relative for ${person?.name}` : `Edit for ${person?.name}`}
-                    </span>
-                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Edit for {person?.name}</span>
                   <span className="text-[10px] text-stone-300 italic">from {s.suggestedByEmail.split('@')[0]}</span>
                 </div>
                 <p className="text-stone-700 font-serif italic text-lg leading-relaxed">
