@@ -10,7 +10,7 @@ import { getPersonUrl } from '@/lib/slugify';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
-  const { people, loading } = useFamily();
+  const { people, loading, user } = useFamily();
 
   // Improved logic to determine generations
   const generations = useMemo(() => {
@@ -26,27 +26,28 @@ const FamilyTree = () => {
     
     sorted.forEach(p => {
       const year = parseInt(p.birthYear || '0');
-      const rel = (p.relationshipType || p.personalityTags?.[0] || "").toLowerCase();
+      const rel = (p.relationshipType || p.personalityTags?.join(' ') || "").toLowerCase();
+      const isMe = p.userId === user?.id;
       
       let gen = "Legacy & Ancestors";
 
-      // 1. Try to group by specific relationship if year is missing or as a priority
-      if (rel.includes('father') || rel.includes('mother') || rel.includes('aunt') || rel.includes('uncle')) {
-        gen = "Parents' Generation";
-      } else if (rel.includes('grand')) {
+      // 1. Priority: Specific relationship keywords
+      if (rel.includes('grand')) {
         gen = "Grandparents' Generation";
-      } else if (rel.includes('son') || rel.includes('daughter') || rel.includes('child')) {
+      } else if (rel.includes('father') || rel.includes('mother') || rel.includes('aunt') || rel.includes('uncle')) {
+        gen = "Parents' Generation";
+      } else if (rel.includes('son') || rel.includes('daughter') || rel.includes('child') || rel.includes('family member') || isMe) {
         gen = "Current Generation";
       } 
-      // 2. Fallback to year-based grouping if the above didn't match or to refine
+      // 2. Fallback: Year-based grouping
       else if (year > 0) {
-        if (year > 1990) gen = "Current Generation";
-        else if (year > 1960) gen = "Parents' Generation";
-        else if (year > 1930) gen = "Grandparents' Generation";
-        else if (year > 1900) gen = "Great Grandparents";
+        if (year >= 1980) gen = "Current Generation";
+        else if (year >= 1950) gen = "Parents' Generation";
+        else if (year >= 1920) gen = "Grandparents' Generation";
+        else if (year >= 1890) gen = "Great Grandparents";
         else gen = "Ancestors";
       }
-      // 3. Final catch-all for people with no data
+      // 3. Final catch-all
       else if (gen === "Legacy & Ancestors") {
         gen = "To be Discovered";
       }
@@ -68,7 +69,7 @@ const FamilyTree = () => {
     return Object.entries(groups).sort((a, b) => {
       return order.indexOf(a[0]) - order.indexOf(b[0]);
     });
-  }, [people]);
+  }, [people, user]);
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the branches...</div>;
 
