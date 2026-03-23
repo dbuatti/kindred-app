@@ -127,6 +127,58 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       });
     });
 
+    // 3. Spouse Inference: Share a child but not marked as spouses
+    const myChildren = relationships
+      .filter(r => r.person_id === personId && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
+      .map(r => r.related_person_id)
+      .concat(
+        relationships
+          .filter(r => r.related_person_id === personId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
+          .map(r => r.person_id)
+      );
+
+    if (myChildren.length > 0) {
+      const potentialSpouses = people.filter(p => {
+        if (p.id === personId) return false;
+        
+        const theirChildren = relationships
+          .filter(r => r.person_id === p.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
+          .map(r => r.related_person_id)
+          .concat(
+            relationships
+              .filter(r => r.related_person_id === p.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
+              .map(r => r.person_id)
+          );
+        
+        const sharesChild = theirChildren.some(tc => myChildren.includes(tc));
+        const alreadySpouses = relationships.some(r => 
+          (r.person_id === personId && r.related_person_id === p.id || r.person_id === p.id && r.related_person_id === personId) &&
+          ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
+        );
+
+        return sharesChild && !alreadySpouses;
+      });
+
+      potentialSpouses.forEach(spouse => {
+        items.push({
+          id: `spouse-${spouse.id}`,
+          text: `Are ${person.name.split(' ')[0]} and ${spouse.name.split(' ')[0]} spouses?`,
+          action: async () => {
+            if (isAdmin) {
+              await addRelationship(personId, spouse.id, 'spouse');
+            } else {
+              await addSuggestion({
+                personId: personId,
+                fieldName: 'link_existing',
+                suggestedValue: `LINK_EXISTING: ${spouse.id} as spouse to ${personId}`,
+                suggestedByEmail: user?.email || 'family@kindred.com'
+              });
+            }
+          }
+        });
+      });
+    }
+
     return items;
   }, [person, personId, people, relationships, isAdmin, user]);
 
