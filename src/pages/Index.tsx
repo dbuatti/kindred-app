@@ -11,7 +11,7 @@ import FamilyJournal from '../components/FamilyJournal';
 import MemoryHighlight from '../components/MemoryHighlight';
 import FamilyInbox from '../components/FamilyInbox';
 import { Input } from '@/components/ui/input';
-import { Search, Share2, ScrollText, X, HelpCircle, UserCircle, Network, Users } from 'lucide-react';
+import { Search, Share2, ScrollText, X, HelpCircle, UserCircle, Network, Users, Sparkles } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
@@ -56,6 +56,15 @@ const Index = () => {
             </div>
             <div className="flex gap-8">
               <button 
+                onClick={() => navigate('/complete')}
+                className="flex flex-col items-center gap-2 text-stone-500 hover:text-amber-600 transition-colors"
+              >
+                <div className="h-20 w-20 rounded-full bg-stone-100 flex items-center justify-center">
+                  <Sparkles className="w-10 h-10" />
+                </div>
+                <span className="text-sm font-bold uppercase tracking-widest">Complete</span>
+              </button>
+              <button 
                 onClick={() => navigate('/tree')}
                 className="flex flex-col items-center gap-2 text-stone-500 hover:text-amber-600 transition-colors"
               >
@@ -72,15 +81,6 @@ const Index = () => {
                   <HelpCircle className="w-10 h-10" />
                 </div>
                 <span className="text-sm font-bold uppercase tracking-widest">Help</span>
-              </button>
-              <button 
-                onClick={handleInvite}
-                className="flex flex-col items-center gap-2 text-stone-500 hover:text-amber-600 transition-colors"
-              >
-                <div className="h-20 w-20 rounded-full bg-stone-100 flex items-center justify-center">
-                  <Share2 className="w-10 h-10" />
-                </div>
-                <span className="text-sm font-bold uppercase tracking-widest">Invite</span>
               </button>
               <button 
                 onClick={() => navigate('/profile')}
