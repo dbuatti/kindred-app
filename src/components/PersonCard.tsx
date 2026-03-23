@@ -86,12 +86,14 @@ const PersonCard = ({ person, onClick, searchQuery }: PersonCardProps) => {
               </button>
             </div>
 
-            <div className="relative">
-              <Quote className="absolute -left-1.5 -top-1.5 w-6 h-6 text-amber-600/5" />
-              <p className="text-stone-600 italic font-serif leading-relaxed line-clamp-2 pl-3 border-l-2 border-amber-100 text-sm">
-                {highlightText(person.vibeSentence, searchQuery || '')}
-              </p>
-            </div>
+            {person.vibeSentence && person.vibeSentence.trim() !== "" && (
+              <div className="relative">
+                <Quote className="absolute -left-1.5 -top-1.5 w-6 h-6 text-amber-600/5" />
+                <p className="text-stone-600 italic font-serif leading-relaxed line-clamp-2 pl-3 border-l-2 border-amber-100 text-sm">
+                  {highlightText(person.vibeSentence, searchQuery || '')}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between pt-4 border-t border-stone-50">

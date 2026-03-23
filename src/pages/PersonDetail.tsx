@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
@@ -280,19 +282,21 @@ const PersonDetail = () => {
           </div>
         )}
 
-        <div className="bg-stone-100/50 rounded-2xl p-6 relative">
-          <Quote className="absolute top-3 left-3 w-6 h-6 text-amber-600/10" />
-          <p className="text-lg font-serif italic text-stone-700 leading-relaxed text-center">
-            "{person.vibeSentence}"
-          </p>
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            {person.personalityTags?.map(tag => (
-              <Badge key={tag} variant="secondary" className="bg-white/80 text-stone-600 border-none rounded-full px-3 py-0.5 text-[10px]">
-                {tag}
-              </Badge>
-            ))}
+        {person.vibeSentence && person.vibeSentence.trim() !== "" && (
+          <div className="bg-stone-100/50 rounded-2xl p-6 relative">
+            <Quote className="absolute top-3 left-3 w-6 h-6 text-amber-600/10" />
+            <p className="text-lg font-serif italic text-stone-700 leading-relaxed text-center">
+              "{person.vibeSentence}"
+            </p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {person.personalityTags?.map(tag => (
+                <Badge key={tag} variant="secondary" className="bg-white/80 text-stone-600 border-none rounded-full px-3 py-0.5 text-[10px]">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex flex-col items-center gap-3">
           {!isOwnProfile && (
