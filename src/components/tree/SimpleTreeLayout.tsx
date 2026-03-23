@@ -5,6 +5,7 @@ import { TreeNode } from '@/lib/tree-utils';
 import { formatDisplayName } from '@/lib/utils';
 import { useFamily } from '@/context/FamilyContext';
 import { Users, Heart, UserCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const SimpleNode = ({ node }: { node: TreeNode }) => {
   const { relationships, people } = useFamily();
@@ -22,34 +23,42 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
   return (
     <div className="flex flex-col items-center">
       <div className="relative flex flex-col items-center">
-        {/* Incoming line from parent - points to the center of the main person box */}
+        {/* Incoming line from parent */}
         {node.level > 0 && (
-          <div className="absolute -top-12 left-1/2 w-0.5 h-12 bg-stone-200 -translate-x-[80px]" />
+          <svg className="absolute -top-24 left-1/2 w-40 h-24 -translate-x-1/2 pointer-events-none overflow-visible">
+            <path 
+              d="M 80 0 L 80 40 Q 80 60 80 80" 
+              fill="none" 
+              stroke="#e7e5e4" 
+              strokeWidth="2" 
+              strokeDasharray="4 4"
+            />
+          </svg>
         )}
 
-        <div className="flex items-center gap-0">
+        <div className="flex items-center gap-4 p-6 bg-white/40 rounded-[3rem] border border-stone-100/50 backdrop-blur-sm shadow-sm">
           {/* Main Person */}
-          <div className="px-6 py-5 bg-white border-2 border-stone-100 rounded-[2rem] min-w-[180px] text-center shadow-sm relative z-10 group hover:border-amber-200 transition-all duration-500">
-            <div className="w-12 h-12 rounded-full overflow-hidden bg-stone-50 mx-auto mb-3 border-2 border-white shadow-inner">
+          <div className="px-6 py-6 bg-white border-2 border-stone-200 rounded-[2.5rem] min-w-[200px] text-center shadow-md relative z-10 group hover:border-amber-300 transition-all duration-700">
+            <div className="w-16 h-16 rounded-full overflow-hidden bg-stone-50 mx-auto mb-4 border-4 border-white shadow-inner ring-1 ring-stone-100">
               {node.person.photoUrl ? (
-                <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all" />
+                <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-1000" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-stone-200">
-                  <UserCircle className="w-6 h-6" />
+                  <UserCircle className="w-8 h-8" />
                 </div>
               )}
             </div>
-            <p className="text-lg font-serif font-bold text-stone-800 leading-tight">
+            <p className="text-xl font-serif font-bold text-stone-800 leading-tight">
               {formatDisplayName(node.person.name)}
             </p>
-            <p className="text-[10px] font-bold text-stone-400 mt-1 uppercase tracking-widest">
+            <p className="text-[10px] font-bold text-stone-400 mt-2 uppercase tracking-[0.2em]">
               {node.person.birthYear || '????'} — {node.person.isLiving ? 'Present' : (node.person.deathYear || '????')}
             </p>
             
             {siblingNames.length > 0 && (
-              <div className="mt-3 pt-2 border-t border-stone-50 flex items-center justify-center gap-1.5">
-                <Users className="w-3 h-3 text-amber-500/50" />
-                <span className="text-[9px] font-bold text-amber-600/60 uppercase tracking-tighter">
+              <div className="mt-4 pt-3 border-t border-stone-50 flex items-center justify-center gap-2">
+                <Users className="w-3 h-3 text-amber-500/40" />
+                <span className="text-[9px] font-bold text-amber-600/50 uppercase tracking-widest">
                   Sib: {siblingNames.join(', ')}
                 </span>
               </div>
@@ -59,23 +68,25 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
           {/* Spouses */}
           {node.spouses.map(spouse => (
             <React.Fragment key={spouse.id}>
-              <div className="w-10 h-0.5 bg-stone-100 relative">
-                <Heart className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 text-red-200 fill-current" />
+              <div className="w-12 h-px bg-stone-200 relative">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#FDFCF9] p-1 rounded-full">
+                  <Heart className="w-3 h-3 text-red-200 fill-current" />
+                </div>
               </div>
-              <div className="px-6 py-5 bg-stone-50/50 border-2 border-stone-100 rounded-[2rem] min-w-[180px] text-center italic shadow-sm group hover:border-amber-100 transition-all duration-500">
-                <div className="w-10 h-10 rounded-full overflow-hidden bg-white mx-auto mb-3 border-2 border-white shadow-inner">
+              <div className="px-6 py-6 bg-stone-50/80 border-2 border-stone-200 rounded-[2.5rem] min-w-[200px] text-center italic shadow-sm group hover:border-amber-200 transition-all duration-700">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-white mx-auto mb-4 border-2 border-white shadow-inner ring-1 ring-stone-100">
                   {spouse.photoUrl ? (
-                    <img src={spouse.photoUrl} className="w-full h-full object-cover grayscale-[0.5]" />
+                    <img src={spouse.photoUrl} className="w-full h-full object-cover grayscale-[0.4] group-hover:grayscale-0 transition-all duration-1000" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-100">
-                      <UserCircle className="w-5 h-5" />
+                      <UserCircle className="w-6 h-6" />
                     </div>
                   )}
                 </div>
-                <p className="text-base font-serif font-medium text-stone-600 leading-tight">
+                <p className="text-lg font-serif font-medium text-stone-600 leading-tight">
                   {formatDisplayName(spouse.name)}
                 </p>
-                <p className="text-[9px] font-bold text-stone-300 mt-1 uppercase tracking-widest">Spouse</p>
+                <p className="text-[9px] font-bold text-stone-300 mt-2 uppercase tracking-widest">Spouse</p>
               </div>
             </React.Fragment>
           ))}
@@ -83,12 +94,12 @@ const SimpleNode = ({ node }: { node: TreeNode }) => {
       </div>
 
       {node.children.length > 0 && (
-        <div className="flex flex-col items-center">
-          {/* Line down from the main person */}
-          <div className="w-0.5 h-12 bg-stone-200 -translate-x-[80px]" />
+        <div className="flex flex-col items-center mt-12">
+          {/* Vertical line down from the family group */}
+          <div className="w-0.5 h-12 bg-stone-200" />
           
-          {/* Horizontal connector line */}
-          <div className="flex gap-12 relative pt-12 border-t-2 border-stone-200 -translate-x-[80px]">
+          {/* Horizontal connector line with curved ends */}
+          <div className="flex gap-16 relative pt-12 border-t-2 border-stone-200 rounded-t-3xl">
             {node.children.map((child) => (
               <div key={child.id} className="relative">
                 {/* Vertical line up to the horizontal connector */}
@@ -112,9 +123,9 @@ export const SimpleTreeLayout = ({ roots }: { roots: TreeNode[] }) => {
   }, {} as Record<number, TreeNode[]>);
 
   return (
-    <div className="flex flex-col items-center gap-48">
+    <div className="flex flex-col items-center gap-64">
       {Object.entries(rootsByLevel).sort(([a], [b]) => Number(a) - Number(b)).map(([level, levelRoots]) => (
-        <div key={level} className="flex gap-32 items-start">
+        <div key={level} className="flex gap-48 items-start">
           {levelRoots.map(root => (
             <SimpleNode key={root.id} node={root} />
           ))}

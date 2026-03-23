@@ -17,7 +17,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   const personMap = new Map<string, Person>();
   people.forEach(p => personMap.set(p.id, p));
 
-  // 1. Build adjacency lists for different relationship types
   const parentsOf = new Map<string, string[]>();
   const childrenOf = new Map<string, string[]>();
   const spousesOf = new Map<string, string[]>();
@@ -29,7 +28,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     const p2 = r.related_person_id;
 
     if (['father', 'mother', 'parent'].includes(type)) {
-      // p2 is parent of p1
       const children = childrenOf.get(p2) || [];
       if (!children.includes(p1)) children.push(p1);
       childrenOf.set(p2, children);
@@ -38,7 +36,6 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       if (!parents.includes(p2)) parents.push(p2);
       parentsOf.set(p1, parents);
     } else if (['son', 'daughter', 'child'].includes(type)) {
-      // p2 is child of p1
       const children = childrenOf.get(p1) || [];
       if (!children.includes(p2)) children.push(p2);
       childrenOf.set(p1, children);
@@ -65,27 +62,18 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     }
   });
 
-  // 2. Calculate Levels using a multi-pass approach
+  // Multi-pass leveling to align generations
   const levels: Record<string, number> = {};
   people.forEach(p => levels[p.id] = 0);
 
-  // Pass 1: Parent -> Child (Standard hierarchy)
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 15; i++) {
     relationships.forEach(r => {
       const type = r.relationship_type.toLowerCase();
       if (['father', 'mother', 'parent'].includes(type)) {
-        // related is parent, person is child
         levels[r.person_id] = Math.max(levels[r.person_id], levels[r.related_person_id] + 1);
       } else if (['son', 'daughter', 'child'].includes(type)) {
-        // person is parent, related is child
         levels[r.related_person_id] = Math.max(levels[r.related_person_id], levels[r.person_id] + 1);
-      }
-    });
-    
-    // Pass 2: Spouses and Siblings must be on the same level
-    relationships.forEach(r => {
-      const type = r.relationship_type.toLowerCase();
-      if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
+      } else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
         const maxLvl = Math.max(levels[r.person_id], levels[r.related_person_id]);
         levels[r.person_id] = maxLvl;
         levels[r.related_person_id] = maxLvl;
@@ -102,7 +90,8 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     const person = personMap.get(personId);
     if (!person) return null;
 
-    const spouses = (spousesOf.get(personId) || [])
+    const spouseIds = spousesOf.get(personId) || [];
+    const spouses = spouseIds
       .map(id => {
         if (globalVisited.has(id)) return null;
         globalVisited.add(id);
@@ -111,7 +100,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       .filter((p): p is Person => !!p);
 
     // Children can come from this person OR their spouses
-    const allParentIds = [personId, ...(spousesOf.get(personId) || [])];
+    const allParentIds = [personId, ...spouseIds];
     const childIds = new Set<string>();
     allParentIds.forEach(pId => {
       (childrenOf.get(pId) || []).forEach(cId => childIds.add(cId));
@@ -131,18 +120,21 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     };
   };
 
-  // Find roots: People who have no parents in the system
   const roots: TreeNode[] = [];
-  const potentialRoots = people.filter(p => !parentsOf.has(p.id));
+  const potentialRoots = people
+    .filter(p => !parentsOf.has(p.id))
+    .sort((a, b) => levels[a.id] - levels[b.id]);
   
   potentialRoots.forEach((p, idx) => {
     if (globalVisited.has(p.id)) return;
     
-    // If I have no parents but my spouse does, I'll be picked up as a spouse in their branch
     const spouses = spousesOf.get(p.id) || [];
-    const spouseHasParents = spouses.some(sId => parentsOf.has(sId));
+    const siblings = siblingsOf.get(p.id) || [];
     
-    if (!spouseHasParents) {
+    // Only start a root if they aren't connected to someone already processed
+    const hasProcessedConnection = [...spouses, ...siblings].some(id => globalVisited.has(id));
+    
+    if (!hasProcessedConnection) {
       const node = constructNode(p.id, levels[p.id], roots.length);
       if (node) roots.push(node);
     }
