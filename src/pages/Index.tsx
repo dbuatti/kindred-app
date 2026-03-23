@@ -9,6 +9,7 @@ import AddPersonDialog from '../components/AddPersonDialog';
 import StoryStarter from '../components/StoryStarter';
 import FamilyJournal from '../components/FamilyJournal';
 import MemoryHighlight from '../components/MemoryHighlight';
+import FamilyInbox from '../components/FamilyInbox';
 import { Input } from '@/components/ui/input';
 import { Search, Share2, ScrollText, X, HelpCircle, UserCircle, Network, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -47,7 +48,10 @@ const Index = () => {
         <div className="max-w-4xl mx-auto space-y-10">
           <div className="flex items-center justify-between">
             <div className="space-y-2">
-              <h1 className="text-6xl font-serif font-bold text-stone-800">Kindred</h1>
+              <div className="flex items-center gap-4">
+                <h1 className="text-6xl font-serif font-bold text-stone-800">Kindred</h1>
+                <FamilyInbox />
+              </div>
               <p className="text-stone-500 text-2xl italic">Our Family Storybook</p>
             </div>
             <div className="flex gap-8">

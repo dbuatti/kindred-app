@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Quote, Mic, MessageSquare, Play, Clock, Camera, Edit3, Share2, ChevronRight } from 'lucide-react';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import SuggestionDialog from '../components/SuggestionDialog';
+import ConnectionSuggestionDialog from '../components/ConnectionSuggestionDialog';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -110,7 +111,7 @@ const PersonDetail = () => {
             "{person.vibeSentence}"
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
-            {person.personalityTags.map(tag => (
+            {person.personalityTags?.map(tag => (
               <Badge key={tag} variant="secondary" className="bg-white/80 text-stone-600 border-none rounded-full px-4 py-1">
                 {tag}
               </Badge>
@@ -118,8 +119,13 @@ const PersonDetail = () => {
           </div>
         </div>
 
-        <div className="flex justify-center">
-          {!isOwnProfile && <SuggestionDialog person={person} />}
+        <div className="flex flex-col items-center gap-4">
+          {!isOwnProfile && (
+            <div className="flex flex-wrap justify-center gap-3">
+              <SuggestionDialog person={person} />
+              <ConnectionSuggestionDialog person={person} />
+            </div>
+          )}
         </div>
       </header>
 
