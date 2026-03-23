@@ -3,7 +3,6 @@
 import React, { useMemo } from 'react';
 import { Heart, Users2, Bug } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import PersonAvatar from './PersonAvatar';
 
 interface ClusterNodeProps {
@@ -20,7 +19,6 @@ interface ClusterNodeProps {
   onSelect: (id: string) => void;
   getPeerCluster: (id: string, level: number, processed: Set<string>) => any[];
   globalProcessed?: Set<string>;
-  isRoot?: boolean;
 }
 
 const ClusterNode = ({ 
@@ -36,8 +34,7 @@ const ClusterNode = ({
   debugMode,
   onSelect, 
   getPeerCluster,
-  globalProcessed = new Set(),
-  isRoot = false
+  globalProcessed = new Set()
 }: ClusterNodeProps) => {
   
   const uniqueMembers = members.filter(m => !globalProcessed.has(m.id));
@@ -84,16 +81,6 @@ const ClusterNode = ({
 
   return (
     <div className="flex flex-col items-center relative">
-      {/* Generational Label (Only for the first cluster in a row) */}
-      {isRoot && (
-        <div className="absolute -left-40 top-1/2 -translate-y-1/2 hidden lg:flex flex-col items-center gap-2 opacity-40">
-          <div className="h-px w-12 bg-stone-300" />
-          <span className="text-[10px] font-bold text-stone-500 uppercase tracking-[0.4em] vertical-text">
-            {level === 0 ? "Elders" : level === 1 ? "Parents" : "Children"}
-          </span>
-        </div>
-      )}
-
       {/* The Generation Row */}
       <div className={cn(
         "flex items-center gap-16 p-10 rounded-[5rem] bg-white/40 backdrop-blur-sm border-2 border-stone-50 shadow-sm relative z-10 transition-all duration-700",
@@ -107,13 +94,13 @@ const ClusterNode = ({
               return (
                 <React.Fragment key={person.id}>
                   <div className="relative flex flex-col items-center">
-                    {/* Vertical line UP to parents - Spans the full gap */}
+                    {/* Vertical line UP to parents */}
                     {relationships.some(r => 
                       (r.person_id === person.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase())) || 
                       (r.related_person_id === person.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
                     ) && (
                       <div className={cn(
-                        "absolute -top-24 w-px h-24 transition-colors duration-500",
+                        "absolute -top-32 w-px h-32 transition-colors duration-500",
                         lineageIds.has(person.id) ? "bg-amber-400 w-0.5" : "bg-stone-200"
                       )} />
                     )}
@@ -152,7 +139,7 @@ const ClusterNode = ({
       </div>
 
       {/* The Children Branches */}
-      <div className="flex gap-24 mt-24 relative">
+      <div className="flex gap-24 mt-32 relative">
         {partnerUnits.map((unit, uIdx) => {
           if (unit.children.length === 0) return null;
 
@@ -174,9 +161,9 @@ const ClusterNode = ({
 
           return (
             <div key={uIdx} className="flex flex-col items-center relative">
-              {/* Vertical line DOWN from parents - Spans the full gap */}
+              {/* Vertical line DOWN from parents */}
               <div className={cn(
-                "absolute -top-24 w-px h-24 transition-colors duration-500",
+                "absolute -top-32 w-px h-32 transition-colors duration-500",
                 isUnitInLineage ? "bg-amber-400 w-0.5" : "bg-stone-200"
               )} />
               

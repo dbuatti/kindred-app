@@ -23,14 +23,36 @@ interface PersonAvatarProps {
 const PersonAvatar = ({ person, me, relationships, isHighlighted, isInLineage, isSelected, debugMode, level, onSelect }: PersonAvatarProps) => {
   const navigate = useNavigate();
   
-  // Determine the relationship label relative to "Me"
-  const rel = relationships.find(r => 
-    (r.person_id === me?.id && r.related_person_id === person.id) || 
-    (r.person_id === person.id && r.related_person_id === me?.id)
-  );
-  
   const isMe = me && person.id === me.id;
-  const label = isMe ? "You" : (rel?.relationship_type || "Family");
+
+  // Determine the relationship label relative to "Me"
+  const getLabel = () => {
+    if (isMe) return "You";
+
+    // 1. Direct Relationship
+    const directRel = relationships.find(r => 
+      (r.person_id === me?.id && r.related_person_id === person.id) || 
+      (r.person_id === person.id && r.related_person_id === me?.id)
+    );
+    
+    if (directRel) return directRel.relationship_type;
+    
+    // 2. Indirect Relationship (e.g., Sibling of a Cousin is a Cousin)
+    const myCousins = relationships
+      .filter(r => (r.person_id === me?.id || r.related_person_id === me?.id) && r.relationship_type.toLowerCase() === 'cousin')
+      .map(r => r.person_id === me?.id ? r.related_person_id : r.person_id);
+      
+    const isSiblingOfCousin = relationships.some(r => 
+      (myCousins.includes(r.person_id) && r.related_person_id === person.id || myCousins.includes(r.related_person_id) && r.person_id === person.id) &&
+      ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())
+    );
+
+    if (isSiblingOfCousin) return "Cousin";
+    
+    return "Family";
+  };
+
+  const label = getLabel();
   const isCousin = label.toLowerCase().includes('cousin');
 
   return (
