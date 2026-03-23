@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Save, Loader2, UserCircle, ChevronsUpDown, Check, Briefcase, Heart, User, MapPin, Globe } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
@@ -19,6 +20,13 @@ const INITIAL_SUGGESTIONS = [
   "London, UK", 
   "New York, USA", 
   "Sicily, Italy"
+];
+
+const GENDER_OPTIONS = [
+  { label: "Male", value: "male" },
+  { label: "Female", value: "female" },
+  { label: "Non-binary", value: "non-binary" },
+  { label: "Prefer not to say", value: "other" }
 ];
 
 const EditProfile = () => {
@@ -38,7 +46,8 @@ const EditProfile = () => {
     occupation: '',
     birthDate: '',
     birthPlace: '',
-    bio: ''
+    bio: '',
+    gender: ''
   });
 
   useEffect(() => {
@@ -53,12 +62,12 @@ const EditProfile = () => {
         occupation: profile.occupation || '',
         birthDate: profile.birth_date || '',
         birthPlace: profile.birth_place || '',
-        bio: profile.bio || ''
+        bio: profile.bio || '',
+        gender: profile.gender || ''
       });
     }
   }, [user, profiles]);
 
-  // Live Location Search Effect
   useEffect(() => {
     if (!formData.birthPlace || formData.birthPlace.length < 3) {
       if (!formData.birthPlace) setSuggestions(INITIAL_SUGGESTIONS);
@@ -73,7 +82,6 @@ const EditProfile = () => {
         );
         const data = await response.json();
         const places = data.map((item: any) => {
-          // Simplify the display name to City, State/Country
           const addr = item.address;
           const city = addr.city || addr.town || addr.village || addr.suburb || addr.hamlet;
           const state = addr.state || addr.region;
@@ -85,14 +93,13 @@ const EditProfile = () => {
           return item.display_name.split(',').slice(0, 3).join(',');
         });
         
-        // Remove duplicates and set
         setSuggestions(Array.from(new Set(places as string[])));
       } catch (error) {
         console.error("Error fetching places:", error);
       } finally {
         setIsSearching(false);
       }
-    }, 600); // Debounce to avoid too many API calls
+    }, 600);
 
     return () => clearTimeout(timer);
   }, [formData.birthPlace]);
@@ -115,6 +122,7 @@ const EditProfile = () => {
           birth_date: formData.birthDate || null,
           birth_place: formData.birthPlace,
           bio: formData.bio,
+          gender: formData.gender,
           onboarding_completed: true,
           updated_at: new Date().toISOString()
         });
@@ -125,10 +133,11 @@ const EditProfile = () => {
       await supabase.from('people').upsert({
         user_id: user.id,
         name: fullName || user.email?.split('@')[0],
+        gender: formData.gender,
         birth_year: formData.birthDate ? formData.birthDate.split('-')[0] : '',
         birth_place: formData.birthPlace,
         occupation: formData.occupation,
-        vibe_sentence: formData.bio || "", // Removed autopopulated sentence
+        vibe_sentence: formData.bio || "",
         personality_tags: ["✨ Family Member"],
         created_by_email: user.email,
       }, { onConflict: 'user_id' });
@@ -167,7 +176,7 @@ const EditProfile = () => {
           <div className="grid grid-cols-1 gap-10">
             <div className="space-y-6">
               <h3 className="text-xl font-serif font-bold text-stone-800 flex items-center gap-2 border-b border-stone-100 pb-2">
-                <User className="w-5 h-5 text-amber-600" /> Names
+                <User className="w-5 h-5 text-amber-600" /> Names & Identity
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -175,14 +184,6 @@ const EditProfile = () => {
                   <Input 
                     value={formData.firstName} 
                     onChange={(e) => setFormData({...formData, firstName: e.target.value})} 
-                    className="h-14 bg-stone-50 border-none rounded-2xl text-lg px-6 focus-visible:ring-amber-500/20" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Middle Name</label>
-                  <Input 
-                    value={formData.middleName} 
-                    onChange={(e) => setFormData({...formData, middleName: e.target.value})} 
                     className="h-14 bg-stone-50 border-none rounded-2xl text-lg px-6 focus-visible:ring-amber-500/20" 
                   />
                 </div>
@@ -195,20 +196,24 @@ const EditProfile = () => {
                   />
                 </div>
                 <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Gender</label>
+                  <Select onValueChange={(val) => setFormData({...formData, gender: val})} value={formData.gender}>
+                    <SelectTrigger className="h-14 bg-stone-50 border-none rounded-2xl text-lg px-6">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl">
+                      {GENDER_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value} className="text-lg py-3">{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Nickname</label>
                   <Input 
                     value={formData.nickname} 
                     onChange={(e) => setFormData({...formData, nickname: e.target.value})} 
                     placeholder="e.g. 'Bibi'"
-                    className="h-14 bg-stone-50 border-none rounded-2xl text-lg px-6 focus-visible:ring-amber-500/20" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Maiden Name</label>
-                  <Input 
-                    value={formData.maidenName} 
-                    onChange={(e) => setFormData({...formData, maidenName: e.target.value})} 
-                    placeholder="Family name at birth"
                     className="h-14 bg-stone-50 border-none rounded-2xl text-lg px-6 focus-visible:ring-amber-500/20" 
                   />
                 </div>

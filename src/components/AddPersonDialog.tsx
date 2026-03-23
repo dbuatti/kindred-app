@@ -11,20 +11,26 @@ const RELATIONSHIPS = [
   "Mother", "Father", "Grandmother", "Grandfather", "Great Grandparent", "Sister", "Brother", "Aunt", "Uncle", "Cousin", "Spouse", "Daughter", "Son"
 ];
 
+const GENDER_OPTIONS = [
+  { label: "Male", value: "male" },
+  { label: "Female", value: "female" },
+  { label: "Non-binary", value: "non-binary" },
+  { label: "Other", value: "other" }
+];
+
 const AddPersonDialog = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { addPerson, people, user } = useFamily();
   
   const [name, setName] = useState('');
+  const [gender, setGender] = useState('');
   const [relationship, setRelationship] = useState('');
   const [relatedToId, setRelatedToId] = useState<string>('');
 
-  // Find the current user's person record to set as default
   const myPerson = useMemo(() => {
     return people.find(p => p.userId === user?.id);
   }, [people, user]);
 
-  // Set default related person when dialog opens
   React.useEffect(() => {
     if (isOpen && myPerson && !relatedToId) {
       setRelatedToId(myPerson.id);
@@ -39,6 +45,7 @@ const AddPersonDialog = () => {
 
     await addPerson({
       name,
+      gender,
       relationshipType: relationship,
       vibeSentence: "", 
       personalityTags: [relationship],
@@ -48,6 +55,7 @@ const AddPersonDialog = () => {
     toast.success(`${name} added to the family!`);
     setIsOpen(false);
     setName('');
+    setGender('');
     setRelationship('');
   };
 
@@ -75,14 +83,29 @@ const AddPersonDialog = () => {
         </DialogHeader>
 
         <div className="space-y-8 py-6">
-          <div className="space-y-3">
-            <label className="text-lg font-bold text-stone-600">Name or Nickname</label>
-            <Input 
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Aunt Martha or Grandpa Joe"
-              className="h-16 bg-stone-50 border-2 border-stone-100 rounded-2xl text-xl px-6"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <label className="text-lg font-bold text-stone-600">Name</label>
+              <Input 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Aunt Martha"
+                className="h-16 bg-stone-50 border-2 border-stone-100 rounded-2xl text-xl px-6"
+              />
+            </div>
+            <div className="space-y-3">
+              <label className="text-lg font-bold text-stone-600">Gender</label>
+              <Select onValueChange={setGender} value={gender}>
+                <SelectTrigger className="h-16 bg-stone-50 border-2 border-stone-100 rounded-2xl text-xl px-6">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl">
+                  {GENDER_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value} className="text-lg py-3">{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-6">

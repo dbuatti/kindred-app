@@ -17,6 +17,7 @@ export interface Profile {
   birth_date?: string;
   birth_place?: string;
   bio?: string;
+  gender?: string;
   onboarding_completed?: boolean;
 }
 
@@ -58,6 +59,7 @@ export interface Person {
   userId?: string;
   isLiving?: boolean;
   relationshipType?: string;
+  gender?: string;
 }
 
 export interface StoryPrompt {

@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Edit3, Save, Trash2, AlertCircle } from 'lucide-react';
 import { Person } from '../types';
 import { useFamily } from '../context/FamilyContext';
@@ -16,12 +17,20 @@ interface EditPersonDialogProps {
   trigger?: React.ReactNode;
 }
 
+const GENDER_OPTIONS = [
+  { label: "Male", value: "male" },
+  { label: "Female", value: "female" },
+  { label: "Non-binary", value: "non-binary" },
+  { label: "Other", value: "other" }
+];
+
 const EditPersonDialog = ({ person, trigger }: EditPersonDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const { updatePerson, deletePerson } = useFamily();
   
   const [formData, setFormData] = useState({
     name: person.name,
+    gender: person.gender || '',
     birthYear: person.birthYear || '',
     birthPlace: person.birthPlace || '',
     occupation: person.occupation || '',
@@ -32,6 +41,7 @@ const EditPersonDialog = ({ person, trigger }: EditPersonDialogProps) => {
   useEffect(() => {
     setFormData({
       name: person.name,
+      gender: person.gender || '',
       birthYear: person.birthYear || '',
       birthPlace: person.birthPlace || '',
       occupation: person.occupation || '',
@@ -71,13 +81,28 @@ const EditPersonDialog = ({ person, trigger }: EditPersonDialogProps) => {
         
         <div className="space-y-6 py-6">
           <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Full Name</label>
-              <Input 
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="bg-stone-50 border-none rounded-2xl h-14 text-lg"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Full Name</label>
+                <Input 
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  className="bg-stone-50 border-none rounded-2xl h-14 text-lg"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Gender</label>
+                <Select onValueChange={(val) => setFormData({...formData, gender: val})} value={formData.gender}>
+                  <SelectTrigger className="bg-stone-50 border-none rounded-2xl h-14 text-lg">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl">
+                    {GENDER_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value} className="text-lg py-3">{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

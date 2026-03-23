@@ -37,15 +37,15 @@ import { parsePersonIdFromSlug, getPersonUrl } from '@/lib/slugify';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
-// Helper to get the inverse of a relationship
-const getInverseRelationship = (type: string, relativeTags: string[] = []) => {
+// Helper to get the inverse of a relationship using gender
+const getInverseRelationship = (type: string, gender?: string) => {
   const t = type.toLowerCase();
-  const tags = relativeTags.map(tag => tag.toLowerCase());
+  const g = gender?.toLowerCase();
   
-  const isMale = tags.some(tag => ['son', 'father', 'brother', 'uncle', 'grandfather'].includes(tag));
-  const isFemale = tags.some(tag => ['daughter', 'mother', 'sister', 'aunt', 'grandmother'].includes(tag));
+  const isMale = g === 'male';
+  const isFemale = g === 'female';
 
-  if (t === 'father' || t === 'mother') {
+  if (t === 'father' || t === 'mother' || t === 'parent') {
     if (isMale) return 'son';
     if (isFemale) return 'daughter';
     return 'child';
@@ -55,18 +55,36 @@ const getInverseRelationship = (type: string, relativeTags: string[] = []) => {
     if (isFemale) return 'mother';
     return 'parent';
   }
-  if (t === 'brother' || t === 'sister') {
+  if (t === 'brother' || t === 'sister' || t === 'sibling') {
     if (isMale) return 'brother';
     if (isFemale) return 'sister';
     return 'sibling';
   }
-  if (t === 'grandfather' || t === 'grandmother') {
+  if (t === 'grandfather' || t === 'grandmother' || t === 'grandparent') {
+    if (isMale) return 'grandson';
+    if (isFemale) return 'granddaughter';
     return 'grandchild';
   }
+  if (t === 'grandson' || t === 'granddaughter' || t === 'grandchild') {
+    if (isMale) return 'grandfather';
+    if (isFemale) return 'grandmother';
+    return 'grandparent';
+  }
   if (t === 'aunt' || t === 'uncle') {
+    if (isMale) return 'nephew';
+    if (isFemale) return 'niece';
     return 'niece/nephew';
   }
-  if (t === 'spouse') return 'spouse';
+  if (t === 'nephew' || t === 'niece') {
+    if (isMale) return 'uncle';
+    if (isFemale) return 'aunt';
+    return 'aunt/uncle';
+  }
+  if (t === 'spouse' || t === 'wife' || t === 'husband') {
+    if (isMale) return 'husband';
+    if (isFemale) return 'wife';
+    return 'spouse';
+  }
   
   return type;
 };
@@ -106,7 +124,8 @@ const PersonDetail = () => {
         
         if (!relative) return null;
         
-        const type = isPrimary ? r.relationship_type : getInverseRelationship(r.relationship_type, relative.personalityTags);
+        // Use gender for more accurate inversion
+        const type = isPrimary ? r.relationship_type : getInverseRelationship(r.relationship_type, relative.gender);
         
         const key = `${relative.id}-${type}`;
         if (seen.has(key)) return null;
@@ -127,6 +146,7 @@ const PersonDetail = () => {
     if (!person.birthPlace) missing.push('Birth Place');
     if (!person.occupation) missing.push('Occupation');
     if (!person.photoUrl) missing.push('Photo');
+    if (!person.gender) missing.push('Gender');
     return missing;
   }, [person]);
 
