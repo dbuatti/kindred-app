@@ -10,9 +10,8 @@ import { getPersonUrl } from '@/lib/slugify';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
-  const { people, loading, user } = useFamily();
+  const { people, loading, user, relationships } = useFamily();
 
-  // Improved logic to determine generations
   const generations = useMemo(() => {
     if (!people.length) return [];
     
@@ -26,17 +25,40 @@ const FamilyTree = () => {
     
     sorted.forEach(p => {
       const year = parseInt(p.birthYear || '0');
-      const rel = (p.relationshipType || p.personalityTags?.join(' ') || "").toLowerCase();
+      const relTags = (p.personalityTags?.join(' ') || "").toLowerCase();
       const isMe = p.userId === user?.id;
       
       let gen = "Legacy & Ancestors";
 
-      // 1. Priority: Specific relationship keywords
-      if (rel.includes('grand')) {
+      // 1. Priority: Specific relationship keywords in tags or inferred from relationships
+      const isParent = relTags.includes('father') || relTags.includes('mother') || 
+                       relationships.some(r => r.related_person_id === p.id && (r.relationship_type === 'father' || r.relationship_type === 'mother'));
+      
+      const isGrandparent = relTags.includes('grand') || 
+                            relationships.some(r => r.related_person_id === p.id && r.relationship_type.includes('grand'));
+
+      const isSpouse = relTags.includes('spouse') || relTags.includes('wife') || relTags.includes('husband');
+
+      if (isGrandparent) {
         gen = "Grandparents' Generation";
-      } else if (rel.includes('father') || rel.includes('mother') || rel.includes('aunt') || rel.includes('uncle')) {
+      } else if (isParent) {
         gen = "Parents' Generation";
-      } else if (rel.includes('son') || rel.includes('daughter') || rel.includes('child') || rel.includes('family member') || isMe) {
+      } else if (isSpouse) {
+        // If spouse, try to find who they are married to and match their generation
+        const partnerRel = relationships.find(r => (r.person_id === p.id || r.related_person_id === p.id) && r.relationship_type === 'spouse');
+        if (partnerRel) {
+          const partnerId = partnerRel.person_id === p.id ? partnerRel.related_person_id : partnerRel.person_id;
+          const partner = people.find(pers => pers.id === partnerId);
+          if (partner) {
+            const pTags = (partner.personalityTags?.join(' ') || "").toLowerCase();
+            if (pTags.includes('father') || pTags.includes('mother')) gen = "Parents' Generation";
+            else if (pTags.includes('grand')) gen = "Grandparents' Generation";
+            else gen = "Current Generation";
+          }
+        } else {
+          gen = "Parents' Generation"; // Default spouse to parents if unknown
+        }
+      } else if (relTags.includes('son') || relTags.includes('daughter') || relTags.includes('child') || relTags.includes('family member') || isMe) {
         gen = "Current Generation";
       } 
       // 2. Fallback: Year-based grouping
@@ -47,29 +69,26 @@ const FamilyTree = () => {
         else if (year >= 1890) gen = "Great Grandparents";
         else gen = "Ancestors";
       }
-      // 3. Final catch-all
-      else if (gen === "Legacy & Ancestors") {
-        gen = "To be Discovered";
-      }
       
       if (!groups[gen]) groups[gen] = [];
       groups[gen].push(p);
     });
 
-    // Define the order we want generations to appear (top to bottom)
     const order = [
       "Ancestors", 
       "Great Grandparents", 
       "Grandparents' Generation", 
       "Parents' Generation", 
       "Current Generation",
-      "To be Discovered"
+      "Legacy & Ancestors"
     ];
 
     return Object.entries(groups).sort((a, b) => {
-      return order.indexOf(a[0]) - order.indexOf(b[0]);
+      const indexA = order.indexOf(a[0]);
+      const indexB = order.indexOf(b[0]);
+      return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
     });
-  }, [people, user]);
+  }, [people, user, relationships]);
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the branches...</div>;
 
@@ -102,7 +121,6 @@ const FamilyTree = () => {
 
       <main className="max-w-4xl mx-auto px-8 py-16">
         <div className="relative space-y-24">
-          {/* Vertical Line connecting generations */}
           <div className="absolute left-1/2 top-0 bottom-0 w-px bg-stone-200 -translate-x-1/2 hidden md:block" />
 
           {generations.map(([genName, members], idx) => (
@@ -121,7 +139,6 @@ const FamilyTree = () => {
                     className="group relative flex flex-col items-center space-y-4 cursor-pointer animate-in fade-in zoom-in duration-700"
                     style={{ animationDelay: `${idx * 100}ms` }}
                   >
-                    {/* Connection Line to parent generation */}
                     {idx > 0 && (
                       <div className="absolute -top-10 left-1/2 w-px h-10 bg-stone-200 -translate-x-1/2 hidden md:block" />
                     )}
@@ -169,7 +186,6 @@ const FamilyTree = () => {
         )}
       </main>
 
-      {/* Legend / Info */}
       <div className="fixed bottom-8 left-8 bg-white/90 backdrop-blur-sm p-4 rounded-2xl border border-stone-100 shadow-lg hidden lg:block">
         <div className="space-y-2">
           <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2">Legend</p>

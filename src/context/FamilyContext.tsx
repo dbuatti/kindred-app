@@ -156,11 +156,22 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (error) throw error;
 
       if (relativeId && relType && person) {
-        await supabase.from('relationships').insert({
-          person_id: relativeId,
-          related_person_id: person.id,
-          relationship_type: relType.toLowerCase()
-        });
+        // Check for existing relationship to prevent duplicates
+        const { data: existing } = await supabase
+          .from('relationships')
+          .select('id')
+          .eq('person_id', relativeId)
+          .eq('related_person_id', person.id)
+          .eq('relationship_type', relType.toLowerCase())
+          .maybeSingle();
+
+        if (!existing) {
+          await supabase.from('relationships').insert({
+            person_id: relativeId,
+            related_person_id: person.id,
+            relationship_type: relType.toLowerCase()
+          });
+        }
       }
 
       fetchData();
@@ -286,7 +297,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (status === 'approved') {
         if (suggestion.fieldName === 'new_relationship') {
-          // Complex logic for creating a new person and relationships
           const match = suggestion.suggestedValue.match(/^(.+)\s\((.+)\)/);
           if (match) {
             const name = match[1];
@@ -306,35 +316,53 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             if (pErr) throw pErr;
 
-            // 2. Create the primary relationship
-            await supabase.from('relationships').insert({
-              person_id: suggestion.personId,
-              related_person_id: newPerson.id,
-              relationship_type: type.toLowerCase()
-            });
+            // 2. Create the primary relationship (with duplicate check)
+            const { data: existingRel } = await supabase
+              .from('relationships')
+              .select('id')
+              .eq('person_id', suggestion.personId)
+              .eq('related_person_id', newPerson.id)
+              .eq('relationship_type', type.toLowerCase())
+              .maybeSingle();
 
-            // 3. Parse and create additional connections (inferences)
+            if (!existingRel) {
+              await supabase.from('relationships').insert({
+                person_id: suggestion.personId,
+                related_person_id: newPerson.id,
+                relationship_type: type.toLowerCase()
+              });
+            }
+
+            // 3. Parse and create additional connections
             const lines = suggestion.suggestedValue.split('\n');
             for (const line of lines) {
               const infMatch = line.match(/- Is .+\sthe\s(.+)\sof\s(.+)\?\s\(Yes\)/);
               if (infMatch) {
                 const infRole = infMatch[1];
                 const targetName = infMatch[2];
-                
-                // Find target person by name (best effort)
                 const target = people.find(p => p.name === targetName);
+                
                 if (target) {
-                  await supabase.from('relationships').insert({
-                    person_id: target.id,
-                    related_person_id: newPerson.id,
-                    relationship_type: infRole.toLowerCase()
-                  });
+                  const { data: existingInf } = await supabase
+                    .from('relationships')
+                    .select('id')
+                    .eq('person_id', target.id)
+                    .eq('related_person_id', newPerson.id)
+                    .eq('relationship_type', infRole.toLowerCase())
+                    .maybeSingle();
+
+                  if (!existingInf) {
+                    await supabase.from('relationships').insert({
+                      person_id: target.id,
+                      related_person_id: newPerson.id,
+                      relationship_type: infRole.toLowerCase()
+                    });
+                  }
                 }
               }
             }
           }
         } else {
-          // Standard field update
           const { error: personError } = await supabase
             .from('people')
             .update({ [suggestion.fieldName]: suggestion.suggestedValue })
