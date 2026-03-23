@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Person, Memory, Suggestion, MemoryType } from '../types';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface FamilyContextType {
@@ -36,8 +36,41 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (suggestionsError) throw suggestionsError;
 
-      setPeople(peopleData || []);
-      setSuggestions(suggestionsData || []);
+      // Map snake_case from DB to camelCase for the app
+      const mappedPeople = (peopleData || []).map((p: any) => ({
+        id: p.id,
+        familyId: p.family_id,
+        name: p.name,
+        birthYear: p.birth_year,
+        birthPlace: p.birth_place,
+        occupation: p.occupation,
+        vibeSentence: p.vibe_sentence,
+        personalityTags: p.personality_tags || [],
+        photoUrl: p.photo_url,
+        createdByEmail: p.created_by_email,
+        memories: (p.memories || []).map((m: any) => ({
+          id: m.id,
+          personId: m.person_id,
+          content: m.content,
+          type: m.type,
+          createdByEmail: m.created_by_email,
+          createdAt: m.created_at,
+          voiceUrl: m.voice_url,
+          imageUrl: m.image_url
+        }))
+      }));
+
+      const mappedSuggestions = (suggestionsData || []).map((s: any) => ({
+        id: s.id,
+        personId: s.person_id,
+        fieldName: s.field_name,
+        suggestedValue: s.suggested_value,
+        suggestedByEmail: s.suggested_by_email,
+        status: s.status
+      }));
+
+      setPeople(mappedPeople);
+      setSuggestions(mappedSuggestions);
     } catch (error: any) {
       console.error("Error fetching data:", error.message);
     } finally {
@@ -51,7 +84,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addPerson = useCallback(async (newPerson: Partial<Person>) => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('people')
         .insert([{
           name: newPerson.name,
@@ -60,10 +93,9 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           vibe_sentence: newPerson.vibeSentence,
           personality_tags: newPerson.personalityTags,
           photo_url: newPerson.photoUrl,
-          created_by_email: 'me@family.com', // In a real app, get from auth
-          family_id: '00000000-0000-0000-0000-000000000000' // Placeholder family ID
-        }])
-        .select();
+          created_by_email: 'me@family.com',
+          family_id: null // Optional for now
+        }]);
 
       if (error) throw error;
       fetchData();
