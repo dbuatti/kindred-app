@@ -17,28 +17,29 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
     people.forEach(p => levels[p.id] = 0);
 
     // Iteratively push parents above children
+    // We do this many times to ensure the levels stabilize
     for (let i = 0; i < 50; i++) {
       let changed = false;
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
-        const p1 = r.person_id;
-        const p2 = r.related_person_id;
+        const p1 = r.person_id; // The subject
+        const p2 = r.related_person_id; // The relative
 
-        // Parent -> Child relationship
+        // If p2 is the parent of p1, p2 should be at a higher level than p1
         if (['mother', 'father', 'parent'].includes(type)) {
-          if (levels[p1] <= levels[p2]) {
-            levels[p1] = levels[p2] + 1;
-            changed = true;
-          }
-        } 
-        // Child -> Parent relationship
-        else if (['son', 'daughter', 'child'].includes(type)) {
           if (levels[p2] <= levels[p1]) {
             levels[p2] = levels[p1] + 1;
             changed = true;
           }
         } 
-        // Peer relationships (Spouse, Sibling)
+        // If p2 is the child of p1, p1 should be at a higher level than p2
+        else if (['son', 'daughter', 'child'].includes(type)) {
+          if (levels[p1] <= levels[p2]) {
+            levels[p1] = levels[p2] + 1;
+            changed = true;
+          }
+        } 
+        // Peer relationships (Spouse, Sibling) should be on the same level
         else if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
           if (levels[p1] !== levels[p2]) {
             const max = Math.max(levels[p1], levels[p2]);
@@ -67,8 +68,10 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
 
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
+        // Peers are spouses or siblings
         if (['spouse', 'wife', 'husband', 'brother', 'sister', 'sibling'].includes(type)) {
           const otherId = r.person_id === currId ? r.related_person_id : r.person_id;
+          // Only cluster them if they are on the same generational level
           if (personLevels[otherId] === level && !clusterIds.has(otherId)) {
             clusterIds.add(otherId);
             queue.push(otherId);
@@ -84,38 +87,45 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
     const globalProcessed = new Set<string>();
     const clusters: any[][] = [];
     
-    // A person is a "True Root" if they have NO parents in the dataset
+    // A person is a "descendant" if they have a parent link pointing to them
     const isDescendant = (id: string) => {
       return relationships.some(r => {
         const type = r.relationship_type.toLowerCase();
-        return (r.related_person_id === id && ['mother', 'father', 'parent'].includes(type)) ||
-               (r.person_id === id && ['son', 'daughter', 'child'].includes(type));
+        // If r.person_id is 'id' and type is 'father', then 'id' has a father (is descendant)
+        // If r.related_person_id is 'id' and type is 'son', then 'id' is a son (is descendant)
+        return (r.person_id === id && ['mother', 'father', 'parent'].includes(type)) ||
+               (r.related_person_id === id && ['son', 'daughter', 'child'].includes(type));
       });
     };
 
-    // First pass: Start from people who have no parents
+    // First pass: Start from people who have no parents (True Roots)
     const trueRoots = people.filter(p => !isDescendant(p.id));
     
-    // Sort roots by level (highest first)
+    // Sort roots by level (highest first) so elders appear at the top
     trueRoots.sort((a, b) => personLevels[b.id] - personLevels[a.id]);
 
     trueRoots.forEach(r => {
       if (!globalProcessed.has(r.id)) {
-        // When we create a cluster, we need to mark ALL descendants as processed
-        // so they don't show up as roots later.
         const cluster = getPeerCluster(r.id, personLevels[r.id], globalProcessed);
         clusters.push(cluster);
         
-        // Recursively find all descendants of this cluster and mark them as processed
+        // Mark all descendants of this root cluster as processed so they don't render as roots
         const markDescendants = (ids: string[]) => {
           ids.forEach(id => {
             relationships.forEach(rel => {
               const type = rel.relationship_type.toLowerCase();
               let childId = null;
-              if (rel.person_id === id && ['mother', 'father', 'parent', 'son', 'daughter', 'child'].includes(type)) {
-                // If rel is parent->child, related is child. If rel is child->parent, person is child.
-                if (['mother', 'father', 'parent'].includes(type)) childId = rel.related_person_id;
-              } else if (rel.related_person_id === id && ['son', 'daughter', 'child'].includes(type)) {
+              
+              // If rel says person_id is parent of related_person_id
+              if (rel.person_id === id && ['mother', 'father', 'parent'].includes(type)) {
+                childId = rel.related_person_id;
+              } 
+              // If rel says related_person_id is child of person_id
+              else if (rel.person_id === id && ['son', 'daughter', 'child'].includes(type)) {
+                childId = rel.related_person_id;
+              }
+              // Inverse cases
+              else if (rel.related_person_id === id && ['son', 'daughter', 'child'].includes(type)) {
                 childId = rel.person_id;
               }
 
@@ -130,7 +140,7 @@ export const useTreeLayout = (people: Person[], relationships: Relationship[]) =
       }
     });
 
-    // Second pass: Catch any remaining disconnected components (islands with cycles or missing roots)
+    // Second pass: Catch any remaining disconnected people (orphans or islands)
     people.forEach(p => {
       if (!globalProcessed.has(p.id)) {
         const cluster = getPeerCluster(p.id, personLevels[p.id], globalProcessed);
