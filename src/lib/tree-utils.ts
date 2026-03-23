@@ -66,6 +66,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   const levels: Record<string, number> = {};
   people.forEach(p => levels[p.id] = 0);
 
+  // Iterative level calculation to handle deep trees
   for (let i = 0; i < 20; i++) {
     relationships.forEach(r => {
       const type = r.relationship_type.toLowerCase();
@@ -90,6 +91,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
     const person = personMap.get(personId);
     if (!person) return null;
 
+    // Spouses are rendered horizontally next to the person
     const spouseIds = spousesOf.get(personId) || [];
     const spouses = spouseIds
       .map(id => {
@@ -99,13 +101,9 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       })
       .filter((p): p is Person => !!p);
 
-    // Pull in siblings of the person AND siblings of their spouses
-    const siblingIds = new Set<string>(siblingsOf.get(personId) || []);
-    spouseIds.forEach(sId => {
-      (siblingsOf.get(sId) || []).forEach(sibId => siblingIds.add(sibId));
-    });
-
-    const siblings = Array.from(siblingIds)
+    // Siblings are also rendered horizontally in the same generation group
+    const siblingIds = siblingsOf.get(personId) || [];
+    const siblings = siblingIds
       .map(id => {
         if (globalVisited.has(id)) return null;
         globalVisited.add(id);
@@ -113,9 +111,10 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
       })
       .filter((p): p is Person => !!p);
 
-    const allGroupIds = [personId, ...spouseIds, ...Array.from(siblingIds)];
+    // Children are collected from the entire generation group (person + spouses)
+    const parentGroupIds = [personId, ...spouseIds];
     const childIds = new Set<string>();
-    allGroupIds.forEach(pId => {
+    parentGroupIds.forEach(pId => {
       (childrenOf.get(pId) || []).forEach(cId => childIds.add(cId));
     });
 
@@ -135,6 +134,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   };
 
   const roots: TreeNode[] = [];
+  // Roots are people with no parents in the database
   const potentialRoots = people
     .filter(p => !parentsOf.has(p.id))
     .sort((a, b) => levels[a.id] - levels[b.id]);
@@ -142,6 +142,7 @@ export const buildTree = (people: Person[], relationships: any[]): TreeNode[] =>
   potentialRoots.forEach((p, idx) => {
     if (globalVisited.has(p.id)) return;
     
+    // If a root's spouse or sibling was already processed, don't start a new root
     const spouses = spousesOf.get(p.id) || [];
     const siblings = siblingsOf.get(p.id) || [];
     const hasProcessedConnection = [...spouses, ...siblings].some(id => globalVisited.has(id));
