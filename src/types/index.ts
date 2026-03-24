@@ -21,6 +21,15 @@ export interface Profile {
   onboarding_completed?: boolean;
 }
 
+export interface Comment {
+  id: string;
+  memoryId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+  authorName?: string;
+}
+
 export interface Memory {
   id: string;
   personId: string;
@@ -33,6 +42,7 @@ export interface Memory {
   imageUrl?: string;
   authorName?: string;
   reactions?: Record<string, number>;
+  comments?: Comment[];
 }
 
 export interface Suggestion {

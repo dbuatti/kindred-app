@@ -14,7 +14,8 @@ import {
   Search,
   X,
   Share2,
-  MessageSquare
+  MessageSquare,
+  Heart
 } from 'lucide-react';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import FamilyConnections from '../components/FamilyConnections';
@@ -24,6 +25,7 @@ import ScrollToTop from '../components/ScrollToTop';
 import BottomNav from '../components/BottomNav';
 import PersonHero from '../components/person/PersonHero';
 import PhotoGallery from '../components/person/PhotoGallery';
+import CommentSection from '../components/CommentSection';
 import { PersonDetailSkeleton } from '../components/SkeletonLoader';
 import { cn, formatFamilyDate } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -38,7 +40,7 @@ const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 const PersonDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { people, user, relationships, updatePerson, loading } = useFamily();
+  const { people, user, reactions, toggleReaction, relationships, updatePerson, loading } = useFamily();
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   
@@ -47,15 +49,12 @@ const PersonDetail = () => {
 
   const shortId = useMemo(() => {
     const id = parsePersonIdFromSlug(slug);
-    console.log(`[PersonDetail] Parsed shortId from slug "${slug}":`, id);
     return id;
   }, [slug]);
 
   const person = useMemo(() => {
     if (!shortId || loading) return null;
-    const found = people.find(p => p.id.startsWith(shortId));
-    console.log(`[PersonDetail] Lookup for shortId "${shortId}":`, found ? `Found ${found.name}` : "Not found");
-    return found;
+    return people.find(p => p.id.startsWith(shortId));
   }, [shortId, people, loading]);
 
   const relatives = usePersonRelatives(person, people, relationships);
@@ -75,7 +74,6 @@ const PersonDetail = () => {
     onDrop: onProfileDrop
   } = useImageUpload(async (base64) => {
     if (person) {
-      console.log(`[PersonDetail] Updating profile photo for ${person.name}`);
       await updatePerson(person.id, { photoUrl: base64 });
       toast.success("Profile photo updated!");
     }
@@ -83,7 +81,6 @@ const PersonDetail = () => {
 
   useEffect(() => {
     if (person) {
-      console.log(`[PersonDetail] Recording visit to ${person.name}`);
       const stored = localStorage.getItem('kindred_recent');
       let recent = stored ? JSON.parse(stored) : [];
       recent = [person.id, ...recent.filter((id: string) => id !== person.id)].slice(0, 10);
@@ -104,6 +101,17 @@ const PersonDetail = () => {
     if (!person) return [];
     return person.memories.filter(m => m.type === 'photo' && m.imageUrl);
   }, [person]);
+
+  const handleWarm = async (id: string) => {
+    const memoryReactions = reactions[id] || [];
+    const isWarmed = memoryReactions.includes(user?.id);
+    await toggleReaction(id);
+    if (!isWarmed) {
+      toast.success("You warmed this story!", {
+        icon: <Heart className="w-4 h-4 text-red-500 fill-current" />
+      });
+    }
+  };
 
   if (loading) return (
     <div className="min-h-screen bg-[#FDFCF9]">
@@ -228,27 +236,46 @@ const PersonDetail = () => {
                 <p className="text-stone-400 font-serif italic text-xl">No stories shared yet...</p>
               </div>
             ) : (
-              filteredMemories.map((memory, idx) => (
-                <motion.div key={memory.id} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }} className="relative pl-16 group">
-                  <div className="absolute left-0 top-2 w-12 h-12 rounded-full bg-white border-4 border-stone-50 flex items-center justify-center z-10 shadow-sm group-hover:border-amber-100 transition-colors">
-                    {memory.type === 'voice' ? <Mic className="w-5 h-5 text-amber-600" /> : memory.type === 'photo' ? <Camera className="w-5 h-5 text-stone-400" /> : <MessageSquare className="w-5 h-5 text-stone-400" />}
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-bold text-stone-800 uppercase tracking-widest">{memory.authorName || memory.createdByEmail.split('@')[0]}</span>
-                      <span className="text-stone-200">•</span>
-                      <span className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em]">
-                        {formatFamilyDate(memory.createdAt)}
-                      </span>
+              filteredMemories.map((memory, idx) => {
+                const memoryReactions = reactions[memory.id] || [];
+                const isWarmed = memoryReactions.includes(user?.id);
+                
+                return (
+                  <motion.div key={memory.id} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }} className="relative pl-16 group">
+                    <div className="absolute left-0 top-2 w-12 h-12 rounded-full bg-white border-4 border-stone-50 flex items-center justify-center z-10 shadow-sm group-hover:border-amber-100 transition-colors">
+                      {memory.type === 'voice' ? <Mic className="w-5 h-5 text-amber-600" /> : memory.type === 'photo' ? <Camera className="w-5 h-5 text-stone-400" /> : <MessageSquare className="w-5 h-5 text-stone-400" />}
                     </div>
-                    <div className={cn("p-8 rounded-[2.5rem] text-xl font-serif leading-relaxed shadow-sm transition-all duration-500", memory.type === 'voice' ? "bg-amber-50/40 border border-amber-100/50" : memory.type === 'photo' ? "bg-stone-50/50 border border-stone-100" : "bg-white border border-stone-100 group-hover:shadow-md")}>
-                      {memory.type === 'voice' && <Button size="icon" variant="ghost" className="mb-6 h-14 w-14 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 shadow-sm"><Play className="w-6 h-6 fill-current" /></Button>}
-                      {memory.type === 'photo' && memory.imageUrl && <div className="mb-6 rounded-2xl overflow-hidden border-4 border-white shadow-sm"><img src={memory.imageUrl} alt="Memory" className="w-full h-auto max-h-[400px] object-cover" /></div>}
-                      <p className="text-stone-700 italic">"{memory.content}"</p>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-bold text-stone-800 uppercase tracking-widest">{memory.authorName || memory.createdByEmail.split('@')[0]}</span>
+                          <span className="text-stone-200">•</span>
+                          <span className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em]">
+                            {formatFamilyDate(memory.createdAt)}
+                          </span>
+                        </div>
+                        <button 
+                          onClick={() => handleWarm(memory.id)}
+                          className={cn(
+                            "flex items-center gap-2 px-3 py-1 rounded-full transition-all text-[10px] font-bold uppercase tracking-widest",
+                            isWarmed ? "bg-red-50 text-red-500" : "text-stone-300 hover:text-red-500"
+                          )}
+                        >
+                          <Heart className={cn("w-3 h-3", isWarmed && "fill-current")} />
+                          {memoryReactions.length > 0 ? memoryReactions.length : ''}
+                        </button>
+                      </div>
+                      <div className={cn("p-8 rounded-[2.5rem] text-xl font-serif leading-relaxed shadow-sm transition-all duration-500", memory.type === 'voice' ? "bg-amber-50/40 border border-amber-100/50" : memory.type === 'photo' ? "bg-stone-50/50 border border-stone-100" : "bg-white border border-stone-100 group-hover:shadow-md")}>
+                        {memory.type === 'voice' && <Button size="icon" variant="ghost" className="mb-6 h-14 w-14 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 shadow-sm"><Play className="w-6 h-6 fill-current" /></Button>}
+                        {memory.type === 'photo' && memory.imageUrl && <div className="mb-6 rounded-2xl overflow-hidden border-4 border-white shadow-sm"><img src={memory.imageUrl} alt="Memory" className="w-full h-auto max-h-[400px] object-cover" /></div>}
+                        <p className="text-stone-700 italic">"{memory.content}"</p>
+                        
+                        <CommentSection memoryId={memory.id} comments={memory.comments || []} />
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))
+                  </motion.div>
+                );
+              })
             )}
           </div>
         </section>

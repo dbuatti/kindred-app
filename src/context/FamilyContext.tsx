@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Person, Memory, Suggestion, MemoryType, Profile } from '../types';
+import { Person, Memory, Suggestion, MemoryType, Profile, Comment } from '../types';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -25,6 +25,7 @@ interface FamilyContextType {
   updatePerson: (id: string, updates: Partial<Person>) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
   addMemory: (personId: string, content: string, type: MemoryType, imageUrl?: string) => Promise<void>;
+  addComment: (memoryId: string, content: string) => Promise<void>;
   addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'status'>) => Promise<void>;
   addRelationship: (personId: string, relatedId: string, type: string) => Promise<void>;
   resolveSuggestion: (id: string, status: 'approved' | 'rejected') => Promise<void>;
@@ -82,6 +83,24 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
       setReactions(reactionMap);
 
+      const { data: commentsData } = await supabase
+        .from('comments')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      const commentMap: Record<string, Comment[]> = {};
+      (commentsData || []).forEach((c: any) => {
+        if (!commentMap[c.memory_id]) commentMap[c.memory_id] = [];
+        commentMap[c.memory_id].push({
+          id: c.id,
+          memoryId: c.memory_id,
+          userId: c.user_id,
+          content: c.content,
+          createdAt: c.created_at,
+          authorName: profileMap[c.user_id]?.first_name || "Family Member"
+        });
+      });
+
       const { data: relData } = await supabase
         .from('relationships')
         .select('*');
@@ -116,7 +135,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           createdAt: m.created_at,
           voiceUrl: m.voice_url,
           imageUrl: m.image_url,
-          authorName: profileMap[m.user_id]?.first_name || m.created_by_email.split('@')[0]
+          authorName: profileMap[m.user_id]?.first_name || m.created_by_email.split('@')[0],
+          comments: commentMap[m.id] || []
         }))
       }));
 
@@ -256,6 +276,25 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } catch (error: any) {
       console.error("[FamilyContext] Error adding memory:", error.message);
       toast.error("Failed to save story: " + error.message);
+    }
+  }, [fetchData, user]);
+
+  const addComment = useCallback(async (memoryId: string, content: string) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .insert([{
+          memory_id: memoryId,
+          content,
+          user_id: user.id
+        }]);
+
+      if (error) throw error;
+      fetchData(true);
+    } catch (error: any) {
+      console.error("[FamilyContext] Error adding comment:", error.message);
+      toast.error("Failed to post comment.");
     }
   }, [fetchData, user]);
 
@@ -449,6 +488,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatePerson,
       deletePerson,
       addMemory, 
+      addComment,
       addSuggestion, 
       addRelationship,
       resolveSuggestion,
