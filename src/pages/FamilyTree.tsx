@@ -16,11 +16,12 @@ import {
   RefreshCw,
   UserPlus,
   Maximize,
-  Sparkles,
   Search,
   X,
   Focus,
-  Ghost
+  Ghost,
+  Compass,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
@@ -38,7 +39,7 @@ const BRANCH_COLORS = [
   '#ec4899', // Pink
 ];
 
-const LINEAGE_COLOR = '#e2e8f0'; 
+const LINEAGE_COLOR = '#cbd5e1'; 
 
 const FamilyTree = () => {
   const navigate = useNavigate();
@@ -55,11 +56,11 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 70, 
-        ranksep: 100, 
-        marginx: 100, 
+        nodesep: 100, 
+        ranksep: 120, 
+        marginx: 200, 
         marginy: 100,
-        ranker: 'network-simplex' // Better for horizontal alignment of siblings
+        ranker: 'network-simplex' 
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -73,8 +74,8 @@ const FamilyTree = () => {
         }
 
         g.setNode(p.id, { 
-          width: 220, 
-          height: 70, 
+          width: 240, 
+          height: 80, 
           person: { ...p, displayYear: displayYear || 'Year Unknown' } 
         });
       });
@@ -139,14 +140,14 @@ const FamilyTree = () => {
           if (validIds.has(p1) && validIds.has(p2) && !processedSiblings.has(pairKey)) {
             processedSiblings.add(pairKey);
             // minlen: 0 encourages nodes to be on the same rank
-            g.setEdge(p1, p2, { type: 'sibling-constraint', weight: 10, minlen: 0 });
+            g.setEdge(p1, p2, { type: 'sibling-constraint', weight: 20, minlen: 0 });
           }
         }
       });
 
       // 4. Finalize Union Nodes and Edges
       Object.values(unions).forEach(u => {
-        g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
+        g.setNode(u.id, { width: 50, height: 50, isUnion: true, color: u.color });
         g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10, minlen: 1 });
         g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10, minlen: 1 });
         u.children.forEach((childId) => {
@@ -163,14 +164,19 @@ const FamilyTree = () => {
         ...g.edge(e)
       }));
 
-      const minX = Math.min(...nodes.map(n => n.x - 150));
-      const maxX = Math.max(...nodes.map(n => n.x + 150));
-      const minY = Math.min(...nodes.map(n => n.y - 100));
-      const maxY = Math.max(...nodes.map(n => n.y + 100));
+      const minX = Math.min(...nodes.map(n => n.x - 200));
+      const maxX = Math.max(...nodes.map(n => n.x + 200));
+      const minY = Math.min(...nodes.map(n => n.y - 150));
+      const maxY = Math.max(...nodes.map(n => n.y + 150));
+
+      // Calculate generations for labels
+      const generations = Array.from(new Set(nodes.map(n => Math.round(n.y / 120))))
+        .sort((a: number, b: number) => a - b);
 
       return {
         nodes,
         edges,
+        generations,
         width: maxX - minX,
         height: maxY - minY,
         offsetX: -minX,
@@ -234,7 +240,7 @@ const FamilyTree = () => {
     );
   }
 
-  const data = treeData as { nodes: any[], edges: any[], width: number, height: number, offsetX: number, offsetY: number };
+  const data = treeData as { nodes: any[], edges: any[], generations: number[], width: number, height: number, offsetX: number, offsetY: number };
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] overflow-hidden flex flex-col">
@@ -337,6 +343,22 @@ const FamilyTree = () => {
           }}
           className="relative mx-auto"
         >
+          {/* Generation Labels */}
+          <div className="absolute left-0 top-0 bottom-0 w-32 pointer-events-none z-10">
+            {data.generations.map((gen, i) => (
+              <div 
+                key={i} 
+                style={{ top: gen * 120 }} 
+                className="absolute left-0 flex items-center gap-3 opacity-30"
+              >
+                <div className="h-px w-12 bg-stone-400" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-stone-500 whitespace-nowrap">
+                  Generation {i + 1}
+                </span>
+              </div>
+            ))}
+          </div>
+
           <svg 
             width={data.width} 
             height={data.height} 
@@ -346,22 +368,22 @@ const FamilyTree = () => {
               if (!edge.from || !edge.to || edge.type === 'sibling-constraint') return null;
               const isMarriage = edge.type === 'marriage';
               const startX = edge.from.x;
-              const startY = edge.from.y + (edge.from.isUnion ? 0 : 35); 
+              const startY = edge.from.y + (edge.from.isUnion ? 0 : 40); 
               const endX = edge.to.x;
-              const endY = edge.to.y - (edge.to.isUnion ? 20 : 35); 
+              const endY = edge.to.y - (edge.to.isUnion ? 25 : 40); 
               const midY = startY + (endY - startY) * 0.5;
               const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               
               return (
                 <g key={i}>
-                  <path d={path} stroke="white" strokeWidth={isMarriage ? "8" : "6"} fill="none" strokeLinecap="round" opacity="0.4" />
+                  <path d={path} stroke="white" strokeWidth={isMarriage ? "10" : "8"} fill="none" strokeLinecap="round" opacity="0.5" />
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 1, ease: "easeInOut", delay: i * 0.01 }}
+                    transition={{ duration: 1.2, ease: "easeInOut", delay: i * 0.01 }}
                     d={path}
                     stroke={edge.color || LINEAGE_COLOR}
-                    strokeWidth={isMarriage ? "3" : "2"}
+                    strokeWidth={isMarriage ? "4" : "2.5"}
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -379,10 +401,10 @@ const FamilyTree = () => {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', damping: 12, delay: 0.3 }}
-                  style={{ left: node.x - 20, top: node.y - 20, backgroundColor: 'white', borderColor: node.color }}
-                  className="absolute w-10 h-10 rounded-full border-2 flex items-center justify-center shadow-lg z-10 group"
+                  style={{ left: node.x - 25, top: node.y - 25, backgroundColor: 'white', borderColor: node.color }}
+                  className="absolute w-12 h-12 rounded-full border-4 flex items-center justify-center shadow-xl z-10 group"
                 >
-                  <Heart className="w-5 h-5 fill-current transition-transform group-hover:scale-125" style={{ color: node.color }} />
+                  <Heart className="w-6 h-6 fill-current transition-transform group-hover:scale-125" style={{ color: node.color }} />
                 </motion.div>
               );
             }
@@ -396,44 +418,44 @@ const FamilyTree = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ scale: 1.05, y: -2 }}
-                style={{ left: node.x - 110, top: node.y - 35, width: 220, height: 70 }}
+                style={{ left: node.x - 120, top: node.y - 40, width: 240, height: 80 }}
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
                 className={cn(
-                  "absolute bg-white rounded-2xl border transition-all p-3 flex items-center gap-3 cursor-pointer group z-20",
+                  "absolute bg-white rounded-[1.5rem] border transition-all p-4 flex items-center gap-4 cursor-pointer group z-20",
                   isHighlighted 
                     ? "ring-4 ring-amber-500 border-amber-500 shadow-2xl scale-110 z-50" 
                     : isMe
-                    ? "border-amber-200 shadow-md bg-amber-50/30"
-                    : "border-stone-100 shadow-[0_4px_15px_-3px_rgba(0,0,0,0.07)] hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] hover:border-amber-200"
+                    ? "border-amber-200 shadow-lg bg-amber-50/40"
+                    : "border-stone-100 shadow-[0_8px_20px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] hover:border-amber-200"
                 )}
               >
                 <SmartSuggestionHover personId={node.id} />
                 
-                <div className="h-12 w-12 rounded-full overflow-hidden bg-stone-50 shrink-0 border-2 border-white shadow-sm group-hover:border-amber-200 transition-all">
+                <div className="h-14 w-14 rounded-full overflow-hidden bg-stone-50 shrink-0 border-2 border-white shadow-sm group-hover:border-amber-200 transition-all">
                   {node.person.photoUrl ? (
                     <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-200">
-                      <UserCircle className="w-8 h-8" />
+                      <UserCircle className="w-10 h-10" />
                     </div>
                   )}
                 </div>
-                <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="min-w-0 flex-1 space-y-1">
                   <p className="text-sm font-serif font-bold text-stone-800 truncate group-hover:text-amber-900 transition-colors">
                     {node.person.name}
                   </p>
                   <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-bold text-stone-400 uppercase tracking-widest">
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
                       {node.person.displayYear}
                     </span>
                     {!node.person.isLiving && (
-                      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-stone-100 rounded-full">
-                        <Ghost className="w-2 h-2 text-stone-400" />
-                        <span className="text-[7px] font-bold text-stone-500 uppercase tracking-tighter">In Memory</span>
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-stone-100 rounded-full">
+                        <Ghost className="w-2.5 h-2.5 text-stone-400" />
+                        <span className="text-[8px] font-bold text-stone-500 uppercase tracking-tighter">In Memory</span>
                       </div>
                     )}
                     {isMe && (
-                      <Badge className="bg-amber-500 text-white border-none text-[7px] px-1.5 py-0 rounded-full">You</Badge>
+                      <Badge className="bg-amber-500 text-white border-none text-[8px] px-2 py-0 rounded-full">You</Badge>
                     )}
                   </div>
                 </div>
@@ -443,16 +465,42 @@ const FamilyTree = () => {
         </motion.div>
       </main>
 
-      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-30">
-        <div className="bg-stone-900/90 backdrop-blur-xl text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-6 border border-white/10">
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-stone-400" />
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-300">Lineage</span>
+      {/* Mini-map Navigator */}
+      <div className="fixed bottom-28 right-8 z-40 hidden md:block">
+        <div className="bg-white/80 backdrop-blur-md p-4 rounded-[2rem] border-2 border-stone-100 shadow-2xl space-y-3">
+          <div className="flex items-center gap-2 text-stone-400">
+            <Compass className="w-4 h-4" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Navigator</span>
           </div>
-          <div className="h-3 w-px bg-white/10" />
-          <div className="flex items-center gap-2">
-            <Heart className="w-3 h-3 text-amber-400 fill-current" />
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-300">Marriage</span>
+          <div className="h-24 w-32 bg-stone-50 rounded-xl border border-stone-100 relative overflow-hidden">
+            <div 
+              className="absolute bg-amber-500/20 border border-amber-500/40 rounded-sm transition-all duration-300"
+              style={{
+                width: '40%',
+                height: '40%',
+                left: '30%',
+                top: '30%'
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-30">
+        <div className="bg-stone-900/90 backdrop-blur-xl text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-8 border border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full bg-stone-400" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-300">Lineage</span>
+          </div>
+          <div className="h-4 w-px bg-white/10" />
+          <div className="flex items-center gap-3">
+            <Heart className="w-4 h-4 text-amber-400 fill-current" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-300">Marriage</span>
+          </div>
+          <div className="h-4 w-px bg-white/10" />
+          <div className="flex items-center gap-3">
+            <Layers className="w-4 h-4 text-blue-400" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-300">Generations</span>
           </div>
         </div>
       </div>
