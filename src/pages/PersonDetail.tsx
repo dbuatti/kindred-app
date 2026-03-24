@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +34,7 @@ import { PersonDetailSkeleton } from '../components/SkeletonLoader';
 import { cn, formatFamilyDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { parsePersonIdFromSlug } from '@/lib/slugify';
-import { motion, useScroll, useSpring } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { usePersonRelatives } from '@/hooks/use-person-relatives';
 
@@ -42,15 +42,11 @@ const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
 const PersonDetail = () => {
   const { slug } = useParams();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { people, user, reactions, toggleReaction, relationships, updatePerson, loading } = useFamily();
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   
   const [memorySearch, setMemorySearch] = useState('');
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
-  const memoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const shortId = useMemo(() => {
     const id = parsePersonIdFromSlug(slug);
@@ -63,23 +59,6 @@ const PersonDetail = () => {
   }, [shortId, people, loading]);
 
   const relatives = usePersonRelatives(person, people, relationships);
-
-  // Handle scrolling to specific memory if ID is in URL
-  useEffect(() => {
-    const memoryId = searchParams.get('memory');
-    if (memoryId && !loading && person) {
-      setTimeout(() => {
-        const element = memoryRefs.current[memoryId];
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          element.classList.add('ring-4', 'ring-amber-500/20', 'bg-amber-50/30');
-          setTimeout(() => {
-            element.classList.remove('ring-4', 'ring-amber-500/20', 'bg-amber-50/30');
-          }, 3000);
-        }
-      }, 500);
-    }
-  }, [searchParams, loading, person]);
 
   const { 
     isDragging: isDraggingOverPage, 
@@ -135,19 +114,6 @@ const PersonDetail = () => {
     }
   };
 
-  const handleShareMemory = (memoryId: string) => {
-    const shareUrl = `${window.location.origin}${window.location.pathname}?memory=${memoryId}`;
-    if (navigator.share) {
-      navigator.share({
-        title: `A story about ${person?.name}`,
-        url: shareUrl
-      });
-    } else {
-      navigator.clipboard.writeText(shareUrl);
-      toast.success("Link to this story copied!");
-    }
-  };
-
   if (loading) return (
     <div className="min-h-screen bg-[#FDFCF9]">
       <nav className="sticky top-0 z-30 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
@@ -192,8 +158,6 @@ const PersonDetail = () => {
       onDragLeave={onDragLeavePage}
       onDrop={onDropPage}
     >
-      <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-amber-500 origin-left z-[100]" style={{ scaleX }} />
-
       {isDraggingOverPage && !isDraggingOverProfile && (
         <div className="fixed inset-0 z-50 bg-amber-600/20 backdrop-blur-sm flex items-center justify-center pointer-events-none animate-in fade-in duration-300">
           <div className="bg-white p-8 rounded-[3rem] shadow-2xl border-4 border-amber-500 flex flex-col items-center gap-4 scale-105 transition-transform">
@@ -279,12 +243,11 @@ const PersonDetail = () => {
                 return (
                   <motion.div 
                     key={memory.id} 
-                    ref={el => memoryRefs.current[memory.id] = el}
                     initial={{ opacity: 0, x: -20 }} 
                     whileInView={{ opacity: 1, x: 0 }} 
                     viewport={{ once: true }} 
                     transition={{ delay: idx * 0.1 }} 
-                    className="relative pl-16 group transition-all duration-500 rounded-[3rem]"
+                    className="relative pl-16 group transition-all duration-500"
                   >
                     <div className="absolute left-0 top-2 w-12 h-12 rounded-full bg-white border-4 border-stone-50 flex items-center justify-center z-10 shadow-sm group-hover:border-amber-100 transition-colors">
                       {memory.type === 'voice' ? <Mic className="w-5 h-5 text-amber-600" /> : memory.type === 'photo' ? <Camera className="w-5 h-5 text-stone-400" /> : <MessageSquare className="w-5 h-5 text-stone-400" />}
@@ -298,29 +261,20 @@ const PersonDetail = () => {
                             {formatFamilyDate(memory.createdAt)}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => handleShareMemory(memory.id)}
-                            className="p-2 rounded-full text-stone-300 hover:text-amber-600 hover:bg-amber-50 transition-all opacity-0 group-hover:opacity-100"
-                            title="Share this story"
-                          >
-                            <Share2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            onClick={() => handleWarm(memory.id)}
-                            className={cn(
-                              "flex items-center gap-2 px-3 py-1 rounded-full transition-all duration-300 group/heart",
-                              isWarmed 
-                                ? "bg-red-50 text-red-500" 
-                                : "bg-stone-50 text-stone-400 hover:bg-red-50 hover:text-red-500"
-                            )}
-                          >
-                            <Heart className={cn("w-3 h-3 transition-transform group-active:scale-125", isWarmed && "fill-current")} />
-                            <span className="text-[10px] font-bold uppercase tracking-widest">
-                              {memoryReactions.length > 0 ? memoryReactions.length : ''} {isWarmed ? 'Warmed' : 'Warm this'}
-                            </span>
-                          </button>
-                        </div>
+                        <button 
+                          onClick={() => handleWarm(memory.id)}
+                          className={cn(
+                            "flex items-center gap-2 px-3 py-1 rounded-full transition-all duration-300 group/heart",
+                            isWarmed 
+                              ? "bg-red-50 text-red-500" 
+                              : "bg-stone-50 text-stone-400 hover:bg-red-50 hover:text-red-500"
+                          )}
+                        >
+                          <Heart className={cn("w-3 h-3 transition-transform group-active:scale-125", isWarmed && "fill-current")} />
+                          <span className="text-[10px] font-bold uppercase tracking-widest">
+                            {memoryReactions.length > 0 ? memoryReactions.length : ''} {isWarmed ? 'Warmed' : 'Warm this'}
+                          </span>
+                        </button>
                       </div>
                       <div className={cn("p-8 rounded-[2.5rem] text-xl font-serif leading-relaxed shadow-sm transition-all duration-500", memory.type === 'voice' ? "bg-amber-50/40 border border-amber-100/50" : memory.type === 'photo' ? "bg-stone-50/50 border border-stone-100" : "bg-white border border-stone-100 group-hover:shadow-md")}>
                         {memory.type === 'voice' && <Button size="icon" variant="ghost" className="mb-6 h-14 w-14 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 shadow-sm"><Play className="w-6 h-6 fill-current" /></Button>}
