@@ -11,12 +11,14 @@ import {
   UserCircle,
   Heart,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  UserPlus
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
 import { cn } from '@/lib/utils';
 import dagre from 'dagre';
+import AddPersonDialog from '../components/AddPersonDialog';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
@@ -215,10 +217,20 @@ const FamilyTree = () => {
               <p className="text-stone-400 text-[10px] font-bold uppercase tracking-widest">Visual Archive</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-stone-100 p-1 rounded-full">
-            <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="h-8 w-8 rounded-full"><ZoomOut className="w-4 h-4" /></Button>
-            <span className="text-[10px] font-bold w-12 text-center">{Math.round(zoom * 100)}%</span>
-            <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="h-8 w-8 rounded-full"><ZoomIn className="w-4 h-4" /></Button>
+          
+          <div className="flex items-center gap-4">
+            <AddPersonDialog 
+              trigger={
+                <Button variant="outline" className="hidden md:flex rounded-full border-stone-200 text-stone-600 gap-2 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition-all">
+                  <UserPlus className="w-4 h-4" /> Add to Family
+                </Button>
+              }
+            />
+            <div className="flex items-center gap-2 bg-stone-100 p-1 rounded-full">
+              <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="h-8 w-8 rounded-full"><ZoomOut className="w-4 h-4" /></Button>
+              <span className="text-[10px] font-bold w-12 text-center">{Math.round(zoom * 100)}%</span>
+              <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="h-8 w-8 rounded-full"><ZoomIn className="w-4 h-4" /></Button>
+            </div>
           </div>
         </div>
       </header>
