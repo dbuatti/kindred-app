@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Camera, Calendar, MapPin, Briefcase, Quote, Edit3, Heart, Skull } from 'lucide-react';
+import { Camera, Calendar, MapPin, Briefcase, Quote, Edit3, Heart, Skull, UploadCloud } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Person } from '@/types';
@@ -44,7 +44,7 @@ const PersonHero = ({
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
         className={cn(
-          "relative w-48 h-48 md:w-64 md:h-64 rounded-[3rem] overflow-hidden shadow-2xl ring-8 transition-all duration-500 shrink-0",
+          "relative w-48 h-48 md:w-64 md:h-64 rounded-[3rem] overflow-hidden shadow-2xl ring-8 transition-all duration-500 shrink-0 group cursor-pointer",
           isDraggingOverProfile ? "ring-amber-500 scale-105 shadow-amber-200" : "ring-white"
         )}
         onDragOver={onProfileDragOver}
@@ -52,15 +52,28 @@ const PersonHero = ({
         onDrop={onProfileDrop}
       >
         {person.photoUrl ? (
-          <img src={person.photoUrl} alt={person.name} className="w-full h-full object-cover grayscale-[0.2] hover:grayscale-0 transition-all duration-700" />
+          <img src={person.photoUrl} alt={person.name} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" />
         ) : (
           <div className="w-full h-full bg-stone-100 flex items-center justify-center">
             <Camera className="w-12 h-12 text-stone-300" />
           </div>
         )}
-        <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center group cursor-pointer">
-          <Camera className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+        
+        {/* Hover Overlay */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex flex-col items-center justify-center gap-2">
+          <Camera className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0" />
+          <span className="text-[10px] font-bold text-white uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all duration-300 delay-75">
+            Drop photo to update
+          </span>
         </div>
+
+        {/* Active Drag Overlay */}
+        {isDraggingOverProfile && (
+          <div className="absolute inset-0 bg-amber-600/60 backdrop-blur-sm flex flex-col items-center justify-center gap-2 z-20">
+            <UploadCloud className="w-12 h-12 text-white animate-bounce" />
+            <span className="text-xs font-bold text-white uppercase tracking-widest">Release to Save</span>
+          </div>
+        )}
       </motion.div>
 
       <div className="space-y-8 flex-1">

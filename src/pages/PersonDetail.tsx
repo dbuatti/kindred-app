@@ -18,7 +18,8 @@ import {
   Heart,
   Mic,
   Camera,
-  Play
+  Play,
+  Image as ImageIcon
 } from 'lucide-react';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import FamilyConnections from '../components/FamilyConnections';
@@ -218,7 +219,13 @@ const PersonDetail = () => {
 
         <section className="space-y-12">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b-4 border-stone-100 pb-6">
-            <h2 className="text-3xl font-serif font-bold text-stone-800 flex items-center gap-3">The Archive</h2>
+            <div className="space-y-1">
+              <h2 className="text-3xl font-serif font-bold text-stone-800 flex items-center gap-3">The Archive</h2>
+              <div className="flex items-center gap-2 text-stone-400">
+                <ImageIcon className="w-3 h-3" />
+                <p className="text-[10px] font-bold uppercase tracking-widest">Drag & Drop photos anywhere to share</p>
+              </div>
+            </div>
             <div className="flex items-center gap-4">
               <div className="relative group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 group-focus-within:text-amber-600 transition-colors" />
