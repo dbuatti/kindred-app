@@ -9,8 +9,7 @@ import {
   ZoomIn, 
   ZoomOut, 
   UserCircle,
-  Heart,
-  Share2
+  Heart
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
@@ -26,7 +25,8 @@ const FamilyTree = () => {
     if (loading || people.length === 0) return null;
 
     const g = new dagre.graphlib.Graph();
-    // TB = Top to Bottom. Increased spacing for clarity.
+    // TB = Top to Bottom. 
+    // ranksep: distance between levels. nodesep: distance between nodes on same level.
     g.setGraph({ rankdir: 'TB', nodesep: 100, ranksep: 150, marginx: 50, marginy: 50 });
     g.setDefaultEdgeLabel(() => ({}));
 
@@ -55,14 +55,15 @@ const FamilyTree = () => {
         g.setEdge(r.related_person_id, r.person_id, { type: 'parental' });
       } 
       // Horizontal links (Spouses and Siblings)
+      // We set minlen: 0 to tell Dagre these nodes should be on the same rank (level)
       else if (['spouse', 'wife', 'husband'].includes(type)) {
-        g.setEdge(r.person_id, r.related_person_id, { type: 'spouse', weight: 2 });
+        g.setEdge(r.person_id, r.related_person_id, { type: 'spouse', minlen: 0, weight: 1 });
       } else if (['brother', 'sister', 'sibling'].includes(type)) {
-        g.setEdge(r.person_id, r.related_person_id, { type: 'sibling', weight: 1 });
+        g.setEdge(r.person_id, r.related_person_id, { type: 'sibling', minlen: 0, weight: 1 });
       }
-      // Extended links (To keep the graph connected)
+      // Extended links
       else {
-        g.setEdge(r.person_id, r.related_person_id, { type: 'extended', weight: 0 });
+        g.setEdge(r.person_id, r.related_person_id, { type: 'extended', minlen: 0, weight: 0 });
       }
     });
 
@@ -117,10 +118,25 @@ const FamilyTree = () => {
                   const isSibling = edge.type === 'sibling';
                   const isExtended = edge.type === 'extended';
                   
+                  // Calculate connection points based on relative positions
+                  const isHorizontal = Math.abs(edge.from.y - edge.to.y) < 10;
+                  
+                  let startX = edge.from.x;
+                  let startY = edge.from.y + (isHorizontal ? 0 : 60);
+                  let endX = edge.to.x;
+                  let endY = edge.to.y - (isHorizontal ? 0 : 60);
+
+                  if (isHorizontal) {
+                    startX = edge.from.x + (edge.from.x < edge.to.x ? 120 : -120);
+                    endX = edge.to.x + (edge.from.x < edge.to.x ? -120 : 120);
+                    startY = edge.from.y;
+                    endY = edge.to.y;
+                  }
+                  
                   return (
                     <path
                       key={i}
-                      d={`M ${edge.from.x} ${edge.from.y + 60} L ${edge.to.x} ${edge.to.y - 60}`}
+                      d={`M ${startX} ${startY} L ${endX} ${endY}`}
                       stroke={isSpouse ? '#f87171' : isSibling ? '#94a3b8' : isExtended ? '#cbd5e1' : '#e7e5e4'}
                       strokeWidth={isSpouse ? "3" : "2"}
                       strokeDasharray={isSibling || isExtended ? "5,5" : "0"}
