@@ -15,12 +15,21 @@ export const useKeyboardShortcuts = (customShortcuts: ShortcutConfig[] = []) => 
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input or textarea
-      if (
-        document.activeElement?.tagName === 'INPUT' || 
-        document.activeElement?.tagName === 'TEXTAREA' ||
-        (document.activeElement as HTMLElement)?.isContentEditable
-      ) {
+      // Don't trigger if user is typing in an input, textarea, or any form-related element
+      const activeElement = document.activeElement;
+      
+      // Check if we are in a form element or a component that handles its own typing (like Radix Select)
+      const isTyping = 
+        activeElement?.tagName === 'INPUT' || 
+        activeElement?.tagName === 'TEXTAREA' ||
+        activeElement?.tagName === 'SELECT' ||
+        (activeElement as HTMLElement)?.isContentEditable ||
+        activeElement?.getAttribute('role') === 'combobox' ||
+        activeElement?.getAttribute('role') === 'listbox' ||
+        activeElement?.getAttribute('role') === 'option' ||
+        activeElement?.hasAttribute('data-radix-select-trigger');
+
+      if (isTyping) {
         return;
       }
 
