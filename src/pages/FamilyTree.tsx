@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
@@ -17,16 +17,19 @@ import {
   UserPlus,
   Maximize,
   Search,
-  X
+  X,
+  Sparkles,
+  Focus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
-import { cn, extractYear } from '@/lib/utils';
-import dagre from 'dagre';
+import { cn } from '@/lib/utils';
+import ELK from 'elkjs/lib/elk.bundled.js';
 import AddPersonDialog from '../components/AddPersonDialog';
 import SmartSuggestionHover from '../components/SmartSuggestionHover';
 import TreeSmartInbox from '../components/TreeSmartInbox';
-import TreeToggle from '../components/TreeToggle';
+
+const elk = new ELK();
 
 const BRANCH_COLORS = [
   '#8b5cf6', // Violet
@@ -44,42 +47,32 @@ const FamilyTree = () => {
   const [zoom, setZoom] = useState(0.75);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [layoutData, setLayoutData] = useState<any>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
   const treeContainerRef = useRef<HTMLDivElement>(null);
 
-  const treeData = useMemo(() => {
-    if (loading || people.length === 0) return null;
-
+  const calculateLayout = useCallback(async () => {
+    if (loading || people.length === 0) return;
+    setIsCalculating(true);
     try {
-      const g = new dagre.graphlib.Graph({ compound: true });
-      g.setGraph({ 
-        rankdir: 'TB', 
-        nodesep: 110,      // Increased from 80
-        ranksep: 160,      // Increased from 120
-        marginx: 100, 
-        marginy: 100,
-        ranker: 'network-simplex' // Best for tree-like structures
-      });
-      g.setDefaultEdgeLabel(() => ({}));
-
       const validIds = new Set(people.map(p => p.id));
-
-      // 1. Add Nodes
-      people.forEach(p => {
+      
+      const elkNodes: any[] = people.map(p => {
         let displayYear = p.birthYear;
         if (!displayYear && p.birthDate) {
           const match = p.birthDate.match(/\d{4}/);
           if (match) displayYear = match[0];
         }
-
-        g.setNode(p.id, { 
-          width: 240, 
-          height: 80, 
-          person: { ...p, displayYear: displayYear || 'Year Unknown' } 
-        });
+        return {
+          id: p.id,
+          width: 240,
+          height: 80,
+          person: { ...p, displayYear: displayYear || 'Year Unknown' }
+        };
       });
 
-      // 2. Identify Unions (Marriages)
-      const unions: Record<string, { id: string, p1: string, p2: string, children: string[], color: string }> = {};
+      const elkEdges: any[] = [];
+      const unions: Record<string, { id: string, p1: string, p2: string, color: string }> = {};
       let colorIdx = 0;
 
       relationships.forEach(r => {
@@ -87,23 +80,25 @@ const FamilyTree = () => {
           if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
             const pairId = [r.person_id, r.related_person_id].sort().join('_');
             if (!unions[pairId]) {
+              const unionId = `union_${pairId}`;
               unions[pairId] = { 
-                id: `union_${pairId}`, 
+                id: unionId, 
                 p1: r.person_id, 
                 p2: r.related_person_id, 
-                children: [],
                 color: BRANCH_COLORS[colorIdx % BRANCH_COLORS.length]
               };
+              elkNodes.push({ id: unionId, width: 40, height: 40, isUnion: true, color: unions[pairId].color });
+              
+              elkEdges.push({ id: `e_${unionId}_1`, sources: [r.person_id], targets: [unionId], type: 'marriage', color: unions[pairId].color });
+              elkEdges.push({ id: `e_${unionId}_2`, sources: [r.related_person_id], targets: [unionId], type: 'marriage', color: unions[pairId].color });
+              
               colorIdx++;
             }
           }
         }
       });
 
-      // 3. Map Children to Unions or Parents
-      const parentChildMap: Record<string, Set<string>> = {}; 
-      
-      relationships.forEach(r => {
+      relationships.forEach((r, idx) => {
         const type = r.relationship_type.toLowerCase();
         if (['cousin', 'aunt', 'uncle', 'nephew', 'niece'].includes(type)) return;
 
@@ -119,115 +114,89 @@ const FamilyTree = () => {
         }
 
         if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
-          if (!parentChildMap[childId]) parentChildMap[childId] = new Set();
-          parentChildMap[childId].add(parentId);
-        }
-      });
+          const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
+          const sourceId = union ? union.id : parentId;
+          const edgeColor = union ? union.color : LINEAGE_COLOR;
 
-      // Assign children to unions where possible
-      Object.entries(parentChildMap).forEach(([childId, parentIds]) => {
-        const parents = Array.from(parentIds);
-        let assigned = false;
-
-        if (parents.length >= 2) {
-          for (const u of Object.values(unions)) {
-            if (parentIds.has(u.p1) && parentIds.has(u.p2)) {
-              if (!u.children.includes(childId)) u.children.push(childId);
-              assigned = true;
-              break;
-            }
-          }
-        }
-
-        if (!assigned) {
-          for (const parentId of parents) {
-            const u = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
-            if (u) {
-              if (!u.children.includes(childId)) u.children.push(childId);
-              assigned = true;
-              break;
-            }
-          }
-        }
-
-        if (!assigned) {
-          parents.forEach(parentId => {
-            g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR, weight: 1 });
+          elkEdges.push({ 
+            id: `rel_${idx}`, 
+            sources: [sourceId], 
+            targets: [childId], 
+            type: 'lineage', 
+            color: edgeColor 
           });
         }
       });
 
-      // 4. Process Unions and Sibling Groups
-      Object.values(unions).forEach(u => {
-        // Add the union heart node
-        g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
-        
-        // High weight on marriage edges keeps spouses close to the heart
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 100 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 100 });
+      const graph = {
+        id: "root",
+        layoutOptions: {
+          'elk.algorithm': 'layered',
+          'elk.direction': 'DOWN',
+          'elk.spacing.nodeNode': '100',
+          'elk.layered.spacing.nodeNodeBetweenLayers': '160',
+          'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+          'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+          'elk.edgeRouting': 'ORTHOGONAL',
+          'elk.layered.mergeEdges': 'true',
+          'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
+          'elk.layered.spacing.edgeEdgeBetweenLayers': '20',
+          'elk.layered.spacing.edgeNodeBetweenLayers': '40',
+          'elk.padding': '[top=150,left=150,bottom=150,right=150]'
+        },
+        children: elkNodes,
+        edges: elkEdges
+      };
 
-        if (u.children.length > 0) {
-          // Sort siblings by birth year to keep them in a consistent order
-          const sortedChildren = [...u.children].sort((a, b) => {
-            const pA = people.find(p => p.id === a);
-            const pB = people.find(p => p.id === b);
-            const yearA = parseInt(extractYear(pA?.birthDate || pA?.birthYear) || '9999');
-            const yearB = parseInt(extractYear(pB?.birthDate || pB?.birthYear) || '9999');
-            return yearA - yearB;
-          });
-
-          const siblingGroupId = `siblings_${u.id}`;
-          g.setNode(siblingGroupId, { label: 'Siblings' });
-
-          sortedChildren.forEach((childId, idx) => {
-            // Force siblings into a cluster
-            g.setParent(childId, siblingGroupId);
-            
-            // Connect union to each child
-            g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 50 });
-            
-            // Invisible edges between siblings to force horizontal grouping and order
-            if (idx > 0) {
-              const prevChildId = sortedChildren[idx - 1];
-              g.setEdge(prevChildId, childId, { 
-                weight: 10, 
-                style: { display: 'none' } 
-              });
-            }
-          });
-        }
-      });
-
-      dagre.layout(g);
+      const layout = await elk.layout(graph);
       
-      const nodes = g.nodes()
-        .filter(v => !v.startsWith('siblings_')) 
-        .map(v => ({ id: v, ...g.node(v) }));
-        
-      const edges = g.edges().map(e => ({ 
-        from: g.node(e.v), 
-        to: g.node(e.w),
-        ...g.edge(e)
-      })).filter(e => e.from && e.to && e.style?.display !== 'none');
+      const nodes = layout.children || [];
+      const edges = layout.edges || [];
 
-      const minX = Math.min(...nodes.map(n => n.x - 120));
-      const maxX = Math.max(...nodes.map(n => n.x + 120));
-      const minY = Math.min(...nodes.map(n => n.y - 60));
-      const maxY = Math.max(...nodes.map(n => n.y + 60));
+      const minX = Math.min(...nodes.map(n => n.x || 0));
+      const maxX = Math.max(...nodes.map(n => (n.x || 0) + (n.width || 0)));
+      const minY = Math.min(...nodes.map(n => n.y || 0));
+      const maxY = Math.max(...nodes.map(n => (n.y || 0) + (n.height || 0)));
 
-      return {
+      setLayoutData({
         nodes,
         edges,
-        width: maxX - minX + 300,
-        height: maxY - minY + 200,
-        offsetX: -minX + 150,
-        offsetY: -minY + 100
-      };
+        width: maxX - minX + 600,
+        height: maxY - minY + 600,
+        offsetX: -minX + 300,
+        offsetY: -minY + 300
+      });
     } catch (err) {
       console.error("[FamilyTree] Layout error:", err);
-      return { error: true };
+    } finally {
+      setIsCalculating(false);
     }
   }, [people, relationships, loading]);
+
+  useEffect(() => {
+    calculateLayout();
+  }, [calculateLayout]);
+
+  const centerTree = useCallback(() => {
+    if (layoutData && treeContainerRef.current) {
+      const container = treeContainerRef.current;
+      const scrollX = (layoutData.width * zoom) / 2 - container.clientWidth / 2;
+      const scrollY = 100; // Start near the top
+      
+      container.scrollTo({
+        left: scrollX,
+        top: scrollY,
+        behavior: 'smooth'
+      });
+    }
+  }, [layoutData, zoom]);
+
+  useEffect(() => {
+    if (layoutData) {
+      const timer = setTimeout(centerTree, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [layoutData, centerTree]);
 
   const searchResults = useMemo(() => {
     if (!searchQuery || searchQuery.length < 2) return [];
@@ -235,14 +204,14 @@ const FamilyTree = () => {
   }, [searchQuery, people]);
 
   const jumpToPerson = (id: string) => {
-    const node = treeData?.nodes.find(n => n.id === id);
+    const node = layoutData?.nodes.find((n: any) => n.id === id);
     if (node && treeContainerRef.current) {
       setHighlightedId(id);
       setZoom(1);
       
       const container = treeContainerRef.current;
-      const scrollX = (node.x * 1) - (container.clientWidth / 2);
-      const scrollY = (node.y * 1) - (container.clientHeight / 2);
+      const scrollX = ((node.x + layoutData.offsetX + node.width / 2) * 1) - (container.clientWidth / 2);
+      const scrollY = ((node.y + layoutData.offsetY + node.height / 2) * 1) - (container.clientHeight / 2);
       
       container.scrollTo({
         left: scrollX,
@@ -255,28 +224,37 @@ const FamilyTree = () => {
     }
   };
 
-  if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the lineage...</div>;
+  const drawElkEdge = (edge: any) => {
+    if (!edge.sections || edge.sections.length === 0) return "";
+    const section = edge.sections[0];
+    const ox = layoutData.offsetX;
+    const oy = layoutData.offsetY;
+    
+    let path = `M ${section.startPoint.x + ox} ${section.startPoint.y + oy}`;
+    
+    if (section.bendPoints) {
+      section.bendPoints.forEach((bp: any) => {
+        path += ` L ${bp.x + ox} ${bp.y + oy}`;
+      });
+    }
+    
+    path += ` L ${section.endPoint.x + ox} ${section.endPoint.y + oy}`;
+    return path;
+  };
 
-  if (!treeData || (treeData as any).error) {
-    return (
-      <div className="min-h-screen bg-[#FDFCF9] flex items-center justify-center p-10">
-        <div className="max-w-md text-center space-y-6">
-          <div className="h-20 w-20 bg-red-50 rounded-full flex items-center justify-center mx-auto text-red-500">
-            <AlertCircle className="w-10 h-10" />
-          </div>
-          <h2 className="text-3xl font-serif text-stone-800">Tree Layout Error</h2>
-          <p className="text-stone-500 leading-relaxed">
-            We encountered a conflict in the family relationships. This usually happens if there are circular links.
-          </p>
-          <Button onClick={() => refreshData()} className="rounded-full bg-amber-600 hover:bg-amber-700 gap-2">
-            <RefreshCw className="w-4 h-4" /> Retry Loading
-          </Button>
-        </div>
+  if (loading || isCalculating) return (
+    <div className="min-h-screen bg-[#FDFCF9] flex flex-col items-center justify-center gap-6">
+      <div className="h-20 w-20 bg-amber-50 rounded-full flex items-center justify-center text-amber-600 animate-pulse">
+        <Sparkles className="w-10 h-10" />
       </div>
-    );
-  }
+      <div className="text-center space-y-2">
+        <h2 className="text-2xl font-serif font-bold text-stone-800">Optimizing the Tree</h2>
+        <p className="text-stone-400 italic">Using ELK.js for a cleaner layout...</p>
+      </div>
+    </div>
+  );
 
-  const data = treeData as { nodes: any[], edges: any[], width: number, height: number, offsetX: number, offsetY: number };
+  if (!layoutData) return null;
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] overflow-hidden flex flex-col">
@@ -288,9 +266,6 @@ const FamilyTree = () => {
             </Button>
             <div className="hidden sm:block">
               <h1 className="text-3xl font-serif font-bold text-stone-800 tracking-tight">Family Tree</h1>
-              <div className="flex items-center gap-3">
-                <TreeToggle />
-              </div>
             </div>
           </div>
 
@@ -350,6 +325,7 @@ const FamilyTree = () => {
               <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="h-8 w-8 rounded-full hover:bg-white shadow-sm"><ZoomOut className="w-4 h-4" /></Button>
               <span className="text-[10px] font-bold w-12 text-center text-stone-600">{Math.round(zoom * 100)}%</span>
               <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="h-8 w-8 rounded-full hover:bg-white shadow-sm"><ZoomIn className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={centerTree} className="h-8 w-8 rounded-full hover:bg-white shadow-sm" title="Center Tree"><Focus className="w-4 h-4" /></Button>
               <Button variant="ghost" size="icon" onClick={() => setZoom(0.75)} className="h-8 w-8 rounded-full hover:bg-white shadow-sm" title="Reset Zoom"><Maximize className="w-4 h-4" /></Button>
             </div>
           </div>
@@ -364,33 +340,27 @@ const FamilyTree = () => {
           style={{ 
             scale: zoom, 
             transformOrigin: 'center top',
-            width: data.width,
-            height: data.height
+            width: layoutData.width,
+            height: layoutData.height
           }}
           className="relative mx-auto"
         >
           <svg 
-            width={data.width} 
-            height={data.height} 
+            width={layoutData.width} 
+            height={layoutData.height} 
             className="absolute inset-0 pointer-events-none overflow-visible z-0"
           >
-            {data.edges.map((edge, i) => {
-              if (!edge.from || !edge.to) return null;
+            {layoutData.edges.map((edge: any, i: number) => {
               const isMarriage = edge.type === 'marriage';
-              const startX = edge.from.x;
-              const startY = edge.from.y + (edge.from.isUnion ? 0 : 40); 
-              const endX = edge.to.x;
-              const endY = edge.to.y - (edge.to.isUnion ? 20 : 40); 
-              const midY = startY + (endY - startY) * 0.5;
-              const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
+              const path = drawElkEdge(edge);
               
               return (
-                <g key={i}>
+                <g key={edge.id}>
                   <path d={path} stroke="white" strokeWidth={isMarriage ? "8" : "6"} fill="none" strokeLinecap="round" opacity="0.4" />
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 1, ease: "easeInOut", delay: i * 0.01 }}
+                    transition={{ duration: 1, ease: "easeInOut", delay: i * 0.005 }}
                     d={path}
                     stroke={edge.color || LINEAGE_COLOR}
                     strokeWidth={isMarriage ? "3" : "2"}
@@ -403,7 +373,10 @@ const FamilyTree = () => {
             })}
           </svg>
 
-          {data.nodes.map((node: any) => {
+          {layoutData.nodes.map((node: any) => {
+            const x = node.x + layoutData.offsetX;
+            const y = node.y + layoutData.offsetY;
+
             if (node.isUnion) {
               return (
                 <motion.div 
@@ -411,8 +384,8 @@ const FamilyTree = () => {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', damping: 12, delay: 0.3 }}
-                  style={{ left: node.x - 20, top: node.y - 20, backgroundColor: 'white', borderColor: node.color }}
-                  className="absolute w-10 h-10 rounded-full border-4 flex items-center justify-center shadow-md z-10 group"
+                  style={{ left: x, top: y, width: node.width, height: node.height, backgroundColor: 'white', borderColor: node.color }}
+                  className="absolute rounded-full border-4 flex items-center justify-center shadow-md z-10 group"
                 >
                   <Heart className="w-5 h-5 fill-current transition-transform group-hover:scale-125" style={{ color: node.color }} />
                 </motion.div>
@@ -428,7 +401,7 @@ const FamilyTree = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ scale: 1.05, y: -2 }}
-                style={{ left: node.x - 120, top: node.y - 40, width: 240, height: 80 }}
+                style={{ left: x, top: y, width: node.width, height: node.height }}
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
                 className={cn(
                   "absolute bg-white rounded-2xl border transition-all p-3 flex items-center gap-3 cursor-pointer group z-20",
@@ -441,7 +414,7 @@ const FamilyTree = () => {
                 <SmartSuggestionHover personId={node.id} />
                 
                 <div className={cn(
-                  "h-14 w-14 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 group-hover:border-amber-200 transition-all",
+                  "h-14 w-14 rounded-full overflow-hidden bg-stone-100 shrink-0 border border-stone-100 group-hover:border-amber-200 transition-all",
                   isDeceased && "grayscale opacity-70"
                 )}>
                   {node.person.photoUrl ? (

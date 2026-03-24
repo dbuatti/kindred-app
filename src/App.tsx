@@ -21,7 +21,6 @@ import Help from "./pages/Help";
 import Profile from "./pages/Profile";
 import CompleteArchive from "./pages/CompleteArchive";
 import FamilyTree from "./pages/FamilyTree";
-import FamilyTreeELK from "./pages/FamilyTreeELK";
 import DataExportButton from "./components/DataExportButton";
 import ShortcutHelpDialog from "./components/ShortcutHelpDialog";
 
@@ -86,7 +85,6 @@ const AnimatedRoutes = () => {
         <Route path="/profile" element={<AuthGuard><PageWrapper><Profile /></PageWrapper></AuthGuard>} />
         <Route path="/help" element={<AuthGuard><PageWrapper><Help /></PageWrapper></AuthGuard>} />
         <Route path="/tree" element={<AuthGuard><PageWrapper><FamilyTree /></PageWrapper></AuthGuard>} />
-        <Route path="/tree-v2" element={<AuthGuard><PageWrapper><FamilyTreeELK /></PageWrapper></AuthGuard>} />
         <Route path="/complete" element={<AuthGuard><PageWrapper><CompleteArchive /></PageWrapper></AuthGuard>} />
         <Route path="/" element={<AuthGuard><PageWrapper><Index /></PageWrapper></AuthGuard>} />
         <Route path="/person/:slug" element={<AuthGuard><PageWrapper><PersonDetail /></PageWrapper></AuthGuard>} />
