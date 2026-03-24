@@ -20,12 +20,13 @@ import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
 import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
+import { getInverseRelationship } from '@/lib/relationships';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { people, loading, user } = useFamily();
+  const { people, loading, user, relationships } = useFamily();
   const [searchQuery, setSearchQuery] = useState('');
   const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
   
@@ -54,6 +55,25 @@ const Index = () => {
     const memoryMatch = p.memories.some(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()));
     return nameMatch || memoryMatch;
   });
+
+  // Helper to get relatives for a person card
+  const getRelativesForPerson = (personId: string) => {
+    return relationships
+      .filter(r => r.person_id === personId || r.related_person_id === personId)
+      .map(r => {
+        const isPrimary = r.person_id === personId;
+        const relativeId = isPrimary ? r.related_person_id : r.person_id;
+        const relative = people.find(p => p.id === relativeId);
+        if (!relative) return null;
+
+        const type = !isPrimary 
+          ? r.relationship_type
+          : getInverseRelationship(r.relationship_type, relative.gender);
+
+        return { name: relative.name, type };
+      })
+      .filter(Boolean);
+  };
 
   const handleInvite = async () => {
     const inviteUrl = window.location.origin + '/join?code=KINDRED2024';
@@ -188,6 +208,7 @@ const Index = () => {
                   >
                     <PersonCard 
                       person={person} 
+                      relatives={getRelativesForPerson(person.id)}
                       onClick={() => navigate(getPersonUrl(person.id, person.name))}
                       searchQuery={searchQuery}
                     />
