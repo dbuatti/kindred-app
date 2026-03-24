@@ -11,6 +11,30 @@ export const usePersonRelatives = (person: Person | null, people: Person[], rela
     const seen = new Set();
     const relatives: any[] = [];
 
+    // Helper to infer gender if not explicitly set
+    const getEffectiveGender = (p: Person) => {
+      if (p.gender) return p.gender.toLowerCase();
+      
+      // Check personality tags
+      const tags = (p.personalityTags || []).map(t => t.toLowerCase());
+      if (tags.some(t => ['father', 'brother', 'son', 'uncle', 'grandfather'].includes(t))) return 'male';
+      if (tags.some(t => ['mother', 'sister', 'daughter', 'aunt', 'grandmother'].includes(t))) return 'female';
+      
+      // Check if they are the 'person_id' in any gendered relationship
+      const genderedRel = relationships.find(r => 
+        r.person_id === p.id && 
+        ['father', 'mother', 'brother', 'sister', 'son', 'daughter', 'uncle', 'aunt'].includes(r.relationship_type.toLowerCase())
+      );
+      
+      if (genderedRel) {
+        const t = genderedRel.relationship_type.toLowerCase();
+        if (['father', 'brother', 'son', 'uncle'].includes(t)) return 'male';
+        if (['mother', 'sister', 'daughter', 'aunt'].includes(t)) return 'female';
+      }
+
+      return null;
+    };
+
     // 1. Get Direct Relatives
     const direct = relationships
       .filter(r => r.person_id === person.id || r.related_person_id === person.id)
@@ -56,10 +80,11 @@ export const usePersonRelatives = (person: Person | null, people: Person[], rela
           let inferredType = rel.type;
           const relTypeLower = rel.type.toLowerCase();
           
-          // FIX: If the direct relative is a parent, their sibling is an Aunt/Uncle (not another parent)
+          // If the direct relative is a parent, their sibling is an Aunt/Uncle
           if (['mother', 'father', 'parent'].includes(relTypeLower)) {
-            if (sibling.gender === 'female') inferredType = 'Aunt';
-            else if (sibling.gender === 'male') inferredType = 'Uncle';
+            const gender = getEffectiveGender(sibling);
+            if (gender === 'female') inferredType = 'Aunt';
+            else if (gender === 'male') inferredType = 'Uncle';
             else inferredType = 'Aunt/Uncle';
           }
           

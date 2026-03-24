@@ -28,6 +28,8 @@ export const getInverseRelationship = (type: string, relativeGender?: string) =>
   if (t === 'spouse' || t === 'wife' || t === 'husband') {
     if (relativeGender === 'male') return 'Husband';
     if (relativeGender === 'female') return 'Wife';
+    if (t === 'wife') return 'Husband';
+    if (t === 'husband') return 'Wife';
     return 'Spouse';
   }
   
