@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,8 @@ import {
   Maximize,
   Search,
   X,
-  Sparkles
+  Sparkles,
+  Focus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
@@ -51,133 +52,148 @@ const FamilyTreeELK = () => {
   const [isCalculating, setIsCalculating] = useState(false);
   const treeContainerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const calculateLayout = useCallback(async () => {
     if (loading || people.length === 0) return;
+    setIsCalculating(true);
+    try {
+      const validIds = new Set(people.map(p => p.id));
+      
+      const elkNodes: any[] = people.map(p => {
+        let displayYear = p.birthYear;
+        if (!displayYear && p.birthDate) {
+          const match = p.birthDate.match(/\d{4}/);
+          if (match) displayYear = match[0];
+        }
+        return {
+          id: p.id,
+          width: 240,
+          height: 80,
+          person: { ...p, displayYear: displayYear || 'Year Unknown' }
+        };
+      });
 
-    const calculateLayout = async () => {
-      setIsCalculating(true);
-      try {
-        const validIds = new Set(people.map(p => p.id));
-        
-        // 1. Build ELK Graph Structure
-        const elkNodes: any[] = people.map(p => {
-          let displayYear = p.birthYear;
-          if (!displayYear && p.birthDate) {
-            const match = p.birthDate.match(/\d{4}/);
-            if (match) displayYear = match[0];
-          }
-          return {
-            id: p.id,
-            width: 240,
-            height: 80,
-            person: { ...p, displayYear: displayYear || 'Year Unknown' }
-          };
-        });
+      const elkEdges: any[] = [];
+      const unions: Record<string, { id: string, p1: string, p2: string, color: string }> = {};
+      let colorIdx = 0;
 
-        const elkEdges: any[] = [];
-        const unions: Record<string, { id: string, p1: string, p2: string, color: string }> = {};
-        let colorIdx = 0;
-
-        // 2. Identify Unions
-        relationships.forEach(r => {
-          if (r.relationship_type.toLowerCase() === 'spouse') {
-            if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
-              const pairId = [r.person_id, r.related_person_id].sort().join('_');
-              if (!unions[pairId]) {
-                const unionId = `union_${pairId}`;
-                unions[pairId] = { 
-                  id: unionId, 
-                  p1: r.person_id, 
-                  p2: r.related_person_id, 
-                  color: BRANCH_COLORS[colorIdx % BRANCH_COLORS.length]
-                };
-                elkNodes.push({ id: unionId, width: 40, height: 40, isUnion: true, color: unions[pairId].color });
-                
-                // Marriage edges
-                elkEdges.push({ id: `e_${unionId}_1`, sources: [r.person_id], targets: [unionId], type: 'marriage', color: unions[pairId].color });
-                elkEdges.push({ id: `e_${unionId}_2`, sources: [r.related_person_id], targets: [unionId], type: 'marriage', color: unions[pairId].color });
-                
-                colorIdx++;
-              }
+      relationships.forEach(r => {
+        if (r.relationship_type.toLowerCase() === 'spouse') {
+          if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
+            const pairId = [r.person_id, r.related_person_id].sort().join('_');
+            if (!unions[pairId]) {
+              const unionId = `union_${pairId}`;
+              unions[pairId] = { 
+                id: unionId, 
+                p1: r.person_id, 
+                p2: r.related_person_id, 
+                color: BRANCH_COLORS[colorIdx % BRANCH_COLORS.length]
+              };
+              elkNodes.push({ id: unionId, width: 40, height: 40, isUnion: true, color: unions[pairId].color });
+              
+              elkEdges.push({ id: `e_${unionId}_1`, sources: [r.person_id], targets: [unionId], type: 'marriage', color: unions[pairId].color });
+              elkEdges.push({ id: `e_${unionId}_2`, sources: [r.related_person_id], targets: [unionId], type: 'marriage', color: unions[pairId].color });
+              
+              colorIdx++;
             }
           }
-        });
+        }
+      });
 
-        // 3. Map Children to Unions or Parents
-        relationships.forEach((r, idx) => {
-          const type = r.relationship_type.toLowerCase();
-          if (['cousin', 'aunt', 'uncle', 'nephew', 'niece'].includes(type)) return;
+      relationships.forEach((r, idx) => {
+        const type = r.relationship_type.toLowerCase();
+        if (['cousin', 'aunt', 'uncle', 'nephew', 'niece'].includes(type)) return;
 
-          let parentId = '';
-          let childId = '';
+        let parentId = '';
+        let childId = '';
 
-          if (['mother', 'father', 'parent'].includes(type)) {
-            parentId = r.person_id;
-            childId = r.related_person_id;
-          } else if (['son', 'daughter', 'child'].includes(type)) {
-            childId = r.person_id;
-            parentId = r.related_person_id;
-          }
+        if (['mother', 'father', 'parent'].includes(type)) {
+          parentId = r.person_id;
+          childId = r.related_person_id;
+        } else if (['son', 'daughter', 'child'].includes(type)) {
+          childId = r.person_id;
+          parentId = r.related_person_id;
+        }
 
-          if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
-            // Check if this parent is part of a union
-            const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
-            const sourceId = union ? union.id : parentId;
-            const edgeColor = union ? union.color : LINEAGE_COLOR;
+        if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
+          const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
+          const sourceId = union ? union.id : parentId;
+          const edgeColor = union ? union.color : LINEAGE_COLOR;
 
-            elkEdges.push({ 
-              id: `rel_${idx}`, 
-              sources: [sourceId], 
-              targets: [childId], 
-              type: 'lineage', 
-              color: edgeColor 
-            });
-          }
-        });
+          elkEdges.push({ 
+            id: `rel_${idx}`, 
+            sources: [sourceId], 
+            targets: [childId], 
+            type: 'lineage', 
+            color: edgeColor 
+          });
+        }
+      });
 
-        const graph = {
-          id: "root",
-          layoutOptions: {
-            'elk.algorithm': 'layered',
-            'elk.direction': 'DOWN',
-            'elk.spacing.nodeNode': '120',
-            'elk.layered.spacing.nodeNodeBetweenLayers': '180',
-            'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
-            'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-            'elk.edgeRouting': 'ORTHOGONAL',
-            'elk.padding': '[top=100,left=100,bottom=100,right=100]'
-          },
-          children: elkNodes,
-          edges: elkEdges
-        };
+      const graph = {
+        id: "root",
+        layoutOptions: {
+          'elk.algorithm': 'layered',
+          'elk.direction': 'DOWN',
+          'elk.spacing.nodeNode': '100',
+          'elk.layered.spacing.nodeNodeBetweenLayers': '140',
+          'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+          'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+          'elk.edgeRouting': 'ORTHOGONAL',
+          'elk.padding': '[top=150,left=150,bottom=150,right=150]'
+        },
+        children: elkNodes,
+        edges: elkEdges
+      };
 
-        const layout = await elk.layout(graph);
-        
-        const nodes = layout.children || [];
-        const edges = layout.edges || [];
+      const layout = await elk.layout(graph);
+      
+      const nodes = layout.children || [];
+      const edges = layout.edges || [];
 
-        const minX = Math.min(...nodes.map(n => n.x || 0));
-        const maxX = Math.max(...nodes.map(n => (n.x || 0) + (n.width || 0)));
-        const minY = Math.min(...nodes.map(n => n.y || 0));
-        const maxY = Math.max(...nodes.map(n => (n.y || 0) + (n.height || 0)));
+      const minX = Math.min(...nodes.map(n => n.x || 0));
+      const maxX = Math.max(...nodes.map(n => (n.x || 0) + (n.width || 0)));
+      const minY = Math.min(...nodes.map(n => n.y || 0));
+      const maxY = Math.max(...nodes.map(n => (n.y || 0) + (n.height || 0)));
 
-        setLayoutData({
-          nodes,
-          edges,
-          width: maxX - minX + 400,
-          height: maxY - minY + 400,
-          offsetX: -minX + 200,
-          offsetY: -minY + 200
-        });
-      } catch (err) {
-        console.error("[FamilyTreeELK] Layout error:", err);
-      } finally {
-        setIsCalculating(false);
-      }
-    };
-
-    calculateLayout();
+      setLayoutData({
+        nodes,
+        edges,
+        width: maxX - minX + 600,
+        height: maxY - minY + 600,
+        offsetX: -minX + 300,
+        offsetY: -minY + 300
+      });
+    } catch (err) {
+      console.error("[FamilyTreeELK] Layout error:", err);
+    } finally {
+      setIsCalculating(false);
+    }
   }, [people, relationships, loading]);
+
+  useEffect(() => {
+    calculateLayout();
+  }, [calculateLayout]);
+
+  const centerTree = useCallback(() => {
+    if (layoutData && treeContainerRef.current) {
+      const container = treeContainerRef.current;
+      const scrollX = (layoutData.width * zoom) / 2 - container.clientWidth / 2;
+      const scrollY = 100; // Start near the top
+      
+      container.scrollTo({
+        left: scrollX,
+        top: scrollY,
+        behavior: 'smooth'
+      });
+    }
+  }, [layoutData, zoom]);
+
+  useEffect(() => {
+    if (layoutData) {
+      const timer = setTimeout(centerTree, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [layoutData, centerTree]);
 
   const searchResults = useMemo(() => {
     if (!searchQuery || searchQuery.length < 2) return [];
@@ -191,8 +207,8 @@ const FamilyTreeELK = () => {
       setZoom(1);
       
       const container = treeContainerRef.current;
-      const scrollX = (node.x + layoutData.offsetX + node.width / 2) - (container.clientWidth / 2);
-      const scrollY = (node.y + layoutData.offsetY + node.height / 2) - (container.clientHeight / 2);
+      const scrollX = ((node.x + layoutData.offsetX + node.width / 2) * 1) - (container.clientWidth / 2);
+      const scrollY = ((node.y + layoutData.offsetY + node.height / 2) * 1) - (container.clientHeight / 2);
       
       container.scrollTo({
         left: scrollX,
@@ -203,6 +219,24 @@ const FamilyTreeELK = () => {
       setSearchQuery('');
       setTimeout(() => setHighlightedId(null), 3000);
     }
+  };
+
+  const drawElkEdge = (edge: any) => {
+    if (!edge.sections || edge.sections.length === 0) return "";
+    const section = edge.sections[0];
+    const ox = layoutData.offsetX;
+    const oy = layoutData.offsetY;
+    
+    let path = `M ${section.startPoint.x + ox} ${section.startPoint.y + oy}`;
+    
+    if (section.bendPoints) {
+      section.bendPoints.forEach((bp: any) => {
+        path += ` L ${bp.x + ox} ${bp.y + oy}`;
+      });
+    }
+    
+    path += ` L ${section.endPoint.x + ox} ${section.endPoint.y + oy}`;
+    return path;
   };
 
   if (loading || isCalculating) return (
@@ -291,6 +325,7 @@ const FamilyTreeELK = () => {
               <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="h-8 w-8 rounded-full hover:bg-white shadow-sm"><ZoomOut className="w-4 h-4" /></Button>
               <span className="text-[10px] font-bold w-12 text-center text-stone-600">{Math.round(zoom * 100)}%</span>
               <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="h-8 w-8 rounded-full hover:bg-white shadow-sm"><ZoomIn className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={centerTree} className="h-8 w-8 rounded-full hover:bg-white shadow-sm" title="Center Tree"><Focus className="w-4 h-4" /></Button>
               <Button variant="ghost" size="icon" onClick={() => setZoom(0.75)} className="h-8 w-8 rounded-full hover:bg-white shadow-sm" title="Reset Zoom"><Maximize className="w-4 h-4" /></Button>
             </div>
           </div>
@@ -316,19 +351,8 @@ const FamilyTreeELK = () => {
             className="absolute inset-0 pointer-events-none overflow-visible z-0"
           >
             {layoutData.edges.map((edge: any, i: number) => {
-              const sourceNode = layoutData.nodes.find((n: any) => n.id === edge.sources[0]);
-              const targetNode = layoutData.nodes.find((n: any) => n.id === edge.targets[0]);
-              
-              if (!sourceNode || !targetNode) return null;
-
               const isMarriage = edge.type === 'marriage';
-              const startX = sourceNode.x + layoutData.offsetX + sourceNode.width / 2;
-              const startY = sourceNode.y + layoutData.offsetY + (sourceNode.isUnion ? sourceNode.height / 2 : sourceNode.height);
-              const endX = targetNode.x + layoutData.offsetX + targetNode.width / 2;
-              const endY = targetNode.y + layoutData.offsetY + (targetNode.isUnion ? 0 : 0); 
-
-              const midY = startY + (endY - startY) * 0.5;
-              const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
+              const path = drawElkEdge(edge);
               
               return (
                 <g key={edge.id}>
@@ -336,7 +360,7 @@ const FamilyTreeELK = () => {
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 1, ease: "easeInOut", delay: i * 0.01 }}
+                    transition={{ duration: 1, ease: "easeInOut", delay: i * 0.005 }}
                     d={path}
                     stroke={edge.color || LINEAGE_COLOR}
                     strokeWidth={isMarriage ? "3" : "2"}
