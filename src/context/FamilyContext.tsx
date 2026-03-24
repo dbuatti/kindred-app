@@ -62,7 +62,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   const isFetching = useRef(false);
   const lastFetchTime = useRef(0);
-  const hasLoggedLogin = useRef(false);
+  const lastLoginLogTime = useRef<Record<string, number>>({});
 
   const setTheme = (newTheme: 'default' | 'heritage') => {
     setThemeState(newTheme);
@@ -83,6 +83,17 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const logActivity = useCallback(async (eventType: string, details: any = {}) => {
     if (!user) return;
+
+    // Prevent login spam: Only log one login per user every 4 hours
+    if (eventType === 'login') {
+      const now = Date.now();
+      const lastLog = lastLoginLogTime.current[user.id] || 0;
+      if (now - lastLog < 1000 * 60 * 60 * 4) {
+        return;
+      }
+      lastLoginLogTime.current[user.id] = now;
+    }
+
     try {
       await supabase.from('activity_logs').insert({
         user_id: user.id,
@@ -97,11 +108,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Log login event when user is first detected
   useEffect(() => {
-    if (user && !hasLoggedLogin.current) {
+    if (user) {
       logActivity('login');
-      hasLoggedLogin.current = true;
-    } else if (!user) {
-      hasLoggedLogin.current = false;
     }
   }, [user, logActivity]);
 
@@ -178,7 +186,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .from('activity_logs')
           .select('*')
           .order('created_at', { ascending: false })
-          .limit(200);
+          .limit(500); // Increased limit to see more history
         setActivityLogs(logs || []);
       }
 

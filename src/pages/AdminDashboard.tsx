@@ -3,6 +3,7 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ArrowLeft, 
@@ -21,7 +22,9 @@ import {
   Heart,
   GitMerge,
   Brain,
-  History
+  History,
+  Mail,
+  Calendar
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -93,6 +96,10 @@ const AdminDashboard = () => {
 
   if (loading) return null;
 
+  const allProfiles = Object.values(profiles).sort((a, b) => 
+    (a.first_name || '').localeCompare(b.first_name || '')
+  );
+
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans pb-20">
       <header className="sticky top-0 z-10 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
@@ -125,6 +132,7 @@ const AdminDashboard = () => {
               <TabsTrigger value="overview" className="rounded-xl px-6 data-[state=active]:bg-white">Overview</TabsTrigger>
               <TabsTrigger value="audit" className="rounded-xl px-6 data-[state=active]:bg-white">Audit Log</TabsTrigger>
               <TabsTrigger value="engagement" className="rounded-xl px-6 data-[state=active]:bg-white">Engagement</TabsTrigger>
+              <TabsTrigger value="users" className="rounded-xl px-6 data-[state=active]:bg-white">Users</TabsTrigger>
               <TabsTrigger value="people" className="rounded-xl px-6 data-[state=active]:bg-white">People</TabsTrigger>
             </TabsList>
             <div className="flex items-center gap-3">
@@ -281,6 +289,52 @@ const AdminDashboard = () => {
                   })}
                 </div>
               </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="users" className="space-y-6">
+            <div className="flex items-center justify-between border-b-4 border-stone-100 pb-4">
+              <h2 className="text-2xl font-serif font-bold text-stone-800 flex items-center gap-3">
+                <UserCircle className="w-6 h-6 text-stone-400" />
+                Registered Family Members
+              </h2>
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                {allProfiles.length} Total Users
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {allProfiles.map((profile) => (
+                <Card key={profile.id} className="p-6 bg-white border-stone-100 shadow-sm rounded-[2rem] space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-14 w-14 rounded-full bg-stone-100 flex items-center justify-center text-stone-300 overflow-hidden">
+                      {profile.avatar_url ? (
+                        <img src={profile.avatar_url} className="w-full h-full object-cover" />
+                      ) : (
+                        <UserCircle className="w-10 h-10" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-stone-800 truncate">
+                        {profile.first_name} {profile.last_name}
+                      </p>
+                      <p className="text-xs text-stone-400 flex items-center gap-1">
+                        <Mail className="w-3 h-3" /> {profile.id.substring(0, 8)}...
+                      </p>
+                    </div>
+                  </div>
+                  <div className="pt-4 border-t border-stone-50 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                      <Calendar className="w-3 h-3" />
+                      Joined {profile.updated_at ? format(new Date(profile.updated_at), 'MMM yyyy') : 'Unknown'}
+                    </div>
+                    {profile.onboarding_completed ? (
+                      <Badge className="bg-green-50 text-green-600 border-none text-[8px] uppercase tracking-widest">Active</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-[8px] uppercase tracking-widest">Pending</Badge>
+                    )}
+                  </div>
+                </Card>
+              ))}
             </div>
           </TabsContent>
 

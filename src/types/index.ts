@@ -19,6 +19,7 @@ export interface Profile {
   bio?: string;
   gender?: string;
   onboarding_completed?: boolean;
+  updated_at?: string;
   // New Legacy Fields
   education?: string;
   military_service?: string;
