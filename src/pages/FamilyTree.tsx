@@ -45,14 +45,15 @@ const FamilyTree = () => {
     if (loading || people.length === 0) return null;
 
     try {
-      const g = new dagre.graphlib.Graph();
+      // Enable compound graphs for clustering
+      const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 80, 
-        ranksep: 120,
+        nodesep: 120, // Increased horizontal gap
+        ranksep: 150, // Increased vertical gap
         marginx: 100, 
         marginy: 100,
-        ranker: 'network-simplex' // Produces more compact layouts
+        ranker: 'network-simplex'
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -73,7 +74,7 @@ const FamilyTree = () => {
         });
       });
 
-      // 2. Identify Unions
+      // 2. Identify Unions (Marriages)
       const unions: Record<string, { id: string, p1: string, p2: string, children: string[], color: string }> = {};
       let colorIdx = 0;
 
@@ -95,9 +96,13 @@ const FamilyTree = () => {
         }
       });
 
-      // 3. Map Children
+      // 3. Map Children and Create Clusters
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
+        
+        // Ignore secondary relationships for layout positioning
+        if (['cousin', 'aunt', 'uncle', 'nephew', 'niece'].includes(type)) return;
+
         let parentId = '';
         let childId = '';
 
@@ -119,21 +124,34 @@ const FamilyTree = () => {
         }
       });
 
-      // 4. Add Union Nodes and Marriage Edges
+      // 4. Add Union Nodes and Marriage Edges with Clustering
       Object.values(unions).forEach(u => {
+        const clusterId = `cluster_${u.id}`;
+        g.setNode(clusterId, { label: '', style: 'fill: none' });
+        
         g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
-        // High weight keeps spouses on the same level and close to the union node
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 5 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 5 });
+        
+        // Group parents and union node into a cluster to keep them together
+        g.setParent(u.p1, clusterId);
+        g.setParent(u.p2, clusterId);
+        g.setParent(u.id, clusterId);
+
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10 });
         
         u.children.forEach((childId) => {
-          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 3 });
+          // Also group children into the same cluster to prevent interleaving
+          g.setParent(childId, clusterId);
+          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 5 });
         });
       });
 
       dagre.layout(g);
       
-      const nodes = g.nodes().map(v => ({ id: v, ...g.node(v) }));
+      const nodes = g.nodes()
+        .filter(v => !v.startsWith('cluster_')) // Don't render the cluster containers
+        .map(v => ({ id: v, ...g.node(v) }));
+        
       const edges = g.edges().map(e => ({ 
         from: g.node(e.v), 
         to: g.node(e.w),
@@ -246,11 +264,9 @@ const FamilyTree = () => {
               // Orthogonal "Step" Path Logic
               let path = "";
               if (isMarriage) {
-                // Spouses are usually side-by-side, use a simple curve
                 const midY = startY + (endY - startY) * 0.5;
                 path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               } else {
-                // Lineage uses a "Step" (Vertical -> Horizontal -> Vertical)
                 const midY = startY + (endY - startY) * 0.5;
                 path = `M ${startX} ${startY} 
                         L ${startX} ${midY} 
