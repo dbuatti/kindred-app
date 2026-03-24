@@ -48,24 +48,19 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
-    console.log("[FamilyContext] --- START FETCHING ARCHIVE DATA ---");
     
     try {
-      console.log("[FamilyContext] Fetching people and memories...");
       const { data: peopleData, error: peopleError } = await supabase
         .from('people')
         .select('*, memories(*)');
       
       if (peopleError) throw peopleError;
-      console.log(`[FamilyContext] Loaded ${peopleData?.length || 0} people.`);
 
-      console.log("[FamilyContext] Fetching suggestions...");
       const { data: suggestionsData } = await supabase
         .from('suggestions')
         .select('*')
         .eq('status', 'pending');
 
-      console.log("[FamilyContext] Fetching profiles...");
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('*');
@@ -75,9 +70,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         profileMap[p.id] = p;
       });
       setProfiles(profileMap);
-      console.log(`[FamilyContext] Mapped ${Object.keys(profileMap).length} user profiles.`);
 
-      console.log("[FamilyContext] Fetching reactions...");
       const { data: reactionsData } = await supabase
         .from('reactions')
         .select('*');
@@ -89,14 +82,11 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
       setReactions(reactionMap);
 
-      console.log("[FamilyContext] Fetching relationships...");
       const { data: relData } = await supabase
         .from('relationships')
         .select('*');
       setRelationships(relData || []);
-      console.log(`[FamilyContext] Loaded ${relData?.length || 0} relationships.`);
 
-      console.log("[FamilyContext] Mapping data to application types...");
       const mappedPeople: Person[] = (peopleData || []).map((p: any) => ({
         id: p.id,
         familyId: p.family_id,
@@ -140,39 +130,32 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         status: s.status
       })));
       
-      console.log("[FamilyContext] Data mapping complete. State updated.");
     } catch (error: any) {
-      console.error("[FamilyContext] CRITICAL ERROR fetching data:", error.message);
+      console.error("[FamilyContext] Error fetching data:", error.message);
       toast.error("Failed to load family archive.");
     } finally {
       if (!silent) setLoading(false);
-      console.log("[FamilyContext] --- FETCH CYCLE COMPLETE ---");
     }
   }, []);
 
   useEffect(() => {
-    console.log("[FamilyContext] Initializing Auth listener...");
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("[FamilyContext] Initial session check:", session ? `User: ${session.user.email}` : "No session");
       setUser(session?.user ?? null);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log(`[FamilyContext] Auth state changed: ${event}`, session ? `User: ${session.user.email}` : "No session");
       setUser(session?.user ?? null);
     });
 
     fetchData();
 
     return () => {
-      console.log("[FamilyContext] Cleaning up Auth listener.");
       subscription.unsubscribe();
     };
   }, [fetchData]);
 
   const addPerson = useCallback(async (newPerson: Partial<Person>, relativeId?: string, relType?: string) => {
     if (!user) return;
-    console.log("[FamilyContext] Adding new person:", newPerson.name);
     try {
       const { data: person, error } = await supabase
         .from('people')
@@ -193,10 +176,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .single();
 
       if (error) throw error;
-      console.log("[FamilyContext] Person created with ID:", person.id);
 
       if (relativeId && relType && person) {
-        console.log(`[FamilyContext] Creating relationship: ${person.id} is ${relType} of ${relativeId}`);
         await supabase.from('relationships').insert({
           person_id: person.id,
           related_person_id: relativeId,
@@ -214,7 +195,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const updatePerson = useCallback(async (id: string, updates: Partial<Person>) => {
     if (!user) return;
-    console.log(`[FamilyContext] Updating person ${id}:`, updates);
     try {
       const { error } = await supabase
         .from('people')
@@ -237,7 +217,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .eq('id', id);
 
       if (error) throw error;
-      console.log("[FamilyContext] Update successful.");
       fetchData(true);
     } catch (error: any) {
       console.error("[FamilyContext] Error updating person:", error.message);
@@ -247,7 +226,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const deletePerson = useCallback(async (id: string) => {
     if (!user) return;
-    console.log(`[FamilyContext] Deleting person ${id}`);
     try {
       const { error } = await supabase
         .from('people')
@@ -255,7 +233,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .eq('id', id);
 
       if (error) throw error;
-      console.log("[FamilyContext] Deletion successful.");
       toast.success("Person removed from archive.");
       fetchData(true);
     } catch (error: any) {
@@ -266,7 +243,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addMemory = useCallback(async (personId: string, content: string, type: MemoryType, imageUrl?: string) => {
     if (!user) return;
-    console.log(`[FamilyContext] Adding ${type} memory for ${personId}`);
     try {
       const { error } = await supabase
         .from('memories')
@@ -280,7 +256,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }]);
 
       if (error) throw error;
-      console.log("[FamilyContext] Memory saved.");
       fetchData(true);
     } catch (error: any) {
       console.error("[FamilyContext] Error adding memory:", error.message);
@@ -292,7 +267,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!user) return;
     const userReactions = reactions[memoryId] || [];
     const hasReacted = userReactions.includes(user.id);
-    console.log(`[FamilyContext] Toggling reaction for memory ${memoryId}. Current state: ${hasReacted}`);
 
     try {
       if (hasReacted) {
@@ -314,7 +288,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addSuggestion = useCallback(async (s: Omit<Suggestion, 'id' | 'status'>) => {
     if (!user) return;
-    console.log(`[FamilyContext] Adding suggestion for ${s.personId}: ${s.fieldName}`);
     try {
       const { error } = await supabase
         .from('suggestions')
@@ -327,7 +300,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }]);
 
       if (error) throw error;
-      console.log("[FamilyContext] Suggestion sent.");
       fetchData(true);
     } catch (error: any) {
       console.error("[FamilyContext] Error adding suggestion:", error.message);
@@ -337,7 +309,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addRelationship = useCallback(async (personId: string, relatedId: string, type: string) => {
     if (!user) return;
-    console.log(`[FamilyContext] Adding relationship: ${personId} is ${type} of ${relatedId}`);
     try {
       const { error } = await supabase
         .from('relationships')
@@ -347,7 +318,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           relationship_type: type.toLowerCase()
         });
       if (error) throw error;
-      console.log("[FamilyContext] Relationship added.");
       fetchData(true);
     } catch (error: any) {
       console.error("[FamilyContext] Error adding relationship:", error.message);
@@ -356,13 +326,9 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [user, fetchData]);
 
   const resolveSuggestion = useCallback(async (id: string, status: 'approved' | 'rejected') => {
-    console.log(`[FamilyContext] Resolving suggestion ${id} as ${status}`);
     try {
       const suggestion = suggestions.find(s => s.id === id);
-      if (!suggestion) {
-        console.warn("[FamilyContext] Suggestion not found in local state.");
-        return;
-      }
+      if (!suggestion) return;
 
       setSuggestions(prev => prev.filter(s => s.id !== id));
 
@@ -374,44 +340,68 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (updateError) throw updateError;
 
       if (status === 'approved') {
-        console.log(`[FamilyContext] Applying approved suggestion: ${suggestion.fieldName}`);
-        if (suggestion.fieldName === 'link_existing') {
-          const match = suggestion.suggestedValue.match(/LINK_EXISTING: (.+) as (.+) to (.+)/);
-          if (match) {
-            const targetId = match[1];
-            const relType = match[2].toLowerCase();
-            const personId = match[3];
+        if (suggestion.fieldName === 'link_existing' || suggestion.fieldName === 'new_relationship') {
+          const lines = suggestion.suggestedValue.split('\n');
+          const mainLine = lines[0];
+          
+          let primaryPersonId = '';
 
-            await supabase.from('relationships').insert({
-              person_id: targetId,
-              related_person_id: personId,
-              relationship_type: relType
-            });
+          if (suggestion.fieldName === 'link_existing') {
+            const match = mainLine.match(/LINK_EXISTING: (.+) as (.+) to (.+)/);
+            if (match) {
+              const targetId = match[1];
+              const relType = match[2].toLowerCase();
+              const personId = match[3];
+              primaryPersonId = targetId;
+
+              await supabase.from('relationships').insert({
+                person_id: targetId,
+                related_person_id: personId,
+                relationship_type: relType
+              });
+            }
+          } else {
+            const match = mainLine.match(/^(.+)\s\((.+)\)/);
+            if (match) {
+              const name = match[1];
+              const type = match[2];
+
+              const { data: newPerson, error: pErr } = await supabase
+                .from('people')
+                .insert({
+                  name,
+                  vibe_sentence: "",
+                  personality_tags: [type],
+                  created_by_email: suggestion.suggestedByEmail
+                })
+                .select()
+                .single();
+
+              if (pErr) throw pErr;
+              primaryPersonId = newPerson.id;
+
+              await supabase.from('relationships').insert({
+                person_id: newPerson.id,
+                related_person_id: suggestion.personId,
+                relationship_type: type.toLowerCase()
+              });
+            }
           }
-        } else if (suggestion.fieldName === 'new_relationship') {
-          const match = suggestion.suggestedValue.match(/^(.+)\s\((.+)\)/);
-          if (match) {
-            const name = match[1];
-            const type = match[2];
 
-            const { data: newPerson, error: pErr } = await supabase
-              .from('people')
-              .insert({
-                name,
-                vibe_sentence: "",
-                personality_tags: [type],
-                created_by_email: suggestion.suggestedByEmail
-              })
-              .select()
-              .single();
-
-            if (pErr) throw pErr;
-
-            await supabase.from('relationships').insert({
-              person_id: newPerson.id,
-              related_person_id: suggestion.personId,
-              relationship_type: type.toLowerCase()
-            });
+          // Process additional connections if they exist
+          if (primaryPersonId) {
+            const additionalLines = lines.filter(l => l.includes('[Target:'));
+            for (const line of additionalLines) {
+              const targetMatch = line.match(/\[Target:\s(.+)\]/);
+              const roleMatch = line.match(/\[Role:\s(.+)\]/);
+              if (targetMatch && roleMatch) {
+                await supabase.from('relationships').insert({
+                  person_id: primaryPersonId,
+                  related_person_id: targetMatch[1],
+                  relationship_type: roleMatch[1].toLowerCase()
+                });
+              }
+            }
           }
         } else {
           const { error: personError } = await supabase
@@ -429,13 +419,12 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       toast.error("Failed to resolve suggestion: " + error.message);
       fetchData(true);
     }
-  }, [suggestions, people, fetchData]);
+  }, [suggestions, fetchData]);
 
   const resolveAllSuggestions = useCallback(async (status: 'approved' | 'rejected') => {
     const pending = suggestions.filter(s => s.status === 'pending');
     if (pending.length === 0) return;
 
-    console.log(`[FamilyContext] Resolving ALL (${pending.length}) suggestions as ${status}`);
     const toastId = toast.loading(`Processing ${pending.length} suggestions...`);
     
     try {

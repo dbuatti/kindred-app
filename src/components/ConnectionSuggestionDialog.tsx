@@ -52,9 +52,7 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
     const myParents = relationships
       .filter(r => {
         const type = r.relationship_type.toLowerCase();
-        // Case 1: Row says "[Someone] is the parent of [Me]"
         if (r.related_person_id === person.id && ['mother', 'father', 'parent'].includes(type)) return true;
-        // Case 2: Row says "[Me] is the child of [Someone]"
         if (r.person_id === person.id && ['son', 'daughter', 'child'].includes(type)) return true;
         return false;
       })
@@ -133,7 +131,7 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
       if (confirmed.length > 0) {
         finalValue += "\n\nAdditional Connections:";
         confirmed.forEach(inf => {
-          finalValue += `\n- ${inf.question} (Yes) [Target: ${inf.targetId}]`;
+          finalValue += `\n- ${inf.question} (Yes) [Role: ${inf.inferredRole}] [Target: ${inf.targetId}]`;
         });
       }
 
