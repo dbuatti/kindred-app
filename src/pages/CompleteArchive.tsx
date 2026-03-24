@@ -46,7 +46,7 @@ const CompleteArchive = () => {
         { id: 'nickname', label: 'Nickname', value: person.nickname },
         { id: 'photo_url', label: 'Photo', value: person.photoUrl },
         { id: 'vibe_sentence', label: 'Detailed Bio', value: person.vibeSentence && person.vibeSentence.length > 30 },
-        { id: 'education', label: 'Education', value: person.education },
+        { id: 'education', label: 'Education', value: person.education || (person.educationRecords && person.educationRecords.length > 0) },
         { id: 'military_service', label: 'Military Service', value: person.militaryService },
         { id: 'physical_traits', label: 'Physical Traits', value: person.physicalTraits },
         { id: 'favorite_things', label: 'Favorite Things', value: person.favoriteThings },

@@ -44,8 +44,13 @@ const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
       { id: 'nickname', label: 'Nickname', value: person.nickname, icon: Tag },
       { id: 'photo_url', label: 'Photo', value: person.photoUrl, icon: Camera },
       { id: 'vibe_sentence', label: 'Detailed Bio', value: person.vibeSentence && person.vibeSentence.length > 30, icon: Quote },
-      // New Legacy Fields
-      { id: 'education', label: 'Education', value: person.education, icon: GraduationCap },
+      // Education is complete if the text field is set OR if there are records
+      { 
+        id: 'education', 
+        label: 'Education', 
+        value: person.education || (person.educationRecords && person.educationRecords.length > 0), 
+        icon: GraduationCap 
+      },
       { id: 'military_service', label: 'Military', value: person.militaryService, icon: Shield },
       { id: 'physical_traits', label: 'Traits', value: person.physicalTraits, icon: Eye },
       { id: 'favorite_things', label: 'Favorites', value: person.favoriteThings, icon: Utensils },
