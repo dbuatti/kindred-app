@@ -8,41 +8,43 @@ import { useNavigate } from 'react-router-dom';
 import { getPersonUrl } from '@/lib/slugify';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { differenceInDays, setYear, isBefore, startOfDay, addYears } from 'date-fns';
 
 const UpcomingMilestones = () => {
   const { people } = useFamily();
   const navigate = useNavigate();
 
   const milestones = useMemo(() => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentDay = today.getDate();
+    const today = startOfDay(new Date());
 
     return people
-      .filter(p => p.birthDate)
+      .filter(p => p.birthDate && p.birthDate.includes('/'))
       .map(p => {
-        const [day, month] = p.birthDate!.split('/').map(Number);
-        // Simple logic for "upcoming" (this month or next)
-        const isThisMonth = (month - 1) === currentMonth;
-        const isNextMonth = (month - 1) === (currentMonth + 1) % 12;
+        const parts = p.birthDate!.split('/');
+        const day = parseInt(parts[0]);
+        const month = parseInt(parts[1]);
         
-        let daysUntil = 0;
-        if (isThisMonth) {
-          daysUntil = day - currentDay;
-        } else if (isNextMonth) {
-          daysUntil = day + (30 - currentDay); // Rough estimate
+        if (isNaN(day) || isNaN(month)) return null;
+
+        // Create milestone date for the current year
+        let nextOccurrence = new Date(today.getFullYear(), month - 1, day);
+        nextOccurrence = startOfDay(nextOccurrence);
+
+        // If the date has already passed this year, look at next year
+        if (isBefore(nextOccurrence, today)) {
+          nextOccurrence = addYears(nextOccurrence, 1);
         }
+
+        const daysUntil = differenceInDays(nextOccurrence, today);
 
         return {
           ...p,
-          day,
-          month,
           daysUntil,
           isBirthday: p.isLiving,
           isAnniversary: !p.isLiving
         };
       })
-      .filter(m => m.daysUntil >= 0 && m.daysUntil <= 30)
+      .filter((m): m is any => m !== null && m.daysUntil >= 0 && m.daysUntil <= 30)
       .sort((a, b) => a.daysUntil - b.daysUntil)
       .slice(0, 3);
   }, [people]);
