@@ -52,8 +52,8 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 100, // Increased for better horizontal separation between branches
-        ranksep: 120, 
+        nodesep: 150, // Increased significantly to prevent mixing
+        ranksep: 150, // Increased for clearer vertical separation
         marginx: 100, 
         marginy: 100,
         ranker: 'network-simplex'
@@ -100,7 +100,7 @@ const FamilyTree = () => {
       });
 
       // 3. Map Children to Unions
-      const parentChildMap: Record<string, Set<string>> = {}; // childId -> Set of parentIds
+      const parentChildMap: Record<string, Set<string>> = {}; 
       
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
@@ -128,7 +128,6 @@ const FamilyTree = () => {
         const parents = Array.from(parentIds);
         let assigned = false;
 
-        // Try to find a union that contains BOTH parents (ideal for biological grouping)
         if (parents.length >= 2) {
           for (const u of Object.values(unions)) {
             if (parentIds.has(u.p1) && parentIds.has(u.p2)) {
@@ -139,7 +138,6 @@ const FamilyTree = () => {
           }
         }
 
-        // Fallback: find any union involving one of the parents
         if (!assigned) {
           for (const parentId of parents) {
             const u = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
@@ -151,7 +149,6 @@ const FamilyTree = () => {
           }
         }
 
-        // Final fallback: single parent lineage (no union node)
         if (!assigned) {
           parents.forEach(parentId => {
             g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR, weight: 1 });
@@ -159,24 +156,40 @@ const FamilyTree = () => {
         }
       });
 
-      // 4. Add Union Nodes and Edges with Clusters to force grouping
+      // 4. Add Union Nodes and Clusters
+      // Track which nodes are already in a cluster to avoid dagre errors (nodes can only have one parent)
+      const nodeToCluster = new Map<string, string>();
+
       Object.values(unions).forEach(u => {
         const clusterId = `cluster_${u.id}`;
-        // Create a cluster for this family unit
         g.setNode(clusterId, { label: '', style: 'fill: none; stroke: none;' });
         
         // Add union node to cluster
         g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
         g.setParent(u.id, clusterId);
 
-        // Connect parents to union (high weight to keep them close)
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 20 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 20 });
+        // Try to add parents to the cluster to keep them together
+        // Only add if they aren't already in another cluster (e.g. from a different marriage)
+        if (!nodeToCluster.has(u.p1)) {
+          g.setParent(u.p1, clusterId);
+          nodeToCluster.set(u.p1, clusterId);
+        }
+        if (!nodeToCluster.has(u.p2)) {
+          g.setParent(u.p2, clusterId);
+          nodeToCluster.set(u.p2, clusterId);
+        }
 
-        // Connect union to children and put children in the same cluster
+        // Connect parents to union with VERY high weight to force proximity
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 100 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 100 });
+
+        // Connect union to children and put children in the same cluster if possible
         u.children.forEach((childId) => {
-          g.setParent(childId, clusterId);
-          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 15 });
+          if (!nodeToCluster.has(childId)) {
+            g.setParent(childId, clusterId);
+            nodeToCluster.set(childId, clusterId);
+          }
+          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 50 });
         });
       });
 
