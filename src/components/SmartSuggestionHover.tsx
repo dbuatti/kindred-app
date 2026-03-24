@@ -21,45 +21,49 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
 
   const suggestions = useMemo(() => {
     if (!person) return [];
+
+    // Helper to get specific relationship IDs for any person
+    const getRelIds = (id: string, types: string[], direction: 'to' | 'from' | 'both') => {
+      return relationships
+        .filter(r => {
+          const t = r.relationship_type.toLowerCase();
+          const matchesType = types.some(type => t.includes(type));
+          if (!matchesType) return false;
+
+          if (direction === 'from') return r.person_id === id;
+          if (direction === 'to') return r.related_person_id === id;
+          return r.person_id === id || r.related_person_id === id;
+        })
+        .map(r => r.person_id === id ? r.related_person_id : r.person_id);
+    };
+
+    // Define clear sets for the current person
+    const myParentIds = [
+      ...getRelIds(personId, ['mother', 'father', 'parent'], 'to'),
+      ...getRelIds(personId, ['son', 'daughter', 'child'], 'from')
+    ];
+    
+    const myChildIds = [
+      ...getRelIds(personId, ['mother', 'father', 'parent'], 'from'),
+      ...getRelIds(personId, ['son', 'daughter', 'child'], 'to')
+    ];
+
+    const mySpouseIds = getRelIds(personId, ['spouse', 'wife', 'husband'], 'both');
+    const mySiblingIds = getRelIds(personId, ['brother', 'sister', 'sibling'], 'both');
+
     const items: { id: string; text: string; action: () => Promise<void> }[] = [];
 
     // 1. Sibling Inference: Share a parent but not marked as siblings
-    const myParents = relationships
-      .filter(r => r.person_id === personId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
-      .map(r => r.related_person_id)
-      .concat(
-        relationships
-          .filter(r => r.related_person_id === personId && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
-          .map(r => r.person_id)
-      );
-
-    if (myParents.length > 0) {
+    if (myParentIds.length > 0) {
       const potentialSiblings = people.filter(p => {
-        if (p.id === personId) return false;
+        if (p.id === personId || mySiblingIds.includes(p.id) || mySpouseIds.includes(p.id)) return false;
         
-        const theirParents = relationships
-          .filter(r => r.person_id === p.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
-          .map(r => r.related_person_id)
-          .concat(
-            relationships
-              .filter(r => r.related_person_id === p.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
-              .map(r => r.person_id)
-          );
+        const theirParentIds = [
+          ...getRelIds(p.id, ['mother', 'father', 'parent'], 'to'),
+          ...getRelIds(p.id, ['son', 'daughter', 'child'], 'from')
+        ];
         
-        const sharesParent = theirParents.some(tp => myParents.includes(tp));
-        
-        const alreadySiblings = relationships.some(r => 
-          (r.person_id === personId && r.related_person_id === p.id || r.person_id === p.id && r.related_person_id === personId) &&
-          ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())
-        );
-
-        // CRITICAL: Don't suggest siblings if they are already marked as spouses
-        const alreadySpouses = relationships.some(r => 
-          (r.person_id === personId && r.related_person_id === p.id || r.person_id === p.id && r.related_person_id === personId) &&
-          ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
-        );
-
-        return sharesParent && !alreadySiblings && !alreadySpouses;
+        return theirParentIds.some(id => myParentIds.includes(id));
       });
 
       potentialSiblings.forEach(sib => {
@@ -84,87 +88,49 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     }
 
     // 2. Parent Inference: My sibling has a parent I don't have linked
-    const mySiblings = relationships
-      .filter(r => (r.person_id === personId || r.related_person_id === personId) && ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
-      .map(r => r.person_id === personId ? r.related_person_id : r.person_id);
+    mySiblingIds.forEach(sibId => {
+      const sibParentIds = [
+        ...getRelIds(sibId, ['mother', 'father', 'parent'], 'to'),
+        ...getRelIds(sibId, ['son', 'daughter', 'child'], 'from')
+      ];
 
-    mySiblings.forEach(sibId => {
-      const sibParentRels = relationships
-        .filter(r => r.person_id === sibId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
-        .concat(
-          relationships
-            .filter(r => r.related_person_id === sibId && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
-        );
+      sibParentIds.forEach(pId => {
+        if (pId === personId || myParentIds.includes(pId)) return;
 
-      sibParentRels.forEach(rel => {
-        const pId = rel.person_id === sibId ? rel.related_person_id : rel.person_id;
-        
-        const alreadyMyParent = relationships.some(r => 
-          (r.person_id === personId && r.related_person_id === pId) ||
-          (r.related_person_id === personId && r.person_id === pId)
-        );
-
-        if (!alreadyMyParent) {
-          const parent = people.find(p => p.id === pId);
-          if (parent) {
-            let role = 'parent';
-            if (rel.relationship_type.toLowerCase() === 'mother' || rel.relationship_type.toLowerCase() === 'father') {
-              role = rel.relationship_type.toLowerCase();
-            } else if (rel.relationship_type.toLowerCase() === 'son' || rel.relationship_type.toLowerCase() === 'daughter') {
-              role = parent.gender?.toLowerCase() === 'female' ? 'mother' : 'father';
-            }
-
-            items.push({
-              id: `parent-${pId}`,
-              text: `Is ${parent.name} also the ${role} of ${person.name.split(' ')[0]}?`,
-              action: async () => {
-                if (isAdmin) {
-                  await addRelationship(personId, pId, role);
-                } else {
-                  await addSuggestion({
-                    personId: personId,
-                    fieldName: 'link_existing',
-                    suggestedValue: `LINK_EXISTING: ${pId} as ${role} to ${personId}`,
-                    suggestedByEmail: user?.email || 'family@kindred.com'
-                  });
-                }
+        const parent = people.find(p => p.id === pId);
+        if (parent) {
+          const role = parent.gender?.toLowerCase() === 'female' ? 'mother' : 'father';
+          items.push({
+            id: `parent-${pId}`,
+            text: `Is ${parent.name} also the ${role} of ${person.name.split(' ')[0]}?`,
+            action: async () => {
+              if (isAdmin) {
+                await addRelationship(personId, pId, role);
+              } else {
+                await addSuggestion({
+                  personId: personId,
+                  fieldName: 'link_existing',
+                  suggestedValue: `LINK_EXISTING: ${pId} as ${role} to ${personId}`,
+                  suggestedByEmail: user?.email || 'family@kindred.com'
+                });
               }
-            });
-          }
+            }
+          });
         }
       });
     });
 
     // 3. Spouse Inference: Share a child but not marked as spouses
-    const myChildren = relationships
-      .filter(r => r.person_id === personId && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
-      .map(r => r.related_person_id)
-      .concat(
-        relationships
-          .filter(r => r.related_person_id === personId && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
-          .map(r => r.person_id)
-      );
-
-    if (myChildren.length > 0) {
+    if (myChildIds.length > 0) {
       const potentialSpouses = people.filter(p => {
-        if (p.id === personId) return false;
+        if (p.id === personId || mySpouseIds.includes(p.id) || mySiblingIds.includes(p.id)) return false;
         
-        const theirChildren = relationships
-          .filter(r => r.person_id === p.id && ['son', 'daughter', 'child'].includes(r.relationship_type.toLowerCase()))
-          .map(r => r.related_person_id)
-          .concat(
-            relationships
-              .filter(r => r.related_person_id === p.id && ['mother', 'father', 'parent'].includes(r.relationship_type.toLowerCase()))
-              .map(r => r.person_id)
-          );
+        const theirChildIds = [
+          ...getRelIds(p.id, ['mother', 'father', 'parent'], 'from'),
+          ...getRelIds(p.id, ['son', 'daughter', 'child'], 'to')
+        ];
         
-        const sharesChild = theirChildren.some(tc => myChildren.includes(tc));
-        const alreadySpouses = relationships.some(r => 
-          (r.person_id === personId && r.related_person_id === p.id || r.person_id === p.id && r.related_person_id === personId) &&
-          ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
-        );
-
-        return sharesChild && !alreadySpouses;
+        return theirChildIds.some(id => myChildIds.includes(id));
       });
 
       potentialSpouses.forEach(spouse => {
@@ -187,7 +153,6 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       });
     }
 
-    // Filter out dismissed suggestions
     return items.filter(item => !dismissedIds.has(item.id));
   }, [person, personId, people, relationships, isAdmin, user, dismissedIds]);
 
