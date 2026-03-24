@@ -21,6 +21,7 @@ import { getPersonUrl } from '@/lib/slugify';
 import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
 import { getInverseRelationship } from '@/lib/relationships';
+import { cn } from '@/lib/utils';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
@@ -43,6 +44,10 @@ const Index = () => {
       .filter((p): p is any => !!p)
       .slice(0, 4);
   }, [recentlyViewed, people]);
+
+  const hasMemories = useMemo(() => {
+    return people.some(p => p.memories.length > 0);
+  }, [people]);
 
   const flashback = useMemo(() => {
     const all = people.flatMap(p => p.memories.map(m => ({ ...m, personName: p.name, personId: p.id })));
@@ -141,31 +146,42 @@ const Index = () => {
           >
             <RecentPeople people={recentPeopleList} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2">
-                <MemoryHighlight />
-              </div>
-              <div className="lg:col-span-1 space-y-8">
-                <StoryStarter />
-                {flashback && (
-                  <Card 
-                    onClick={() => navigate(getPersonUrl(flashback.personId, flashback.personName))}
-                    className="bg-white border-stone-100 p-6 rounded-[2rem] shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-2 text-stone-400 text-[10px] font-bold uppercase tracking-widest mb-4">
-                      <History className="w-3 h-3" />
-                      Flashback
-                    </div>
-                    <p className="text-stone-600 italic font-serif line-clamp-3 mb-4">
-                      "{flashback.content}"
-                    </p>
-                    <div className="flex items-center justify-between pt-4 border-t border-stone-50">
-                      <span className="text-xs font-bold text-stone-800">{flashback.personName}</span>
-                      <ArrowRight className="w-4 h-4 text-stone-300 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
-                    </div>
-                  </Card>
-                )}
-              </div>
+            <div className={cn(
+              "grid grid-cols-1 gap-8",
+              hasMemories ? "lg:grid-cols-3" : "lg:grid-cols-1"
+            )}>
+              {hasMemories ? (
+                <>
+                  <div className="lg:col-span-2">
+                    <MemoryHighlight />
+                  </div>
+                  <div className="lg:col-span-1 space-y-8">
+                    <StoryStarter />
+                    {flashback && (
+                      <Card 
+                        onClick={() => navigate(getPersonUrl(flashback.personId, flashback.personName))}
+                        className="bg-white border-stone-100 p-6 rounded-[2rem] shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-2 text-stone-400 text-[10px] font-bold uppercase tracking-widest mb-4">
+                          <History className="w-3 h-3" />
+                          Flashback
+                        </div>
+                        <p className="text-stone-600 italic font-serif line-clamp-3 mb-4">
+                          "{flashback.content}"
+                        </p>
+                        <div className="flex items-center justify-between pt-4 border-t border-stone-50">
+                          <span className="text-xs font-bold text-stone-800">{flashback.personName}</span>
+                          <ArrowRight className="w-4 h-4 text-stone-300 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
+                        </div>
+                      </Card>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="max-w-2xl mx-auto w-full">
+                  <StoryStarter />
+                </div>
+              )}
             </div>
           </motion.div>
         )}
