@@ -52,29 +52,12 @@ const FamilyTree = () => {
       let parentId = '';
       let childId = '';
 
-      // If the record says "This person is the Father/Mother of that person"
       if (['mother', 'father', 'parent'].includes(type)) {
-        // We need to check if the person_id is the parent or the related_person is the parent
-        // Based on your data, it varies. We'll check if the person_id exists in a union.
-        const p1IsParent = Object.values(unions).some(u => u.p1 === r.person_id || u.p2 === r.person_id);
-        if (p1IsParent) {
-          parentId = r.person_id;
-          childId = r.related_person_id;
-        } else {
-          parentId = r.related_person_id;
-          childId = r.person_id;
-        }
-      } 
-      // If the record says "This person is the Son/Daughter of that person"
-      else if (['son', 'daughter', 'child'].includes(type)) {
-        const p1IsChild = !Object.values(unions).some(u => u.p1 === r.person_id || u.p2 === r.person_id);
-        if (p1IsChild) {
-          childId = r.person_id;
-          parentId = r.related_person_id;
-        } else {
-          childId = r.related_person_id;
-          parentId = r.person_id;
-        }
+        parentId = r.related_person_id;
+        childId = r.person_id;
+      } else if (['son', 'daughter', 'child'].includes(type)) {
+        parentId = r.person_id;
+        childId = r.related_person_id;
       }
 
       if (parentId && childId) {
@@ -118,7 +101,13 @@ const FamilyTree = () => {
     relationships.forEach(r => {
       const type = r.relationship_type.toLowerCase();
       if (['brother', 'sister', 'sibling'].includes(type)) {
-        g.setEdge(r.person_id, r.related_person_id, { type: 'sibling', weight: 0.1 });
+        // Only add if they don't already share a parent union to avoid layout loops
+        const shareUnion = Object.values(unions).some(u => 
+          u.children.includes(r.person_id) && u.children.includes(r.related_person_id)
+        );
+        if (!shareUnion) {
+          g.setEdge(r.person_id, r.related_person_id, { type: 'sibling', weight: 0.1 });
+        }
       }
     });
 
