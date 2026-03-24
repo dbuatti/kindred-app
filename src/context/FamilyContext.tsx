@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { Person, Memory, Suggestion, MemoryType, Profile, Comment } from '../types';
+import { Person, Memory, Suggestion, MemoryType, Profile, Comment, EducationRecord } from '../types';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -57,6 +57,8 @@ interface FamilyContextType {
   logActivity: (eventType: string, details?: any) => Promise<void>;
   resendMagicLink: (userId: string) => Promise<void>;
   deleteUserAccount: (userId: string) => Promise<void>;
+  addEducation: (record: Omit<EducationRecord, 'id'>) => Promise<void>;
+  deleteEducation: (id: string) => Promise<void>;
 }
 
 const FamilyContext = createContext<FamilyContextType | undefined>(undefined);
@@ -144,7 +146,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         { data: profilesData, error: profilesError },
         { data: reactionsData, error: reactionsError },
         { data: commentsData, error: commentsError },
-        { data: relData, error: relError }
+        { data: relData, error: relError },
+        { data: eduData, error: eduError }
       ] = await Promise.all([
         supabase.from('people').select('*'),
         supabase.from('memories').select('*').order('created_at', { ascending: false }),
@@ -152,7 +155,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         supabase.from('profiles').select('*'),
         supabase.from('reactions').select('*'),
         supabase.from('comments').select('*').order('created_at', { ascending: true }),
-        supabase.from('relationships').select('*')
+        supabase.from('relationships').select('*'),
+        supabase.from('education_records').select('*')
       ]);
       
       if (peopleError) throw peopleError;
@@ -229,6 +233,18 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             comments: commentMap[m.id] || []
           }));
 
+        const personEdu = (eduData || [])
+          .filter((e: any) => e.person_id === p.id)
+          .map((e: any) => ({
+            id: e.id,
+            personId: e.person_id,
+            schoolName: e.school_name,
+            location: e.location,
+            degree: e.degree,
+            startYear: e.start_year,
+            endYear: e.end_year
+          }));
+
         return {
           id: p.id,
           familyId: p.family_id,
@@ -257,7 +273,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           burial_place: p.burial_place,
           physicalTraits: p.physical_traits,
           favoriteThings: p.favorite_things,
-          memories: personMemories
+          memories: personMemories,
+          educationRecords: personEdu
         };
       });
 
@@ -576,11 +593,42 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [suggestions, resolveSuggestion]);
 
+  const addEducation = useCallback(async (record: Omit<EducationRecord, 'id'>) => {
+    try {
+      const { error } = await supabase
+        .from('education_records')
+        .insert([{
+          person_id: record.personId,
+          school_name: record.schoolName,
+          location: record.location,
+          degree: record.degree,
+          start_year: record.startYear,
+          end_year: record.endYear
+        }]);
+      if (error) throw error;
+      toast.success("Education record added.");
+      fetchData(true);
+    } catch (err: any) {
+      toast.error("Failed to add education: " + err.message);
+    }
+  }, [fetchData]);
+
+  const deleteEducation = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase.from('education_records').delete().eq('id', id);
+      if (error) throw error;
+      toast.success("Education record removed.");
+      fetchData(true);
+    } catch (err: any) {
+      toast.error("Failed to remove education: " + err.message);
+    }
+  }, [fetchData]);
+
   return (
     <FamilyContext.Provider value={{ 
       people, suggestions, profiles, authUsers, reactions, relationships, activityLogs, loading, user, isAdmin, theme, setTheme, treeLayoutData, setTreeLayoutData,
       addPerson, updatePerson, deletePerson, addMemory, addComment, addSuggestion, addRelationship, resolveSuggestion, resolveAllSuggestions, toggleReaction, refreshData: fetchData, logActivity,
-      resendMagicLink, deleteUserAccount
+      resendMagicLink, deleteUserAccount, addEducation, deleteEducation
     }}>
       {children}
     </FamilyContext.Provider>

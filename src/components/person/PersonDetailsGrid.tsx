@@ -16,7 +16,8 @@ import {
   Eye, 
   Utensils,
   Info,
-  Fingerprint
+  Fingerprint,
+  BookOpen
 } from 'lucide-react';
 import { cn, getFullLegalName } from '@/lib/utils';
 
@@ -26,7 +27,7 @@ interface PersonDetailsGridProps {
 
 interface DetailItem {
   label: string;
-  value: string | undefined | null;
+  value: string | React.ReactNode | undefined | null;
   icon: any;
   highlight?: boolean;
 }
@@ -78,7 +79,23 @@ const PersonDetailsGrid = ({ person }: PersonDetailsGridProps) => {
       title: "Legacy & Traits",
       icon: Info,
       items: [
-        { label: "Education", value: person.education, icon: GraduationCap },
+        { 
+          label: "Education", 
+          value: person.educationRecords && person.educationRecords.length > 0 ? (
+            <div className="space-y-4 mt-2">
+              {person.educationRecords.map((edu) => (
+                <div key={edu.id} className="border-l-2 border-amber-100 pl-4 py-1">
+                  <p className="font-bold text-stone-800">{edu.schoolName}</p>
+                  <p className="text-sm text-stone-600">{edu.degree}</p>
+                  <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                    {edu.location} {edu.startYear || edu.endYear ? `• ${edu.startYear || '?'}${edu.endYear ? ` — ${edu.endYear}` : ''}` : ''}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : person.education, 
+          icon: GraduationCap 
+        },
         { label: "Military Service", value: person.militaryService, icon: Shield },
         { label: "Physical Traits", value: person.physicalTraits, icon: Eye },
         { label: "Favorite Things", value: person.favoriteThings, icon: Utensils },
@@ -88,7 +105,7 @@ const PersonDetailsGrid = ({ person }: PersonDetailsGridProps) => {
 
   const activeSections = sections.filter(section => {
     if (section.condition === false) return false;
-    return section.items.some(item => item.value && item.value.trim() !== "");
+    return section.items.some(item => item.value && (typeof item.value === 'string' ? item.value.trim() !== "" : true));
   });
 
   if (activeSections.length === 0) return null;
@@ -111,7 +128,7 @@ const PersonDetailsGrid = ({ person }: PersonDetailsGridProps) => {
             </div>
             
             <div className="grid grid-cols-1 gap-6">
-              {section.items.filter(i => i.value && i.value.trim() !== "").map((item) => (
+              {section.items.filter(i => i.value && (typeof i.value === 'string' ? i.value.trim() !== "" : true)).map((item) => (
                 <div key={item.label} className="flex items-start gap-4 group">
                   <div className={cn(
                     "h-10 w-10 rounded-xl flex items-center justify-center transition-colors shrink-0",
@@ -119,14 +136,14 @@ const PersonDetailsGrid = ({ person }: PersonDetailsGridProps) => {
                   )}>
                     <item.icon className="w-5 h-5" />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 flex-1">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">{item.label}</p>
-                    <p className={cn(
+                    <div className={cn(
                       "text-lg text-stone-700 font-medium leading-tight",
                       item.highlight && "text-stone-900 font-bold"
                     )}>
                       {item.value}
-                    </p>
+                    </div>
                   </div>
                 </div>
               ))}

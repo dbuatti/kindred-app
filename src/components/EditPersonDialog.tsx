@@ -36,6 +36,7 @@ import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import EducationManager from './person/EducationManager';
 
 interface EditPersonDialogProps {
   person: Person;
@@ -334,19 +335,9 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
                 <History className="w-3 h-3" /> Legacy & Details
               </h3>
               
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Education</label>
-                  <div className="relative">
-                    <GraduationCap className="absolute left-4 top-4 w-4 h-4 text-stone-300" />
-                    <Textarea 
-                      value={formData.education}
-                      onChange={(e) => setFormData({...formData, education: e.target.value})}
-                      placeholder="Schools, degrees, or mentors..."
-                      className="bg-stone-50 border-none rounded-2xl min-h-[80px] text-base pl-12 focus-visible:ring-amber-500/20"
-                    />
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 gap-8">
+                <EducationManager personId={person.id} records={person.educationRecords || []} />
+
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Military Service</label>
                   <div className="relative">

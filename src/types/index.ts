@@ -5,6 +5,16 @@ export type PersonalityTag = {
 
 export type MemoryType = 'text' | 'voice' | 'photo';
 
+export interface EducationRecord {
+  id: string;
+  personId: string;
+  schoolName: string;
+  location?: string;
+  degree?: string;
+  startYear?: string;
+  endYear?: string;
+}
+
 export interface Profile {
   id: string;
   first_name: string;
@@ -84,6 +94,7 @@ export interface Person {
   createdByEmail: string;
   createdAt: string;
   memories: Memory[];
+  educationRecords: EducationRecord[];
   userId?: string;
   isLiving?: boolean;
   relationshipType?: string;
