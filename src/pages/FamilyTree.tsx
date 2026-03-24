@@ -33,7 +33,7 @@ const BRANCH_COLORS = [
   '#ec4899', // Pink
 ];
 
-const LINEAGE_COLOR = '#d6d3d1'; 
+const LINEAGE_COLOR = '#e2e8f0'; 
 const PLACEHOLDER_URL = "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&q=80&w=400";
 
 const FamilyTree = () => {
@@ -48,11 +48,10 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 40, // Very tight horizontal spacing
-        ranksep: 80, // Tight vertical spacing
-        edgesep: 20,
-        marginx: 40, 
-        marginy: 40,
+        nodesep: 60, // Tighter horizontal spacing
+        ranksep: 100, // Tighter vertical spacing
+        marginx: 50, 
+        marginy: 50,
         ranker: 'network-simplex'
       });
       g.setDefaultEdgeLabel(() => ({}));
@@ -68,8 +67,8 @@ const FamilyTree = () => {
         }
 
         g.setNode(p.id, { 
-          width: 180, 
-          height: 50, 
+          width: 200, 
+          height: 60, 
           person: { ...p, displayYear: displayYear || 'Year Unknown' } 
         });
       });
@@ -96,7 +95,7 @@ const FamilyTree = () => {
         }
       });
 
-      // 3. Map Children and Create Clusters
+      // 3. Map Children
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         if (['cousin', 'aunt', 'uncle', 'nephew', 'niece'].includes(type)) return;
@@ -122,21 +121,13 @@ const FamilyTree = () => {
         }
       });
 
-      // 4. Add Union Nodes and Marriage Edges with Strict Clustering
+      // 4. Add Union Nodes and Marriage Edges
       Object.values(unions).forEach(u => {
-        const clusterId = `cluster_${u.id}`;
-        g.setNode(clusterId, { label: '', style: 'fill: none' });
+        g.setNode(u.id, { width: 30, height: 30, isUnion: true, color: u.color });
         
-        g.setNode(u.id, { width: 24, height: 24, isUnion: true, color: u.color });
-        
-        // Force spouses and union node into a cluster
-        g.setParent(u.p1, clusterId);
-        g.setParent(u.p2, clusterId);
-        g.setParent(u.id, clusterId);
-
-        // High weight to keep spouses together
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 20 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 20 });
+        // Force spouses to stay on the same rank
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10 });
         
         u.children.forEach((childId) => {
           g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 5 });
@@ -145,10 +136,7 @@ const FamilyTree = () => {
 
       dagre.layout(g);
       
-      const nodes = g.nodes()
-        .filter(v => !v.startsWith('cluster_'))
-        .map(v => ({ id: v, ...g.node(v) }));
-        
+      const nodes = g.nodes().map(v => ({ id: v, ...g.node(v) }));
       const edges = g.edges().map(e => ({ 
         from: g.node(e.v), 
         to: g.node(e.w),
@@ -254,15 +242,13 @@ const FamilyTree = () => {
               const isMarriage = edge.type === 'marriage';
               
               const startX = edge.from.x;
-              const startY = edge.from.y + (edge.from.isUnion ? 0 : 25); 
+              const startY = edge.from.y + (edge.from.isUnion ? 0 : 30); 
               const endX = edge.to.x;
-              const endY = edge.to.y - (edge.to.isUnion ? 12 : 25); 
+              const endY = edge.to.y - (edge.to.isUnion ? 15 : 30); 
 
-              // Traditional Orthogonal "Step" Path
+              // Smooth Organic Curve Path
               const midY = startY + (endY - startY) * 0.5;
-              const path = isMarriage 
-                ? `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`
-                : `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
+              const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               
               return (
                 <g key={i}>
@@ -272,15 +258,15 @@ const FamilyTree = () => {
                     strokeWidth={isMarriage ? "6" : "4"}
                     fill="none"
                     strokeLinecap="round"
-                    opacity="0.5"
+                    opacity="0.4"
                   />
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 0.8, ease: "easeInOut", delay: i * 0.01 }}
+                    transition={{ duration: 1, ease: "easeInOut", delay: i * 0.01 }}
                     d={path}
                     stroke={edge.color || LINEAGE_COLOR}
-                    strokeWidth={isMarriage ? "2" : "1.5"}
+                    strokeWidth={isMarriage ? "2.5" : "1.5"}
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -299,14 +285,14 @@ const FamilyTree = () => {
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', damping: 12, delay: 0.3 }}
                   style={{ 
-                    left: node.x - 12, 
-                    top: node.y - 12,
+                    left: node.x - 15, 
+                    top: node.y - 15,
                     backgroundColor: 'white',
                     borderColor: node.color
                   }}
-                  className="absolute w-6 h-6 rounded-full border-2 flex items-center justify-center shadow-md z-10 group"
+                  className="absolute w-8 h-8 rounded-full border-2 flex items-center justify-center shadow-md z-10 group"
                 >
-                  <Heart className="w-3 h-3 fill-current transition-transform group-hover:scale-125" style={{ color: node.color }} />
+                  <Heart className="w-4 h-4 fill-current transition-transform group-hover:scale-125" style={{ color: node.color }} />
                 </motion.div>
               );
             }
@@ -320,33 +306,33 @@ const FamilyTree = () => {
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ scale: 1.05, y: -2 }}
                 style={{ 
-                  left: node.x - 90, 
-                  top: node.y - 25,
-                  width: 180,
-                  height: 50
+                  left: node.x - 100, 
+                  top: node.y - 30,
+                  width: 200,
+                  height: 60
                 }}
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
-                className="absolute bg-white rounded-xl border border-stone-100 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] hover:border-amber-200 transition-all p-1.5 flex items-center gap-2.5 cursor-pointer group z-20"
+                className="absolute bg-white rounded-xl border border-stone-100 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] hover:border-amber-200 transition-all p-2 flex items-center gap-3 cursor-pointer group z-20"
               >
                 <SmartSuggestionHover personId={node.id} />
                 
-                <div className="h-8 w-8 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 group-hover:border-amber-200 transition-all">
+                <div className="h-10 w-10 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 group-hover:border-amber-200 transition-all">
                   {hasRealPhoto ? (
                     <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-200">
-                      <UserCircle className="w-5 h-5" />
+                      <UserCircle className="w-6 h-6" />
                     </div>
                   )}
                 </div>
-                <div className="min-w-0 flex-1 space-y-0">
-                  <p className="text-[11px] font-serif font-bold text-stone-800 truncate group-hover:text-amber-900 transition-colors">{node.person.name}</p>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[7px] font-bold text-stone-400 uppercase tracking-widest">
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="text-xs font-serif font-bold text-stone-800 truncate group-hover:text-amber-900 transition-colors">{node.person.name}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">
                       {node.person.displayYear}
                     </span>
                     {!node.person.isLiving && (
-                      <Badge variant="secondary" className="bg-stone-50 text-stone-400 border-none text-[5px] px-1 py-0">
+                      <Badge variant="secondary" className="bg-stone-50 text-stone-400 border-none text-[6px] px-1 py-0">
                         In Memory
                       </Badge>
                     )}
