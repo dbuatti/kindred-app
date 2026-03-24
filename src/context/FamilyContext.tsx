@@ -47,7 +47,7 @@ interface FamilyContextType {
   toggleReaction: (memoryId: string) => Promise<void>;
   refreshData: (silent?: boolean) => Promise<void>;
   logActivity: (eventType: string, details?: any) => Promise<void>;
-  resendMagicLink: (email: string) => Promise<void>;
+  resendMagicLink: (userId: string) => Promise<void>;
   deleteUserAccount: (userId: string) => Promise<void>;
 }
 
@@ -277,13 +277,13 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (user) fetchData();
   }, [user, fetchData]);
 
-  const resendMagicLink = useCallback(async (email: string) => {
+  const resendMagicLink = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('admin-tasks', {
-        body: { action: 'resend-magic-link', targetEmail: email }
+        body: { action: 'resend-magic-link', targetUserId: userId }
       });
       if (error) throw error;
-      toast.success(`Magic link resent to ${email}`);
+      toast.success("Magic link resent successfully.");
     } catch (err: any) {
       toast.error("Failed to resend link: " + err.message);
     }

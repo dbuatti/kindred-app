@@ -65,9 +65,9 @@ const AdminDashboard = () => {
     return <Navigate to="/" />;
   }
 
-  const handleResendLink = async (email: string) => {
-    setIsProcessing(email);
-    await resendMagicLink(email);
+  const handleResendLink = async (userId: string) => {
+    setIsProcessing(userId);
+    await resendMagicLink(userId);
     setIsProcessing(null);
   };
 
@@ -245,10 +245,10 @@ const AdminDashboard = () => {
                         variant="outline" 
                         size="sm" 
                         className="flex-1 rounded-xl h-10 text-[10px] font-bold uppercase tracking-widest gap-2 border-stone-100 hover:bg-amber-50 hover:text-amber-700"
-                        onClick={() => handleResendLink(userEmail)}
-                        disabled={isProcessing === userEmail}
+                        onClick={() => handleResendLink(profile.id)}
+                        disabled={isProcessing === profile.id}
                       >
-                        {isProcessing === userEmail ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                        {isProcessing === profile.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                         Resend Link
                       </Button>
                       

@@ -36,17 +36,26 @@ serve(async (req) => {
     console.log(`[admin-tasks] Action: ${action} for ${targetEmail || targetUserId}`);
 
     if (action === 'resend-magic-link') {
-      if (!targetEmail) throw new Error('Target email is required')
+      let email = targetEmail;
+      
+      // If we only have an ID, look up the email using admin privileges
+      if (!email && targetUserId) {
+        const { data: { user: targetUser }, error: getError } = await supabaseClient.auth.admin.getUserById(targetUserId)
+        if (getError || !targetUser) throw new Error('User not found')
+        email = targetUser.email
+      }
+
+      if (!email) throw new Error('Target email or user ID is required')
       
       const { error } = await supabaseClient.auth.signInWithOtp({
-        email: targetEmail,
+        email: email,
         options: {
           emailRedirectTo: 'https://bcchduauwyyymvthxgkf.supabase.co/auth/confirm',
         },
       })
       
       if (error) throw error
-      return new Response(JSON.stringify({ message: 'Magic link sent' }), { 
+      return new Response(JSON.stringify({ message: `Magic link sent to ${email}` }), { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       })
     }
