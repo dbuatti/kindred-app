@@ -29,6 +29,7 @@ import ScrollToTop from '../components/ScrollToTop';
 import BottomNav from '../components/BottomNav';
 import PersonHero from '../components/person/PersonHero';
 import PhotoGallery from '../components/person/PhotoGallery';
+import LifeTimeline from '../components/person/LifeTimeline';
 import CommentSection from '../components/CommentSection';
 import FloatingMenu from '../components/FloatingMenu';
 import { PersonDetailSkeleton } from '../components/SkeletonLoader';
@@ -210,6 +211,8 @@ const PersonDetail = () => {
 
         {!isOwnProfile && <ProfileCompletionCard person={person} />}
 
+        <LifeTimeline person={person} />
+
         <section className="space-y-8">
           <div className="flex items-center justify-between">
             <h2 className="text-3xl font-serif font-bold text-stone-800 flex items-center gap-3">Family Tree</h2>
@@ -254,6 +257,7 @@ const PersonDetail = () => {
                 return (
                   <motion.div 
                     key={memory.id} 
+                    id={`memory-${memory.id}`}
                     initial={{ opacity: 0, x: -20 }} 
                     whileInView={{ opacity: 1, x: 0 }} 
                     viewport={{ once: true }} 

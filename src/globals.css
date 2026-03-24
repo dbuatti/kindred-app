@@ -25,6 +25,17 @@
     --ring: 222.2 84% 4.9%;
     --radius: 1rem;
   }
+
+  /* Heritage Mode (Vintage Theme) */
+  .heritage {
+    --background: 36 33% 94%; /* Aged paper color */
+    --foreground: 25 20% 20%;
+    --card: 36 33% 97%;
+    --card-foreground: 25 20% 20%;
+    --primary: 25 30% 25%;
+    --border: 36 20% 85%;
+    --ring: 36 50% 50%;
+  }
 }
 
 @layer base {
@@ -32,10 +43,47 @@
     @apply border-border;
   }
   body {
-    @apply bg-[#FDFCF9] text-stone-900 antialiased;
-    font-size: 16px; /* Standard base font size */
+    @apply bg-[#FDFCF9] text-stone-900 antialiased transition-colors duration-700;
+    font-size: 16px;
   }
+  
+  body.heritage {
+    @apply bg-[#F4F1EA];
+    background-image: url("https://www.transparenttextures.com/patterns/paper-fibers.png");
+  }
+
   h1, h2, h3 {
     @apply font-serif;
   }
+
+  .heritage h1, .heritage h2, .heritage h3 {
+    @apply tracking-tight text-stone-900;
+    filter: sepia(0.2);
+  }
+
+  .heritage img {
+    @apply grayscale sepia-[0.3] contrast-[1.1];
+  }
+
+  .heritage .bg-white {
+    @apply bg-[#F9F7F2];
+  }
+
+  .heritage .border-stone-100 {
+    @apply border-[#E8E2D5];
+  }
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-stone-200 rounded-full;
+}
+.heritage .custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-amber-200/50;
 }

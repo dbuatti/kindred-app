@@ -16,11 +16,13 @@ interface FamilyContextType {
   people: Person[];
   suggestions: Suggestion[];
   profiles: Record<string, Profile>;
-  reactions: Record<string, string[]>; // memoryId -> array of userIds
+  reactions: Record<string, string[]>;
   relationships: Relationship[];
   loading: boolean;
   user: any;
   isAdmin: boolean;
+  theme: 'default' | 'heritage';
+  setTheme: (theme: 'default' | 'heritage') => void;
   addPerson: (person: Partial<Person>, relativeId?: string, relType?: string) => Promise<string | undefined>;
   updatePerson: (id: string, updates: Partial<Person> | Record<string, any>) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
@@ -44,6 +46,22 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [theme, setThemeState] = useState<'default' | 'heritage'>('default');
+
+  const setTheme = (newTheme: 'default' | 'heritage') => {
+    setThemeState(newTheme);
+    localStorage.setItem('kindred_theme', newTheme);
+    if (newTheme === 'heritage') {
+      document.body.classList.add('heritage');
+    } else {
+      document.body.classList.remove('heritage');
+    }
+  };
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('kindred_theme') as 'default' | 'heritage';
+    if (savedTheme) setTheme(savedTheme);
+  }, []);
 
   const isAdmin = user?.email === ADMIN_EMAIL;
 
@@ -225,10 +243,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updatePerson = useCallback(async (id: string, updates: Partial<Person> | Record<string, any>) => {
     if (!user) return;
     try {
-      // Map camelCase to snake_case for the database update
       const dbUpdates: Record<string, any> = {};
-      
-      // Handle direct database column names (snake_case)
       const directKeys = [
         'name', 'nickname', 'birth_year', 'birth_date', 'birth_place', 
         'death_year', 'death_date', 'death_place', 'occupation', 
@@ -241,7 +256,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (key in updates) dbUpdates[key] = (updates as any)[key];
       });
 
-      // Handle camelCase keys from the Person interface
       if ('name' in updates) dbUpdates.name = updates.name;
       if ('nickname' in updates) dbUpdates.nickname = updates.nickname;
       if ('birthYear' in updates) dbUpdates.birth_year = (updates as any).birthYear;
@@ -380,33 +394,21 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addRelationship = useCallback(async (personId: string, relatedId: string, type: string) => {
     if (!user) return;
-    
-    // Check if relationship already exists in this specific direction
     const exists = relationships.some(r => 
       r.person_id === personId && 
       r.related_person_id === relatedId &&
       r.relationship_type.toLowerCase() === type.toLowerCase()
     );
-
-    if (exists) {
-      console.log("[FamilyContext] Relationship already exists, skipping.");
-      return;
-    }
-
-    // Check for reverse relationship of the SAME type (e.g. A is father of B, B is father of A)
-    // This is usually a data entry error.
+    if (exists) return;
     const reverseExists = relationships.some(r => 
       r.person_id === relatedId && 
       r.related_person_id === personId &&
       r.relationship_type.toLowerCase() === type.toLowerCase()
     );
-
     if (reverseExists) {
-      console.warn("[FamilyContext] Reverse relationship of same type exists. This is likely a data error.");
-      toast.error("A conflicting relationship already exists. Please check the archive.");
+      toast.error("A conflicting relationship already exists.");
       return;
     }
-
     try {
       const { error } = await supabase
         .from('relationships')
@@ -427,23 +429,17 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const suggestion = suggestions.find(s => s.id === id);
       if (!suggestion) return;
-
       setSuggestions(prev => prev.filter(s => s.id !== id));
-
       const { error: updateError } = await supabase
         .from('suggestions')
         .update({ status })
         .eq('id', id);
-
       if (updateError) throw updateError;
-
       if (status === 'approved') {
         if (suggestion.fieldName === 'link_existing' || suggestion.fieldName === 'new_relationship') {
           const lines = suggestion.suggestedValue.split('\n');
           const mainLine = lines[0];
-          
           let primaryPersonId = '';
-
           if (suggestion.fieldName === 'link_existing') {
             const match = mainLine.match(/LINK_EXISTING: (.+) as (.+) to (.+)/);
             if (match) {
@@ -451,7 +447,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               const relType = match[2].toLowerCase();
               const personId = match[3];
               primaryPersonId = targetId;
-
               await addRelationship(targetId, personId, relType);
             }
           } else {
@@ -459,7 +454,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             if (match) {
               const name = match[1];
               const type = match[2];
-
               const { data: newPerson, error: pErr } = await supabase
                 .from('people')
                 .insert({
@@ -470,15 +464,11 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 })
                 .select()
                 .single();
-
               if (pErr) throw pErr;
               primaryPersonId = newPerson.id;
-
               await addRelationship(newPerson.id, suggestion.personId, type.toLowerCase());
             }
           }
-
-          // Process additional connections if they exist
           if (primaryPersonId) {
             const additionalLines = lines.filter(l => l.includes('[Target:'));
             for (const line of additionalLines) {
@@ -494,11 +484,9 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             .from('people')
             .update({ [suggestion.fieldName]: suggestion.suggestedValue })
             .eq('id', suggestion.personId);
-          
           if (personError) throw personError;
         }
       }
-
       fetchData(true);
     } catch (error: any) {
       console.error("[FamilyContext] Error resolving suggestion:", error.message);
@@ -510,9 +498,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const resolveAllSuggestions = useCallback(async (status: 'approved' | 'rejected') => {
     const pending = suggestions.filter(s => s.status === 'pending');
     if (pending.length === 0) return;
-
     const toastId = toast.loading(`Processing ${pending.length} suggestions...`);
-    
     try {
       for (const s of pending) {
         await resolveSuggestion(s.id, status);
@@ -534,6 +520,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       loading,
       user,
       isAdmin,
+      theme,
+      setTheme,
       addPerson, 
       updatePerson,
       deletePerson,

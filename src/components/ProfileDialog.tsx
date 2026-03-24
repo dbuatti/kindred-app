@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { User, Settings, LogOut, ShieldCheck, Edit3 } from 'lucide-react';
+import { Switch } from './ui/switch';
+import { User, Settings, LogOut, ShieldCheck, Edit3, Sparkles } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext';
 import { supabase } from '../integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -12,7 +13,7 @@ const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
 const ProfileDialog = () => {
   const navigate = useNavigate();
-  const { user, profiles } = useFamily();
+  const { user, profiles, theme, setTheme } = useFamily();
   const [isOpen, setIsOpen] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -94,11 +95,23 @@ const ProfileDialog = () => {
                 className="bg-white border-stone-200 rounded-2xl h-14 text-lg focus-visible:ring-amber-500"
               />
             </div>
-            <div className="pt-2">
-              <p className="text-sm text-stone-400 text-center italic">
-                Signed in as {user?.email}
-              </p>
+          </div>
+
+          {/* Theme Toggle */}
+          <div className="flex items-center justify-between p-5 bg-white rounded-3xl border border-stone-100 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-sm font-bold text-stone-800">Heritage Mode</p>
+                <p className="text-[10px] text-stone-400 uppercase tracking-widest">Vintage Aesthetic</p>
+              </div>
             </div>
+            <Switch 
+              checked={theme === 'heritage'} 
+              onCheckedChange={(val) => setTheme(val ? 'heritage' : 'default')} 
+            />
           </div>
 
           <div className="flex flex-col gap-3 pt-4">
