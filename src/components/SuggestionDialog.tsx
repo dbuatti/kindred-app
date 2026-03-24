@@ -15,27 +15,8 @@ interface SuggestionDialogProps {
   initialField?: string;
 }
 
-// Map database column names to Person interface keys
-const FIELD_TO_KEY_MAP: Record<string, keyof Person> = {
-  middle_name: 'middleName',
-  birth_year: 'birthYear',
-  birth_date: 'birthDate',
-  birth_place: 'birthPlace',
-  death_date: 'deathDate',
-  death_place: 'deathPlace',
-  occupation: 'occupation',
-  gender: 'gender',
-  nickname: 'nickname',
-  maiden_name: 'maidenName',
-  vibe_sentence: 'vibeSentence',
-  photo_url: 'photoUrl',
-  education: 'education',
-  military_service: 'militaryService',
-  burial_place: 'burialPlace',
-  physical_traits: 'physicalTraits',
-  favorite_things: 'favoriteThings'
-};
-
+// Map database column names to Person interface keys (for state) 
+// and ensure we know which DB column to update
 const FIELD_CONFIG: Record<string, { label: string, icon: any, placeholder: string, type: 'input' | 'textarea' | 'select' }> = {
   middle_name: { label: 'Middle Name', icon: User, placeholder: 'e.g. Maria or "NA"', type: 'input' },
   birth_year: { label: 'Birth Year', icon: Calendar, placeholder: 'e.g. 1945', type: 'input' },
@@ -76,9 +57,12 @@ const SuggestionDialog = ({ person, trigger, initialField = 'vibe_sentence' }: S
   const handleSubmit = async () => {
     if (!value) return;
 
+    console.log(`[SuggestionDialog] Submitting update for ${person.name}:`, { fieldName, value, isAdmin });
+
     if (isAdmin) {
-      const personKey = FIELD_TO_KEY_MAP[fieldName] || fieldName;
-      await updatePerson(person.id, { [personKey]: value });
+      // For admins, we update the person record directly.
+      // We use the fieldName (snake_case) directly as it matches the DB columns.
+      await updatePerson(person.id, { [fieldName]: value });
       toast.success("Record updated directly.");
     } else {
       await addSuggestion({

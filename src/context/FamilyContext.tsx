@@ -254,7 +254,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           inviteToken: p.invite_token,
           education: p.education,
           militaryService: p.military_service,
-          burialPlace: p.burial_place,
+          burial_place: p.burial_place,
           physicalTraits: p.physical_traits,
           favoriteThings: p.favorite_things,
           memories: personMemories
@@ -310,7 +310,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         body: { action: 'resend-magic-link', targetUserId: userId }
       });
       if (error) throw error;
-      toast.success("Magic link resent successfully.");
+      toast.success("Magic link sent successfully.");
     } catch (err: any) {
       toast.error("Failed to resend link: " + err.message);
     }
@@ -369,8 +369,32 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const updatePerson = useCallback(async (id: string, updates: Partial<Person> | Record<string, any>) => {
     if (!user) return;
+    console.log("[FamilyContext] updatePerson called for ID:", id, "with updates:", updates);
+    
     try {
       const dbUpdates: Record<string, any> = {};
+      
+      // Map of camelCase keys to snake_case DB columns
+      const keyMap: Record<string, string> = {
+        middleName: 'middle_name',
+        birthYear: 'birth_year',
+        birthDate: 'birth_date',
+        birthPlace: 'birth_place',
+        deathYear: 'death_year',
+        deathDate: 'death_date',
+        deathPlace: 'death_place',
+        vibeSentence: 'vibe_sentence',
+        personalityTags: 'personality_tags',
+        photoUrl: 'photo_url',
+        isLiving: 'is_living',
+        maidenName: 'maiden_name',
+        militaryService: 'military_service',
+        burialPlace: 'burial_place',
+        physicalTraits: 'physical_traits',
+        favoriteThings: 'favorite_things'
+      };
+
+      // List of valid snake_case columns
       const directKeys = [
         'name', 'nickname', 'middle_name', 'birth_year', 'birth_date', 'birth_place', 
         'death_year', 'death_date', 'death_place', 'occupation', 
@@ -379,15 +403,29 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         'burial_place', 'physical_traits', 'favorite_things'
       ];
       
-      directKeys.forEach(key => {
-        if (key in updates) dbUpdates[key] = (updates as any)[key];
+      // Process updates: check both snake_case and camelCase versions
+      Object.entries(updates).forEach(([key, value]) => {
+        if (directKeys.includes(key)) {
+          dbUpdates[key] = value;
+        } else if (keyMap[key]) {
+          dbUpdates[keyMap[key]] = value;
+        }
       });
+
+      console.log("[FamilyContext] Final dbUpdates to Supabase:", dbUpdates);
+
+      if (Object.keys(dbUpdates).length === 0) {
+        console.warn("[FamilyContext] No valid fields found to update.");
+        return;
+      }
 
       const { error } = await supabase.from('people').update(dbUpdates).eq('id', id);
       if (error) throw error;
+      
       await logActivity('edit_person', { personId: id, fields: Object.keys(dbUpdates) });
       fetchData(true);
     } catch (error: any) {
+      console.error("[FamilyContext] Update error:", error.message);
       toast.error("Failed to update: " + error.message);
     }
   }, [fetchData, user, logActivity]);
