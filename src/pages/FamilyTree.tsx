@@ -45,12 +45,11 @@ const FamilyTree = () => {
     if (loading || people.length === 0) return null;
 
     try {
-      // Enable compound graphs for clustering
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 120, // Increased horizontal gap
-        ranksep: 150, // Increased vertical gap
+        nodesep: 150, // Wide horizontal gap
+        ranksep: 180, // Vertical gap
         marginx: 100, 
         marginy: 100,
         ranker: 'network-simplex'
@@ -100,7 +99,7 @@ const FamilyTree = () => {
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         
-        // Ignore secondary relationships for layout positioning
+        // Ignore secondary relationships for layout positioning to avoid "spaghetti"
         if (['cousin', 'aunt', 'uncle', 'nephew', 'niece'].includes(type)) return;
 
         let parentId = '';
@@ -136,8 +135,11 @@ const FamilyTree = () => {
         g.setParent(u.p2, clusterId);
         g.setParent(u.id, clusterId);
 
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10 });
+        // CRITICAL: High weight invisible edge between spouses forces them to be adjacent
+        g.setEdge(u.p1, u.p2, { weight: 1000, style: 'display: none' });
+
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 20 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 20 });
         
         u.children.forEach((childId) => {
           // Also group children into the same cluster to prevent interleaving
@@ -149,14 +151,16 @@ const FamilyTree = () => {
       dagre.layout(g);
       
       const nodes = g.nodes()
-        .filter(v => !v.startsWith('cluster_')) // Don't render the cluster containers
+        .filter(v => !v.startsWith('cluster_')) 
         .map(v => ({ id: v, ...g.node(v) }));
         
-      const edges = g.edges().map(e => ({ 
-        from: g.node(e.v), 
-        to: g.node(e.w),
-        ...g.edge(e)
-      }));
+      const edges = g.edges()
+        .filter(e => g.edge(e).type) // Only render edges with a type (marriage/lineage)
+        .map(e => ({ 
+          from: g.node(e.v), 
+          to: g.node(e.w),
+          ...g.edge(e)
+        }));
 
       const minX = Math.min(...nodes.map(n => n.x - 150));
       const maxX = Math.max(...nodes.map(n => n.x + 150));
