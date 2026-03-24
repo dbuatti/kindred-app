@@ -7,7 +7,7 @@ import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Checkbox } from './ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { UserPlus, Sparkles, Heart, HelpCircle, Link2, Search } from 'lucide-react';
+import { UserPlus, Sparkles, Heart, HelpCircle, Link2, Search, Info, CheckCircle2 } from 'lucide-react';
 import { Person } from '../types';
 import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
@@ -39,8 +39,12 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
       .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [people, person, searchQuery]);
 
+  const selectedPersonName = useMemo(() => {
+    return people.find(p => p.id === selectedPersonId)?.name || '';
+  }, [people, selectedPersonId]);
+
   const smartInferences = useMemo(() => {
-    const name = relativeName || (selectedPersonId ? people.find(p => p.id === selectedPersonId)?.name : '');
+    const name = relativeName || selectedPersonName;
     const rel = relationship || existingRelationship;
     
     if (!name || !rel || !person) return [];
@@ -48,7 +52,6 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
     const inferences: { id: string; question: string; inferredRole: string; targetPersonName: string; targetId: string }[] = [];
     const relType = rel.toLowerCase();
 
-    // Logic to find the parents of the current person
     const myParents = Array.from(new Set(relationships
       .filter(r => {
         const type = r.relationship_type.toLowerCase();
@@ -73,26 +76,11 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
       });
     }
 
-    if (relType === "cousin") {
-      myParents.forEach(parentId => {
-        const parent = people.find(p => p.id === parentId);
-        if (parent) {
-          inferences.push({
-            id: `cousin-parent-link-${parent.id}`,
-            question: `Is one of ${name}'s parents a brother or sister of ${parent.name}?`,
-            inferredRole: 'Sibling',
-            targetPersonName: parent.name,
-            targetId: parent.id
-          });
-        }
-      });
-    }
-
     return inferences;
-  }, [relativeName, relationship, selectedPersonId, existingRelationship, person, relationships, people]);
+  }, [relativeName, relationship, selectedPersonId, selectedPersonName, existingRelationship, person, relationships, people]);
 
   const handleSubmit = async () => {
-    const name = relativeName || people.find(p => p.id === selectedPersonId)?.name;
+    const name = relativeName || selectedPersonName;
     const rel = relationship || existingRelationship;
     
     if (!name || !rel) return;
@@ -154,6 +142,9 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
     setConfirmedInferences({});
   };
 
+  const currentName = relativeName || selectedPersonName;
+  const currentRel = relationship || existingRelationship;
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -167,31 +158,31 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
             <Sparkles className="w-6 h-6 text-amber-500" />
             Connect to {person.name.split(' ')[0]}
           </DialogTitle>
-          <DialogDescription className="text-stone-500">
+          <DialogDescription className="text-stone-500 text-lg">
             {isAdmin ? `Adding a connection directly to the archive.` : `Add a new relative or link someone already in the archive.`}
           </DialogDescription>
         </DialogHeader>
         
-        <Tabs defaultValue="new" className="mt-6">
-          <TabsList className="grid w-full grid-cols-2 bg-stone-100 rounded-2xl p-1 h-12">
-            <TabsTrigger value="new" className="rounded-xl data-[state=active]:bg-white">Add New</TabsTrigger>
-            <TabsTrigger value="existing" className="rounded-xl data-[state=active]:bg-white">Link Existing</TabsTrigger>
+        <Tabs defaultValue="new" className="mt-8">
+          <TabsList className="grid w-full grid-cols-2 bg-stone-200/50 rounded-2xl p-1 h-14">
+            <TabsTrigger value="new" className="rounded-xl text-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Add New</TabsTrigger>
+            <TabsTrigger value="existing" className="rounded-xl text-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Link Existing</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="new" className="space-y-6 py-6">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Relative's Name</label>
+          <TabsContent value="new" className="space-y-6 py-8">
+            <div className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-widest text-stone-400 ml-1">Relative's Name</label>
               <Input 
                 value={relativeName}
                 onChange={(e) => setRelativeName(e.target.value)}
                 placeholder="e.g. Maria Rossi"
-                className="bg-white border-stone-200 rounded-2xl h-14 text-lg"
+                className="bg-white border-stone-200 rounded-2xl h-14 text-lg px-6"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Relationship</label>
+            <div className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-widest text-stone-400 ml-1">Relationship</label>
               <Select onValueChange={setRelationship} value={relationship}>
-                <SelectTrigger className="bg-white border-stone-200 rounded-2xl h-14 text-lg">
+                <SelectTrigger className="bg-white border-stone-200 rounded-2xl h-14 text-lg px-6">
                   <SelectValue placeholder="Select relationship" />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl">
@@ -203,22 +194,22 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
             </div>
           </TabsContent>
 
-          <TabsContent value="existing" className="space-y-6 py-6">
-            <div className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+          <TabsContent value="existing" className="space-y-6 py-8">
+            <div className="space-y-6">
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400 group-focus-within:text-amber-600 transition-colors" />
                 <Input 
                   placeholder="Search family members..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-white border-stone-200 rounded-xl h-12"
+                  className="pl-12 bg-white border-stone-200 rounded-2xl h-14 text-lg"
                 />
               </div>
               
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Select Person</label>
+              <div className="space-y-3">
+                <label className="text-xs font-bold uppercase tracking-widest text-stone-400 ml-1">Select Person</label>
                 <Select onValueChange={setSelectedPersonId} value={selectedPersonId}>
-                  <SelectTrigger className="bg-white border-stone-200 rounded-2xl h-14 text-lg">
+                  <SelectTrigger className="bg-white border-stone-200 rounded-2xl h-14 text-lg px-6">
                     <SelectValue placeholder={otherPeople.length === 0 ? "No matches found" : "Choose from archive..."} />
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl">
@@ -229,10 +220,10 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-stone-400">Relationship to {person.name.split(' ')[0]}</label>
+              <div className="space-y-3">
+                <label className="text-xs font-bold uppercase tracking-widest text-stone-400 ml-1">Relationship to {person.name.split(' ')[0]}</label>
                 <Select onValueChange={setExistingRelationship} value={existingRelationship}>
-                  <SelectTrigger className="bg-white border-stone-200 rounded-2xl h-14 text-lg">
+                  <SelectTrigger className="bg-white border-stone-200 rounded-2xl h-14 text-lg px-6">
                     <SelectValue placeholder="Select relationship" />
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl">
@@ -246,22 +237,34 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
           </TabsContent>
         </Tabs>
 
+        {/* Relationship Preview Sentence */}
+        {currentName && currentRel && (
+          <div className="bg-white p-6 rounded-2xl border-2 border-amber-100 flex items-center gap-4 animate-in fade-in slide-in-from-top-2 shadow-sm mb-8">
+            <div className="flex-1">
+              <p className="text-lg text-stone-800 leading-relaxed">
+                <span className="font-bold text-amber-700">{currentName}</span> is the <span className="font-bold text-amber-700">{currentRel}</span> of <span className="font-bold text-amber-700">{person.name}</span>.
+              </p>
+            </div>
+            <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />
+          </div>
+        )}
+
         {smartInferences.length > 0 && (
-          <div className="space-y-4 pb-6">
+          <div className="space-y-4 pb-8">
             <div className="flex items-center gap-2 text-amber-700">
               <HelpCircle className="w-5 h-5" />
-              <h4 className="font-serif text-lg font-medium">Smart Follow-up</h4>
+              <h4 className="font-serif text-xl font-medium">Smart Follow-up</h4>
             </div>
             <div className="bg-white p-6 rounded-3xl border border-amber-100 space-y-4 shadow-sm">
               {smartInferences.map((inf) => (
-                <div key={inf.id} className="flex items-start gap-3">
+                <div key={inf.id} className="flex items-start gap-4">
                   <Checkbox 
                     id={inf.id} 
                     checked={confirmedInferences[inf.id] || false}
                     onCheckedChange={(checked) => setConfirmedInferences(prev => ({ ...prev, [inf.id]: !!checked }))}
-                    className="mt-1"
+                    className="mt-1.5 h-5 w-5"
                   />
-                  <label htmlFor={inf.id} className="text-stone-700 text-sm font-medium cursor-pointer">
+                  <label htmlFor={inf.id} className="text-stone-700 text-base font-medium cursor-pointer leading-tight">
                     {inf.question}
                   </label>
                 </div>
@@ -270,15 +273,15 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
           </div>
         )}
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <Button 
-            className="w-full h-16 rounded-2xl bg-stone-800 hover:bg-stone-900 text-white text-xl font-bold"
+            className="w-full h-20 rounded-[2rem] bg-stone-800 hover:bg-stone-900 text-white text-2xl font-bold shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
             onClick={handleSubmit}
             disabled={!( (relativeName && relationship) || (selectedPersonId && existingRelationship) )}
           >
             {isAdmin ? "Add Connection" : "Send Suggestion"}
           </Button>
-          <Button variant="ghost" className="w-full h-12 text-stone-400" onClick={() => setIsOpen(false)}>
+          <Button variant="ghost" className="w-full h-12 text-stone-400 text-lg" onClick={() => setIsOpen(false)}>
             Cancel
           </Button>
         </div>
