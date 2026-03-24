@@ -24,7 +24,6 @@ const TreeSmartInbox = () => {
     const items: { id: string; text: string; type: 'sibling' | 'parent' | 'spouse'; personId: string; targetId: string; action: () => Promise<void> }[] = [];
     const seenPairs = new Set<string>();
 
-    // Helper to check if two people are linked in ANY way
     const areLinked = (id1: string, id2: string) => {
       return relationships.some(r => 
         (r.person_id === id1 && r.related_person_id === id2) || 
@@ -35,7 +34,6 @@ const TreeSmartInbox = () => {
     people.forEach(person => {
       const personId = person.id;
       
-      // Get actual parents (Direction Agnostic)
       const myParentIds = relationships
         .filter(r => {
           const t = r.relationship_type.toLowerCase();
@@ -45,7 +43,6 @@ const TreeSmartInbox = () => {
         })
         .map(r => r.person_id === personId ? r.related_person_id : r.person_id);
       
-      // Get actual children (Direction Agnostic)
       const myChildIds = relationships
         .filter(r => {
           const t = r.relationship_type.toLowerCase();
@@ -81,7 +78,8 @@ const TreeSmartInbox = () => {
               targetId: sib.id,
               text: `Are ${person.name.split(' ')[0]} and ${sib.name.split(' ')[0]} siblings?`,
               action: async () => {
-                const relType = sib.gender?.toLowerCase() === 'female' ? 'sister' : 'brother';
+                const relType = sib.gender?.toLowerCase() === 'female' ? 'sister' : 
+                               sib.gender?.toLowerCase() === 'male' ? 'brother' : 'sibling';
                 if (isAdmin) {
                   await addRelationship(personId, sib.id, relType);
                 } else {
@@ -116,7 +114,6 @@ const TreeSmartInbox = () => {
             .map(r => r.person_id === spouse.id ? r.related_person_id : r.person_id);
           
           if (theirChildIds.some(id => myChildIds.includes(id))) {
-            // Check if they share a parent (likely siblings, not spouses)
             const theirParentIds = relationships
               .filter(r => {
                 const t = r.relationship_type.toLowerCase();

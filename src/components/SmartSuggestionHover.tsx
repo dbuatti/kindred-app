@@ -22,7 +22,6 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
   const suggestions = useMemo(() => {
     if (!person) return [];
 
-    // Helper to check if two people are linked in ANY way
     const areLinked = (id1: string, id2: string) => {
       return relationships.some(r => 
         (r.person_id === id1 && r.related_person_id === id2) || 
@@ -30,7 +29,6 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       );
     };
 
-    // Helper to get specific relationship IDs for any person (Direction Agnostic)
     const getRelIds = (id: string, types: string[]) => {
       const ids = new Set<string>();
       relationships.forEach(r => {
@@ -44,16 +42,11 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       return Array.from(ids);
     };
 
-    // Define clear sets for the current person
-    const myParentIds = getRelIds(personId, ['mother', 'father', 'parent', 'son', 'daughter', 'child']);
-    const myChildIds = getRelIds(personId, ['mother', 'father', 'parent', 'son', 'daughter', 'child']);
-    const mySpouseIds = getRelIds(personId, ['spouse', 'wife', 'husband']);
     const mySiblingIds = getRelIds(personId, ['brother', 'sister', 'sibling']);
 
     const items: { id: string; text: string; action: () => Promise<void> }[] = [];
 
-    // 1. Sibling Inference: Share a parent but not marked as siblings
-    const parentTypes = ['mother', 'father', 'parent', 'son', 'daughter', 'child'];
+    // 1. Sibling Inference
     const actualParentIds = relationships
       .filter(r => {
         const t = r.relationship_type.toLowerCase();
@@ -74,14 +67,15 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
             if (r.person_id === p.id && ['son', 'daughter', 'child'].includes(t)) return true;
             return false;
           })
-          .map(r => r.person_id === p.id ? r.related_person_id : r.related_person_id);
+          .map(r => r.person_id === p.id ? r.related_person_id : r.person_id);
         
         if (theirParentIds.some(id => actualParentIds.includes(id))) {
           items.push({
             id: `sib-${p.id}`,
             text: `Should ${person.name.split(' ')[0]} and ${p.name.split(' ')[0]} be marked as siblings?`,
             action: async () => {
-              const relType = p.gender?.toLowerCase() === 'female' ? 'sister' : 'brother';
+              const relType = p.gender?.toLowerCase() === 'female' ? 'sister' : 
+                             p.gender?.toLowerCase() === 'male' ? 'brother' : 'sibling';
               if (isAdmin) {
                 await addRelationship(personId, p.id, relType);
               } else {
@@ -98,7 +92,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       });
     }
 
-    // 2. Parent Inference: My sibling has a parent I don't have linked
+    // 2. Parent Inference
     mySiblingIds.forEach(sibId => {
       const sibParentIds = relationships
         .filter(r => {
@@ -136,7 +130,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       });
     });
 
-    // 3. Spouse Inference: Share a child but not marked as spouses
+    // 3. Spouse Inference
     const actualChildIds = relationships
       .filter(r => {
         const t = r.relationship_type.toLowerCase();
@@ -161,7 +155,6 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
         
         const sharesChild = theirChildIds.some(id => actualChildIds.includes(id));
         if (sharesChild) {
-          // Check if they share a parent (likely siblings, not spouses)
           const theirParentIds = relationships
             .filter(r => {
               const t = r.relationship_type.toLowerCase();
