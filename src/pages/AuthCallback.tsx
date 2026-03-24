@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
@@ -9,42 +9,54 @@ import { Heart, Loader2 } from 'lucide-react';
 const AuthCallback = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const hasProcessed = useRef(false);
 
   useEffect(() => {
     const handleAuth = async () => {
+      if (hasProcessed.current) return;
+      hasProcessed.current = true;
+
       const tokenHash = searchParams.get('token_hash');
       const type = searchParams.get('type') as any;
       const next = searchParams.get('next') || '/';
 
+      console.log("[AuthCallback] Starting verification...", { type, hasToken: !!tokenHash });
+
       try {
-        // 1. If we have a token_hash (from custom email templates), verify it
+        // 1. Verify the OTP token if present (from custom email templates)
         if (tokenHash && type) {
-          console.log("[AuthCallback] Verifying OTP with token_hash...");
           const { error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
             type: type,
           });
           if (error) throw error;
+          console.log("[AuthCallback] OTP verified successfully.");
         }
 
-        // 2. Check if we now have a session (either from verifyOtp or automatic PKCE exchange)
+        // 2. Double check we have a session now
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
         if (sessionError) throw sessionError;
 
         if (session) {
-          console.log("[AuthCallback] Session confirmed, entering archive.");
-          // Small delay to ensure session is persisted to storage
-          setTimeout(() => navigate(next, { replace: true }), 500);
+          console.log("[AuthCallback] Session established for:", session.user.email);
+          toast.success("Welcome back to the archive!");
+          
+          // Small delay to ensure Supabase internal state and Context sync up
+          setTimeout(() => {
+            navigate(next, { replace: true });
+          }, 800);
         } else {
-          // If no session after verification, something went wrong
-          console.warn("[AuthCallback] No session found after verification.");
-          toast.error("Session could not be established. Please try logging in again.");
-          navigate('/login', { replace: true });
+          // If no session and no token, we might have landed here by mistake
+          if (!tokenHash) {
+            console.warn("[AuthCallback] No session or token found. Redirecting to login.");
+            navigate('/login', { replace: true });
+          } else {
+            throw new Error("Verification succeeded but no session was created.");
+          }
         }
       } catch (error: any) {
-        console.error("[AuthCallback] Error:", error.message);
-        toast.error("Authentication failed: " + error.message);
+        console.error("[AuthCallback] Auth error:", error.message);
+        toast.error("Authentication failed: " + (error.message || "Unknown error"));
         navigate('/login', { replace: true });
       }
     };
