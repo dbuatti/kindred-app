@@ -357,6 +357,20 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
 
+    // Check for reverse relationship of the SAME type (e.g. A is father of B, B is father of A)
+    // This is usually a data entry error.
+    const reverseExists = relationships.some(r => 
+      r.person_id === relatedId && 
+      r.related_person_id === personId &&
+      r.relationship_type.toLowerCase() === type.toLowerCase()
+    );
+
+    if (reverseExists) {
+      console.warn("[FamilyContext] Reverse relationship of same type exists. This is likely a data error.");
+      toast.error("A conflicting relationship already exists. Please check the archive.");
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('relationships')
