@@ -35,7 +35,6 @@ const BRANCH_COLORS = [
   '#06b6d4', // Cyan
 ];
 
-// The specific placeholder URL we want to ignore
 const PLACEHOLDER_URL = "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&q=80&w=400";
 
 const FamilyTree = () => {
@@ -253,11 +252,9 @@ const FamilyTree = () => {
 
               let path = "";
               if (isMarriage) {
-                // Simple, bold curve for marriage
                 const midY = startY + (endY - startY) * 0.5;
                 path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               } else {
-                // Clean Step-Curve for lineage
                 const radius = 40;
                 const midY = startY + 80 + (edge.index || 0) * 20;
                 const direction = endX > startX ? 1 : -1;
@@ -272,7 +269,6 @@ const FamilyTree = () => {
               
               return (
                 <g key={i}>
-                  {/* Thick white background for contrast */}
                   <path
                     d={path}
                     stroke="white"
@@ -281,7 +277,6 @@ const FamilyTree = () => {
                     strokeLinecap="round"
                     opacity="0.6"
                   />
-                  {/* The glowing colored path */}
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
@@ -321,7 +316,6 @@ const FamilyTree = () => {
               );
             }
 
-            // Check if the photoUrl is the placeholder we want to remove
             const hasRealPhoto = node.person.photoUrl && node.person.photoUrl !== PLACEHOLDER_URL;
 
             return (
@@ -341,7 +335,7 @@ const FamilyTree = () => {
               >
                 <SmartSuggestionHover personId={node.id} />
                 
-                <div className="h-18 w-18 rounded-full overflow-hidden bg-stone-50 shrink-0 border-2 border-white shadow-md ring-1 ring-stone-100 group-hover:ring-amber-200 transition-all">
+                <div className="h-16 w-16 rounded-full overflow-hidden bg-stone-50 shrink-0 border-2 border-white shadow-md ring-1 ring-stone-100 group-hover:ring-amber-200 transition-all">
                   {hasRealPhoto ? (
                     <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" />
                   ) : (
