@@ -14,13 +14,14 @@ import BottomNav from '../components/BottomNav';
 import SearchBar from '../components/index/SearchBar';
 import RecentPeople from '../components/index/RecentPeople';
 import UpcomingMilestones from '../components/UpcomingMilestones';
+import PeopleViewControls from '../components/index/PeopleViewControls';
 import { PersonCardSkeleton } from '../components/SkeletonLoader';
 import { Share2, ScrollText, HelpCircle, UserCircle, Users, ShieldCheck, Sparkles, History, ArrowRight, Search, GitBranch } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
 import { Card } from '@/components/ui/card';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getInverseRelationship } from '@/lib/relationships';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +33,11 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
   
+  // View State
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [filter, setFilter] = useState<'all' | 'living' | 'memory'>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'recent'>('name');
+
   const isAdmin = user?.email === ADMIN_EMAIL;
 
   useEffect(() => {
@@ -56,13 +62,27 @@ const Index = () => {
     return all[Math.floor(Math.random() * all.length)];
   }, [people]);
 
-  const filteredPeople = people.filter(p => {
-    const nameMatch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const memoryMatch = p.memories.some(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()));
-    return nameMatch || memoryMatch;
-  });
+  const filteredPeople = useMemo(() => {
+    let result = people.filter(p => {
+      const nameMatch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const memoryMatch = p.memories.some(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesSearch = nameMatch || memoryMatch;
 
-  // Helper to get relatives for a person card - updated to show the PERSON'S role to the relative
+      if (filter === 'living') return matchesSearch && p.isLiving;
+      if (filter === 'memory') return matchesSearch && !p.isLiving;
+      return matchesSearch;
+    });
+
+    if (sortBy === 'name') {
+      result.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      // Sort by ID as a proxy for creation time if no created_at is available on the object
+      result.sort((a, b) => b.id.localeCompare(a.id));
+    }
+
+    return result;
+  }, [people, searchQuery, filter, sortBy]);
+
   const getRelativesForPerson = (personId: string) => {
     const person = people.find(p => p.id === personId);
     return relationships
@@ -73,8 +93,6 @@ const Index = () => {
         const relative = people.find(p => p.id === relativeId);
         if (!relative) return null;
 
-        // If we are the Subject (isPrimary), the relationship_type is OUR role.
-        // If we are the Object (!isPrimary), we need the inverse of the Subject's role to get OUR role.
         const type = isPrimary 
           ? r.relationship_type
           : getInverseRelationship(r.relationship_type, person?.gender);
@@ -205,7 +223,19 @@ const Index = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="people" className="space-y-8">
+          <TabsContent value="people" className="space-y-4">
+            {!loading && (
+              <PeopleViewControls 
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+                filter={filter}
+                setFilter={setFilter}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                count={filteredPeople.length}
+              />
+            )}
+
             {loading ? (
               <div className="space-y-6">
                 {[1, 2, 3].map(i => <PersonCardSkeleton key={i} />)}
@@ -217,27 +247,38 @@ const Index = () => {
                 </div>
                 <div className="space-y-2">
                   <p className="text-stone-400 font-serif italic text-xl">No matches found in the archive...</p>
-                  <p className="text-stone-300 text-sm">Try searching for a different name or keyword.</p>
+                  <p className="text-stone-300 text-sm">Try adjusting your filters or search query.</p>
                 </div>
               </div>
             ) : (
-              <div className="space-y-8">
-                {filteredPeople.map((person, idx) => (
-                  <motion.div
-                    key={person.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                  >
-                    <PersonCard 
-                      person={person} 
-                      relatives={getRelativesForPerson(person.id)}
-                      onClick={() => navigate(getPersonUrl(person.id, person.name))}
-                      searchQuery={searchQuery}
-                    />
-                  </motion.div>
-                ))}
-              </div>
+              <motion.div 
+                layout
+                className={cn(
+                  "gap-8",
+                  viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "flex flex-col"
+                )}
+              >
+                <AnimatePresence mode="popLayout">
+                  {filteredPeople.map((person, idx) => (
+                    <motion.div
+                      key={person.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.3, delay: idx * 0.02 }}
+                    >
+                      <PersonCard 
+                        person={person} 
+                        relatives={getRelativesForPerson(person.id)}
+                        onClick={() => navigate(getPersonUrl(person.id, person.name))}
+                        searchQuery={searchQuery}
+                        variant={viewMode}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
             )}
           </TabsContent>
 

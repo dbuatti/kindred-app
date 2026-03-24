@@ -2,7 +2,7 @@ import React from 'react';
 import { Person } from '../types';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
-import { Quote, MessageSquare, History, MapPin, Calendar, Share2, Users, ArrowRight } from 'lucide-react';
+import { Quote, MessageSquare, History, MapPin, Calendar, Share2, Users, ArrowRight, Heart, Skull } from 'lucide-react';
 import { cn, formatDisplayName, formatFamilyDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
@@ -12,9 +12,10 @@ interface PersonCardProps {
   relatives?: any[];
   onClick?: () => void;
   searchQuery?: string;
+  variant?: 'list' | 'grid';
 }
 
-const PersonCard = ({ person, relatives = [], onClick, searchQuery }: PersonCardProps) => {
+const PersonCard = ({ person, relatives = [], onClick, searchQuery, variant = 'list' }: PersonCardProps) => {
   const highlightText = (text: string, query: string) => {
     if (!query) return text;
     const parts = text.split(new RegExp(`(${query})`, 'gi'));
@@ -63,6 +64,60 @@ const PersonCard = ({ person, relatives = [], onClick, searchQuery }: PersonCard
       return `${type} of ${r.name.split(' ')[0]}`;
     })
     .join(' • ');
+
+  if (variant === 'grid') {
+    return (
+      <Card 
+        onClick={onClick}
+        className="group overflow-hidden border-none bg-white shadow-sm hover:shadow-xl transition-all duration-500 cursor-pointer rounded-[2.5rem] flex flex-col h-full hover:-translate-y-2"
+      >
+        <div className="relative aspect-square overflow-hidden shrink-0">
+          {person.photoUrl ? (
+            <img 
+              src={person.photoUrl} 
+              alt={person.name}
+              className="w-full h-full object-cover grayscale-[0.4] group-hover:grayscale-0 group-hover:scale-110 transition-all duration-1000"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full bg-stone-100 flex items-center justify-center">
+              <History className="w-10 h-10 text-stone-300" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          
+          <div className="absolute top-4 right-4">
+            <div className={cn(
+              "h-8 w-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white",
+              person.isLiving ? "bg-red-500 text-white" : "bg-stone-800 text-white"
+            )}>
+              {person.isLiving ? <Heart className="w-4 h-4 fill-current" /> : <Skull className="w-4 h-4" />}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 flex-1 flex flex-col justify-between gap-4">
+          <div className="space-y-2">
+            <h3 className="text-xl font-serif font-bold text-stone-800 group-hover:text-amber-900 transition-colors leading-tight truncate">
+              {formatDisplayName(person.name)}
+            </h3>
+            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center gap-1.5">
+              <Calendar className="w-3 h-3 text-amber-600" /> {birthDisplay}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between pt-4 border-t border-stone-50">
+            <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5" /> {person.memories.length}
+            </span>
+            <div className="h-8 w-8 rounded-full bg-stone-50 flex items-center justify-center text-stone-300 group-hover:bg-amber-50 group-hover:text-amber-600 transition-all">
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card 
