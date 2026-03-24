@@ -97,7 +97,7 @@ const PersonCard = ({ person, relatives = [], onClick, searchQuery, variant = 'l
           <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
             <div className={cn(
               "h-8 w-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white",
-              person.isLiving ? "bg-red-500 text-white" : "bg-stone-800 text-white"
+              person.isLiving ? "bg-red-50 text-white" : "bg-stone-800 text-white"
             )}>
               {person.isLiving ? <Heart className="w-4 h-4 fill-current" /> : <Skull className="w-4 h-4" />}
             </div>
@@ -112,7 +112,7 @@ const PersonCard = ({ person, relatives = [], onClick, searchQuery, variant = 'l
         <div className="p-6 flex-1 flex flex-col justify-between gap-4">
           <div className="space-y-2">
             <h3 className="text-xl font-serif font-bold text-stone-800 group-hover:text-amber-900 transition-colors leading-tight truncate">
-              {formatDisplayName(person.name)}
+              {highlightText(formatDisplayName(person.name), searchQuery || '')}
             </h3>
             <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center gap-1.5">
               <Calendar className="w-3 h-3 text-amber-600" /> {birthDisplay}
