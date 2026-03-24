@@ -21,9 +21,6 @@ export const usePersonRelatives = (person: Person | null, people: Person[], rela
         
         if (!relative) return null;
         
-        // If we are the related_person_id (Object), the relationship_type 
-        // already describes the person_id (Relative).
-        // If we are the person_id (Subject), we need to invert it to describe the relative.
         const type = !isPrimary 
           ? r.relationship_type
           : getInverseRelationship(r.relationship_type, relative.gender);
@@ -43,24 +40,34 @@ export const usePersonRelatives = (person: Person | null, people: Person[], rela
     relatives.push(...direct);
 
     // 2. Infer Siblings of Direct Relatives
-    // This solves the "James is Scott's brother, Scott is Daniele's cousin" case.
+    // This handles Aunts/Uncles (Siblings of Parents) and Siblings of Cousins
     direct.forEach(rel => {
       const siblings = relationships
         .filter(r => (r.person_id === rel.id || r.related_person_id === rel.id) && 
                      ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
         .map(r => {
           const sibId = r.person_id === rel.id ? r.related_person_id : r.person_id;
-          if (sibId === person.id) return null; // Don't link to self
+          if (sibId === person.id) return null;
           
           const sibling = people.find(p => p.id === sibId);
           if (!sibling) return null;
           
-          // Skip if this person is already a direct relative
+          // Determine inferred type
+          let inferredType = rel.type;
+          const relTypeLower = rel.type.toLowerCase();
+          
+          // FIX: If the direct relative is a parent, their sibling is an Aunt/Uncle (not another parent)
+          if (['mother', 'father', 'parent'].includes(relTypeLower)) {
+            if (sibling.gender === 'female') inferredType = 'Aunt';
+            else if (sibling.gender === 'male') inferredType = 'Uncle';
+            else inferredType = 'Aunt/Uncle';
+          }
+          
           if (relatives.some(existing => existing.id === sibling.id)) return null;
           
           return {
             ...sibling,
-            type: rel.type, // Inherit the relationship type (e.g. Cousin)
+            type: inferredType,
             isInferred: true,
             inferredFrom: rel.name
           };
@@ -68,12 +75,50 @@ export const usePersonRelatives = (person: Person | null, people: Person[], rela
         .filter((s): s is any => s !== null);
       
       siblings.forEach(sib => {
-        // Final check to avoid duplicates
         if (!relatives.some(r => r.id === sib.id)) {
           relatives.push(sib);
         }
       });
     });
+
+    // 3. Infer Children of Aunts/Uncles as Cousins
+    const cousins: any[] = [];
+    relatives.forEach(rel => {
+      const relTypeLower = rel.type.toLowerCase();
+      if (relTypeLower.includes('aunt') || relTypeLower.includes('uncle')) {
+        const children = relationships
+          .filter(r => {
+            const t = r.relationship_type.toLowerCase();
+            // Rel is the parent
+            if (r.person_id === rel.id && ['mother', 'father', 'parent'].includes(t)) return true;
+            // Rel is the child (inverse)
+            if (r.related_person_id === rel.id && ['son', 'daughter', 'child'].includes(t)) return true;
+            return false;
+          })
+          .map(r => {
+            const childId = r.person_id === rel.id ? r.related_person_id : r.person_id;
+            if (childId === person.id) return null;
+            
+            const child = people.find(p => p.id === childId);
+            if (!child) return null;
+            
+            // Skip if already in relatives or already in our new cousins list
+            if (relatives.some(ex => ex.id === child.id) || cousins.some(ex => ex.id === child.id)) return null;
+            
+            return {
+              ...child,
+              type: 'Cousin',
+              isInferred: true,
+              inferredFrom: rel.name
+            };
+          })
+          .filter((c): c is any => c !== null);
+        
+        cousins.push(...children);
+      }
+    });
+    
+    relatives.push(...cousins);
 
     return relatives;
   }, [person, relationships, people]);
