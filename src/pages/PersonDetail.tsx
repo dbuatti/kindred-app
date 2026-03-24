@@ -30,7 +30,6 @@ import BottomNav from '../components/BottomNav';
 import PersonHero from '../components/person/PersonHero';
 import PhotoGallery from '../components/person/PhotoGallery';
 import LifeTimeline from '../components/person/LifeTimeline';
-import PersonDetailsGrid from '../components/person/PersonDetailsGrid';
 import CommentSection from '../components/CommentSection';
 import FloatingMenu from '../components/FloatingMenu';
 import { PersonDetailSkeleton } from '../components/SkeletonLoader';
@@ -213,8 +212,6 @@ const PersonDetail = () => {
         {!isOwnProfile && <ProfileCompletionCard person={person} />}
 
         <LifeTimeline person={person} />
-
-        <PersonDetailsGrid person={person} />
 
         <section className="space-y-8">
           <div className="flex items-center justify-between">
