@@ -56,7 +56,14 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     // 1. Sibling Inference: Share a parent but not marked as siblings
     if (myParentIds.length > 0) {
       const potentialSiblings = people.filter(p => {
-        if (p.id === personId || mySiblingIds.includes(p.id) || mySpouseIds.includes(p.id)) return false;
+        // Exclude self, existing siblings, spouses, OR existing parent/child links
+        if (
+          p.id === personId || 
+          mySiblingIds.includes(p.id) || 
+          mySpouseIds.includes(p.id) ||
+          myParentIds.includes(p.id) ||
+          myChildIds.includes(p.id)
+        ) return false;
         
         const theirParentIds = [
           ...getRelIds(p.id, ['mother', 'father', 'parent'], 'to'),
@@ -123,7 +130,14 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     // 3. Spouse Inference: Share a child but not marked as spouses
     if (myChildIds.length > 0) {
       const potentialSpouses = people.filter(p => {
-        if (p.id === personId || mySpouseIds.includes(p.id) || mySiblingIds.includes(p.id)) return false;
+        // Exclude self, existing spouses, siblings, OR existing parent/child links
+        if (
+          p.id === personId || 
+          mySpouseIds.includes(p.id) || 
+          mySiblingIds.includes(p.id) ||
+          myParentIds.includes(p.id) ||
+          myChildIds.includes(p.id)
+        ) return false;
         
         const theirChildIds = [
           ...getRelIds(p.id, ['mother', 'father', 'parent'], 'from'),

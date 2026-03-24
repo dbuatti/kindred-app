@@ -57,7 +57,14 @@ const TreeSmartInbox = () => {
       // 1. Sibling Inference
       if (myParentIds.length > 0) {
         people.forEach(sib => {
-          if (sib.id === personId || mySiblingIds.includes(sib.id) || mySpouseIds.includes(sib.id)) return;
+          // Exclude self, existing siblings, spouses, OR existing parent/child links
+          if (
+            sib.id === personId || 
+            mySiblingIds.includes(sib.id) || 
+            mySpouseIds.includes(sib.id) ||
+            myParentIds.includes(sib.id) ||
+            myChildIds.includes(sib.id)
+          ) return;
           
           const pairKey = [personId, sib.id].sort().join('-');
           if (seenPairs.has(pairKey)) return;
@@ -96,7 +103,14 @@ const TreeSmartInbox = () => {
       // 2. Spouse Inference
       if (myChildIds.length > 0) {
         people.forEach(spouse => {
-          if (spouse.id === personId || mySpouseIds.includes(spouse.id) || mySiblingIds.includes(spouse.id)) return;
+          // Exclude self, existing spouses, siblings, OR existing parent/child links
+          if (
+            spouse.id === personId || 
+            mySpouseIds.includes(spouse.id) || 
+            mySiblingIds.includes(spouse.id) ||
+            myParentIds.includes(spouse.id) ||
+            myChildIds.includes(spouse.id)
+          ) return;
           
           const pairKey = [personId, spouse.id].sort().join('-');
           if (seenPairs.has(pairKey)) return;
@@ -107,7 +121,7 @@ const TreeSmartInbox = () => {
           ];
           
           if (theirChildIds.some(id => myChildIds.includes(id))) {
-            // Check if they share a parent (likely backwards data entry)
+            // Check if they share a parent (likely siblings, not spouses)
             const theirParentIds = [
               ...getRelIds(spouse.id, ['mother', 'father', 'parent'], 'to'),
               ...getRelIds(spouse.id, ['son', 'daughter', 'child'], 'from')
