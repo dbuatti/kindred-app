@@ -49,8 +49,8 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph();
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 80,   // Much tighter horizontal spacing
-        ranksep: 120,  // Much tighter vertical spacing
+        nodesep: 100, 
+        ranksep: 150, 
         marginx: 100, 
         marginy: 100,
       });
@@ -245,17 +245,19 @@ const FamilyTree = () => {
 
               const isMarriage = edge.type === 'marriage';
               
+              // Calculate clean start/end points
               const startX = edge.from.x;
-              const startY = edge.from.y + (edge.from.isUnion ? 0 : 50); 
+              const startY = edge.from.y + (edge.from.isUnion ? 20 : 50); 
               const endX = edge.to.x;
               const endY = edge.to.y - (edge.to.isUnion ? 20 : 50); 
 
               let path = "";
               if (isMarriage) {
-                // Straight lines for marriage meeting at the heart
-                path = `M ${startX} ${startY} L ${endX} ${endY}`;
+                // Marriage Bridge: Drop down from parent, then horizontal to heart
+                const midY = startY + (endY - startY) * 0.5;
+                path = `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
               } else {
-                // "Family Bus" style: Vertical down, Horizontal across, Vertical down to child
+                // Lineage Bus: Drop down from union/parent, then horizontal, then down to child
                 const midY = startY + (endY - startY) * 0.5;
                 path = `M ${startX} ${startY} 
                         L ${startX} ${midY} 
@@ -329,7 +331,6 @@ const FamilyTree = () => {
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
                 className="absolute bg-white rounded-2xl border border-stone-200 shadow-[0_4px_20px_-5px_rgba(0,0,0,0.1)] hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.15)] hover:border-amber-300 transition-all p-4 flex items-center gap-4 cursor-pointer group z-20 overflow-hidden"
               >
-                {/* Subtle texture overlay */}
                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/stone.png')]" />
                 
                 <SmartSuggestionHover personId={node.id} />
