@@ -20,7 +20,8 @@ import {
   Globe,
   MapPin,
   ChevronsUpDown,
-  X
+  X,
+  Save
 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
@@ -56,9 +57,10 @@ const INITIAL_SUGGESTIONS = [
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const { user, people, loading: contextLoading, refreshData } = useFamily();
+  const { user, people, profiles, loading: contextLoading, refreshData } = useFamily();
   const [step, setStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   
   // Place Autocomplete State
   const [isSearching, setIsSearching] = useState(false);
@@ -81,6 +83,35 @@ const Onboarding = () => {
 
   const [relativeName, setRelativeName] = useState('');
   const [relativeType, setRelativeType] = useState('mother');
+
+  // Load existing progress
+  useEffect(() => {
+    if (!contextLoading && user && profiles[user.id]) {
+      const profile = profiles[user.id];
+      
+      // Only load if onboarding isn't completed
+      if (!profile.onboarding_completed) {
+        setFormData(prev => ({
+          ...prev,
+          firstName: profile.first_name || '',
+          lastName: profile.last_name || '',
+          gender: profile.gender || '',
+          birthDate: profile.birth_date || '',
+          birthPlace: profile.birth_place || '',
+          bio: profile.bio || ''
+        }));
+
+        // Try to find if they already claimed a person
+        const claimed = people.find(p => p.userId === user.id);
+        if (claimed) {
+          setFormData(prev => ({ ...prev, claimedPersonId: claimed.id }));
+        }
+      }
+      setIsInitialLoading(false);
+    } else if (!contextLoading) {
+      setIsInitialLoading(false);
+    }
+  }, [contextLoading, user, profiles, people]);
 
   const updateField = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -148,12 +179,56 @@ const Onboarding = () => {
     toast.success(`Linked to ${person.name}!`);
   };
 
+  const saveProgress = async () => {
+    if (!user) return;
+    setIsSaving(true);
+    try {
+      await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          gender: formData.gender,
+          birth_date: formData.birthDate || null,
+          birth_place: formData.birthPlace,
+          bio: formData.bio,
+          updated_at: new Date().toISOString()
+        });
+      
+      // If they claimed a person, update that record too
+      if (formData.claimedPersonId) {
+        const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+        await supabase
+          .from('people')
+          .update({
+            user_id: user.id,
+            name: fullName,
+            gender: formData.gender,
+            birth_date: formData.birthDate || null,
+            birth_place: formData.birthPlace,
+            vibe_sentence: formData.bio || ""
+          })
+          .eq('id', formData.claimedPersonId);
+      }
+    } catch (err) {
+      console.error("Failed to save progress:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleNext = async () => {
+    await saveProgress();
+    setStep(s => s + 1);
+  };
+
   const handleComplete = async () => {
     if (!user) return;
     setIsSaving(true);
 
     try {
-      // 1. Update Profile
+      // 1. Final Profile Update
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -228,9 +303,7 @@ const Onboarding = () => {
         }
       }
 
-      // CRITICAL: Refresh data and wait for it before navigating to break the loop
       await refreshData();
-      
       toast.success("Welcome to the family archive!");
       navigate('/', { replace: true });
     } catch (error: any) {
@@ -249,7 +322,7 @@ const Onboarding = () => {
     ).slice(0, 5);
   }, [selfSearchQuery, unclaimedPeople]);
 
-  if (contextLoading) {
+  if (contextLoading || isInitialLoading) {
     return (
       <div className="min-h-screen bg-[#FDFCF9] flex flex-col items-center justify-center p-6">
         <div className="animate-pulse flex flex-col items-center gap-6">
@@ -280,7 +353,14 @@ const Onboarding = () => {
           </p>
         </div>
 
-        <div className="bg-white p-10 rounded-[3rem] shadow-sm border border-stone-100 min-h-[450px] flex flex-col">
+        <div className="bg-white p-10 rounded-[3rem] shadow-sm border border-stone-100 min-h-[450px] flex flex-col relative">
+          {isSaving && (
+            <div className="absolute top-6 right-10 flex items-center gap-2 text-stone-300 animate-pulse">
+              <Save className="w-4 h-4" />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Saving...</span>
+            </div>
+          )}
+
           {step === 1 && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
               <div className="space-y-4">
@@ -508,7 +588,7 @@ const Onboarding = () => {
               </Button>
             )}
             <Button 
-              onClick={() => step < 3 ? setStep(s => s + 1) : handleComplete()}
+              onClick={() => step < 3 ? handleNext() : handleComplete()}
               disabled={isSaving || (step === 1 && !formData.firstName)}
               className="flex-1 h-14 bg-stone-800 hover:bg-stone-900 text-white rounded-2xl text-lg font-medium group"
             >
