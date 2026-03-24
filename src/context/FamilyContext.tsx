@@ -106,17 +106,16 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!silent) setLoading(true);
     
     try {
-      console.log("[FamilyContext] Fetching family data...");
+      console.log("[FamilyContext] Fetching family data for user:", user?.email);
       
-      // Optimized: Fetching people and memories separately is often faster than nested selects in Supabase
       const [
         { data: peopleData, error: peopleError },
-        { data: memoriesData },
-        { data: suggestionsData },
-        { data: profilesData },
-        { data: reactionsData },
-        { data: commentsData },
-        { data: relData }
+        { data: memoriesData, error: memoriesError },
+        { data: suggestionsData, error: suggestionsError },
+        { data: profilesData, error: profilesError },
+        { data: reactionsData, error: reactionsError },
+        { data: commentsData, error: commentsError },
+        { data: relData, error: relError }
       ] = await Promise.all([
         supabase.from('people').select('*'),
         supabase.from('memories').select('*').order('created_at', { ascending: false }),
@@ -128,6 +127,12 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ]);
       
       if (peopleError) throw peopleError;
+      if (memoriesError) console.warn("[FamilyContext] Memories fetch error:", memoriesError);
+      if (suggestionsError) console.warn("[FamilyContext] Suggestions fetch error:", suggestionsError);
+      if (profilesError) console.warn("[FamilyContext] Profiles fetch error:", profilesError);
+      if (reactionsError) console.warn("[FamilyContext] Reactions fetch error:", reactionsError);
+      if (commentsError) console.warn("[FamilyContext] Comments fetch error:", commentsError);
+      if (relError) console.warn("[FamilyContext] Relationships fetch error:", relError);
 
       const profileMap: Record<string, Profile> = {};
       (profilesData || []).forEach((p: any) => {
@@ -166,7 +171,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setActivityLogs(logs || []);
       }
 
-      // Map memories to people in memory (client-side join)
       const mappedPeople: Person[] = (peopleData || []).map((p: any) => {
         const personMemories = (memoriesData || [])
           .filter((m: any) => m.person_id === p.id)
@@ -226,6 +230,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         status: s.status
       })));
       
+      console.log("[FamilyContext] Data fetch complete.");
     } catch (error: any) {
       console.error("[FamilyContext] Error fetching data:", error.message);
       if (!error.message.includes('fetch')) {
@@ -233,20 +238,34 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     } finally {
       isFetching.current = false;
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   }, [user?.email]);
 
   useEffect(() => {
     const initAuth = async () => {
+      console.log("[FamilyContext] Initializing auth...");
       const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      if (!currentUser) {
+        console.log("[FamilyContext] No user session found, stopping loader.");
+        setLoading(false);
+      }
     };
 
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
+      console.log("[FamilyContext] Auth state changed:", event);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      
+      if (event === 'SIGNED_OUT') {
+        setPeople([]);
+        setLoading(false);
+      }
     });
 
     return () => {
@@ -255,7 +274,9 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   useEffect(() => {
-    if (user) fetchData();
+    if (user) {
+      fetchData();
+    }
   }, [user, fetchData]);
 
   const addPerson = useCallback(async (newPerson: Partial<Person>, relativeId?: string, relType?: string) => {
@@ -333,10 +354,10 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if ('gender' in updates) dbUpdates.gender = updates.gender;
       if ('maidenName' in updates) dbUpdates.maiden_name = (updates as any).maidenName;
       if ('education' in updates) dbUpdates.education = updates.education;
-      if ('militaryService' in updates) dbUpdates.military_service = (updates as any).militaryService;
-      if ('burialPlace' in updates) dbUpdates.burial_place = (updates as any).burialPlace;
-      if ('physicalTraits' in updates) dbUpdates.physical_traits = (updates as any).physicalTraits;
-      if ('favoriteThings' in updates) dbUpdates.favorite_things = (updates as any).favoriteThings;
+      if ('militaryService' in updates) dbUpdates.military_service = updates.militaryService;
+      if ('burialPlace' in updates) dbUpdates.burial_place = updates.burialPlace;
+      if ('physicalTraits' in updates) dbUpdates.physical_traits = updates.physicalTraits;
+      if ('favoriteThings' in updates) dbUpdates.favorite_things = updates.favoriteThings;
 
       const { error } = await supabase
         .from('people')

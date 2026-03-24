@@ -30,6 +30,8 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, profiles } = useFamily();
   const location = useLocation();
 
+  console.log("[AuthGuard] State:", { loading, hasUser: !!user, path: location.pathname });
+
   // While the app is determining if we are logged in, show nothing (or a loader)
   // to prevent flickering or premature redirects
   if (loading) {
@@ -45,12 +47,14 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
 
   // If not logged in, send to login
   if (!user) {
+    console.log("[AuthGuard] No user, redirecting to login.");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // If logged in but onboarding isn't done, send to onboarding
   const profile = profiles[user.id];
   if (profile && !profile.onboarding_completed && location.pathname !== '/onboarding') {
+    console.log("[AuthGuard] Onboarding incomplete, redirecting.");
     return <Navigate to="/onboarding" replace />;
   }
 
