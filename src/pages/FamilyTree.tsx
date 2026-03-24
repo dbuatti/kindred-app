@@ -26,13 +26,14 @@ import SmartSuggestionHover from '../components/SmartSuggestionHover';
 import TreeSmartInbox from '../components/TreeSmartInbox';
 
 const BRANCH_COLORS = [
-  '#8b5cf6', // Violet (matching your reference)
+  '#8b5cf6', // Violet
   '#3b82f6', // Blue
   '#f59e0b', // Amber
   '#10b981', // Emerald
   '#ec4899', // Pink
 ];
 
+const LINEAGE_COLOR = '#a8a29e'; // stone-400 for better visibility
 const PLACEHOLDER_URL = "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&q=80&w=400";
 
 const FamilyTree = () => {
@@ -109,7 +110,7 @@ const FamilyTree = () => {
           if (union) {
             if (!union.children.includes(childId)) union.children.push(childId);
           } else {
-            g.setEdge(parentId, childId, { type: 'lineage', color: '#e7e5e4' });
+            g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR });
           }
         }
       });
@@ -245,12 +246,10 @@ const FamilyTree = () => {
 
               let path = "";
               if (isMarriage) {
-                // Symmetrical curves for marriage meeting at the heart
                 const midY = startY + (endY - startY) * 0.5;
                 path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               } else {
-                // "Family Bus" style: Vertical down, Horizontal across, Vertical down to child
-                const midY = startY + 60; // The horizontal "bus" level
+                const midY = startY + 60;
                 path = `M ${startX} ${startY} 
                         L ${startX} ${midY} 
                         L ${endX} ${midY} 
@@ -265,19 +264,19 @@ const FamilyTree = () => {
                     strokeWidth={isMarriage ? "10" : "8"}
                     fill="none"
                     strokeLinecap="round"
-                    opacity="0.6"
+                    opacity="0.4"
                   />
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
                     transition={{ duration: 1.5, ease: "easeInOut", delay: i * 0.01 }}
                     d={path}
-                    stroke={edge.color}
+                    stroke={edge.color || LINEAGE_COLOR}
                     strokeWidth={isMarriage ? "5" : "3.5"}
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    style={{ filter: 'url(#line-glow)' }}
+                    style={{ filter: edge.type === 'marriage' ? 'url(#line-glow)' : 'none' }}
                   />
                 </g>
               );
