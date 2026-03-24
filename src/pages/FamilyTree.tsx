@@ -36,10 +36,9 @@ const FamilyTree = () => {
       });
       g.setDefaultEdgeLabel(() => ({}));
 
-      // Create a set of valid IDs for quick lookup
       const validIds = new Set(people.map(p => p.id));
 
-      // 1. Add People Nodes first
+      // 1. Add People Nodes
       people.forEach(p => {
         let displayYear = p.birthYear;
         if (!displayYear && p.birthDate) {
@@ -54,22 +53,26 @@ const FamilyTree = () => {
         });
       });
 
-      // 2. Identify Spouse Pairs to create "Union" nodes
-      const unions: Record<string, { id: string, p1: string, p2: string, children: string[] }> = {};
-      
+      // 2. Identify Unions (Spouse pairs)
+      const unions: Record<string, { id: string, p1: string, p2: string, children: Set<string> }> = {};
       relationships.forEach(r => {
         if (r.relationship_type.toLowerCase() === 'spouse') {
-          // Only process if both people exist in the current archive
           if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
             const pairId = [r.person_id, r.related_person_id].sort().join('_');
             if (!unions[pairId]) {
-              unions[pairId] = { id: `union_${pairId}`, p1: r.person_id, p2: r.related_person_id, children: [] };
+              unions[pairId] = { 
+                id: `union_${pairId}`, 
+                p1: r.person_id, 
+                p2: r.related_person_id, 
+                children: new Set() 
+              };
             }
           }
         }
       });
 
-      // 3. Assign children to unions
+      // 3. Assign children to unions or direct parents
+      const directParentLinks: { parentId: string, childId: string }[] = [];
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         let parentId = '';
@@ -84,30 +87,34 @@ const FamilyTree = () => {
         }
 
         if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
-          // Find a union that contains this parent
           const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
-          if (union && !union.children.includes(childId)) {
-            union.children.push(childId);
-          } else if (!union) {
-            // If no union exists (single parent), we could create a "pseudo-union" or link directly
-            // For now, let's just link directly to the parent to keep it simple
-            g.setEdge(parentId, childId, { type: 'lineage', weight: 1 });
+          if (union) {
+            union.children.add(childId);
+          } else {
+            directParentLinks.push({ parentId, childId });
           }
         }
       });
 
-      // 4. Add Union Nodes and their edges
+      // 4. Add Union Nodes and Edges to Graph
       Object.values(unions).forEach(u => {
-        g.setNode(u.id, { width: 10, height: 10, isUnion: true });
-        
-        // Connect parents to union
+        g.setNode(u.id, { width: 1, height: 1, isUnion: true });
         g.setEdge(u.p1, u.id, { type: 'marriage', weight: 10 });
         g.setEdge(u.p2, u.id, { type: 'marriage', weight: 10 });
-        
-        // Connect union to children
         u.children.forEach(childId => {
           g.setEdge(u.id, childId, { type: 'lineage', weight: 1 });
         });
+      });
+
+      // 5. Add Direct Parent Links (for single parents)
+      directParentLinks.forEach(link => {
+        // Only add if not already covered by a union to prevent cycles/redundancy
+        const alreadyCovered = Object.values(unions).some(u => 
+          (u.p1 === link.parentId || u.p2 === link.parentId) && u.children.has(link.childId)
+        );
+        if (!alreadyCovered) {
+          g.setEdge(link.parentId, link.childId, { type: 'lineage', weight: 1 });
+        }
       });
 
       dagre.layout(g);
@@ -137,7 +144,7 @@ const FamilyTree = () => {
           </div>
           <h2 className="text-3xl font-serif text-stone-800">Tree Layout Error</h2>
           <p className="text-stone-500 leading-relaxed">
-            We encountered a conflict in the family relationships that prevents the tree from drawing correctly. This usually happens if there are circular links (e.g., someone marked as their own parent).
+            We encountered a conflict in the family relationships. This usually happens if there are circular links or redundant sibling connections.
           </p>
           <Button onClick={() => navigate('/')} className="rounded-full bg-stone-800">Return Home</Button>
         </div>
@@ -195,15 +202,17 @@ const FamilyTree = () => {
               }
               
               return (
-                <path
+                <motion.path
                   key={i}
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 1 }}
+                  transition={{ duration: 1.5, ease: "easeInOut" }}
                   d={path}
                   stroke={isMarriage ? '#f87171' : '#e7e5e4'}
                   strokeWidth={isMarriage ? "3" : "2"}
                   fill="none"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="transition-all duration-1000"
                 />
               );
             })}
