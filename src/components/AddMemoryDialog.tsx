@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
-import { Mic, Camera, X, Loader2, CheckCircle2, UploadCloud, Plus, Sparkles, RefreshCw } from 'lucide-react';
+import { Mic, Camera, X, Loader2, CheckCircle2, UploadCloud, Plus, Sparkles, RefreshCw, Trash2 } from 'lucide-react';
 import { useVoiceInput } from '../hooks/use-voice';
 import { useFamily } from '../context/FamilyContext';
 import { cn } from '@/lib/utils';
@@ -55,6 +55,25 @@ const AddMemoryDialog = ({
   const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
   const setIsOpen = setExternalOpen || setInternalOpen;
 
+  // Draft persistence
+  useEffect(() => {
+    if (isOpen && !transcript) {
+      const draftKey = `kindred_draft_${personId || 'general'}`;
+      const savedDraft = localStorage.getItem(draftKey);
+      if (savedDraft) {
+        setTranscript(savedDraft);
+        toast.info("Restored your draft story.");
+      }
+    }
+  }, [isOpen, personId, setTranscript]);
+
+  useEffect(() => {
+    if (transcript) {
+      const draftKey = `kindred_draft_${personId || 'general'}`;
+      localStorage.setItem(draftKey, transcript);
+    }
+  }, [transcript, personId]);
+
   useEffect(() => {
     if (initialImage) {
       setImages([{ url: initialImage, caption: '' }]);
@@ -91,6 +110,12 @@ const AddMemoryDialog = ({
     if (e.dataTransfer.files) handleFiles(e.dataTransfer.files);
   };
 
+  const clearDraft = () => {
+    setTranscript('');
+    localStorage.removeItem(`kindred_draft_${personId || 'general'}`);
+    toast.success("Draft cleared.");
+  };
+
   const handleSubmit = async () => {
     if (!transcript.trim() && images.length === 0) return;
 
@@ -118,6 +143,7 @@ const AddMemoryDialog = ({
       });
       
       toast.success("Stories saved! The family will love these.");
+      localStorage.removeItem(`kindred_draft_${personId || 'general'}`);
       setTranscript('');
       setImages([]);
       setIsOpen(false);
@@ -251,12 +277,23 @@ const AddMemoryDialog = ({
                   </div>
                 )}
 
-                <Textarea
-                  value={transcript}
-                  onChange={(e) => setTranscript(e.target.value)}
-                  placeholder={images.length > 0 ? "Add a general story for these photos..." : "Your story will appear here as you speak..."}
-                  className="min-h-[150px] bg-stone-50 border-none rounded-[2rem] p-6 text-xl font-serif leading-relaxed focus-visible:ring-amber-500/20"
-                />
+                <div className="relative">
+                  <Textarea
+                    value={transcript}
+                    onChange={(e) => setTranscript(e.target.value)}
+                    placeholder={images.length > 0 ? "Add a general story for these photos..." : "Your story will appear here as you speak..."}
+                    className="min-h-[150px] bg-stone-50 border-none rounded-[2rem] p-6 text-xl font-serif leading-relaxed focus-visible:ring-amber-500/20"
+                  />
+                  {transcript && (
+                    <button 
+                      onClick={clearDraft}
+                      className="absolute bottom-4 right-4 p-2 text-stone-300 hover:text-red-500 transition-colors"
+                      title="Clear draft"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
               </div>
             </>
           )}

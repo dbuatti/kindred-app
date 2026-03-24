@@ -124,6 +124,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         personalityTags: p.personality_tags || [],
         photoUrl: p.photo_url,
         createdByEmail: p.created_by_email,
+        createdAt: p.created_at,
         userId: p.user_id,
         inviteToken: p.invite_token,
         memories: (p.memories || []).map((m: any) => ({

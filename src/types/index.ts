@@ -70,6 +70,7 @@ export interface Person {
   personalityTags: string[];
   photoUrl?: string;
   createdByEmail: string;
+  createdAt: string;
   memories: Memory[];
   userId?: string;
   isLiving?: boolean;

@@ -15,8 +15,10 @@ import SearchBar from '../components/index/SearchBar';
 import RecentPeople from '../components/index/RecentPeople';
 import UpcomingMilestones from '../components/UpcomingMilestones';
 import PeopleViewControls from '../components/index/PeopleViewControls';
+import AddPersonDialog from '../components/AddPersonDialog';
 import { PersonCardSkeleton } from '../components/SkeletonLoader';
-import { Share2, ScrollText, HelpCircle, UserCircle, Users, ShieldCheck, Sparkles, History, ArrowRight, Search, GitBranch } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Share2, ScrollText, HelpCircle, UserCircle, Users, ShieldCheck, Sparkles, History, ArrowRight, Search, GitBranch, UserPlus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
@@ -29,7 +31,7 @@ const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { people, loading, user, relationships } = useFamily();
+  const { people, loading, user, profiles, relationships } = useFamily();
   const [searchQuery, setSearchQuery] = useState('');
   const [recentlyViewed, setRecentlyViewed] = useState<string[]>([]);
   
@@ -39,11 +41,20 @@ const Index = () => {
   const [sortBy, setSortBy] = useState<'name' | 'recent'>('name');
 
   const isAdmin = user?.email === ADMIN_EMAIL;
+  const profile = user ? profiles[user.id] : null;
 
   useEffect(() => {
     const stored = localStorage.getItem('kindred_recent');
     if (stored) setRecentlyViewed(JSON.parse(stored));
   }, []);
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    const name = profile?.first_name || 'there';
+    if (hour < 12) return `Good morning, ${name}`;
+    if (hour < 18) return `Good afternoon, ${name}`;
+    return `Good evening, ${name}`;
+  }, [profile]);
 
   const recentPeopleList = useMemo(() => {
     return recentlyViewed
@@ -121,7 +132,7 @@ const Index = () => {
                 <h1 className="text-4xl font-serif font-bold text-stone-800">Kindred</h1>
                 <FamilyInbox />
               </div>
-              <p className="text-stone-500 text-lg italic">Our Family Storybook</p>
+              <p className="text-stone-500 text-lg italic">{greeting}</p>
             </div>
             <div className="hidden md:flex gap-4">
               <button onClick={() => navigate('/tree')} className="flex flex-col items-center gap-1 text-stone-500 hover:text-amber-600 transition-colors">
@@ -240,13 +251,26 @@ const Index = () => {
                 {[1, 2, 3].map(i => <PersonCardSkeleton key={i} />)}
               </div>
             ) : filteredPeople.length === 0 ? (
-              <div className="text-center py-24 space-y-6 bg-white rounded-[3rem] border-4 border-dashed border-stone-100">
+              <div className="text-center py-24 space-y-8 bg-white rounded-[3rem] border-4 border-dashed border-stone-100">
                 <div className="h-20 w-20 bg-stone-50 rounded-full flex items-center justify-center mx-auto">
                   <Search className="w-8 h-8 text-stone-200" />
                 </div>
-                <div className="space-y-2">
-                  <p className="text-stone-400 font-serif italic text-xl">No matches found in the archive...</p>
-                  <p className="text-stone-300 text-sm">Try adjusting your filters or search query.</p>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <p className="text-stone-400 font-serif italic text-xl">No matches found in the archive...</p>
+                    <p className="text-stone-300 text-sm">Try adjusting your filters or search query.</p>
+                  </div>
+                  {searchQuery && (
+                    <div className="pt-4">
+                      <AddPersonDialog 
+                        trigger={
+                          <Button className="rounded-full bg-stone-800 hover:bg-stone-900 text-white gap-2 h-12 px-8">
+                            <UserPlus className="w-4 h-4" /> Add "{searchQuery}" to Family
+                          </Button>
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
