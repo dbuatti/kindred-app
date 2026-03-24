@@ -42,11 +42,13 @@ const PersonCard = ({ person, relatives = [], onClick, searchQuery }: PersonCard
 
   const birthDisplay = person.birthDate ? formatFamilyDate(person.birthDate) : (person.birthYear || 'Unknown Year');
 
-  // Create a summary of key relatives (Parents/Spouse)
+  // Create a summary of relatives, prioritizing parents/spouses but including others like cousins
   const connectionSummary = relatives
-    .filter(r => {
-      const t = r.type.toLowerCase();
-      return t.includes('mother') || t.includes('father') || t.includes('spouse') || t.includes('wife') || t.includes('husband');
+    .sort((a, b) => {
+      const priority = ['mother', 'father', 'spouse', 'wife', 'husband', 'parent'];
+      const aPrio = priority.some(p => a.type.toLowerCase().includes(p)) ? 0 : 1;
+      const bPrio = priority.some(p => b.type.toLowerCase().includes(p)) ? 0 : 1;
+      return aPrio - bPrio;
     })
     .slice(0, 2)
     .map(r => `${r.type} of ${r.name.split(' ')[0]}`)
