@@ -34,10 +34,10 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph();
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 120, 
-        ranksep: 150, 
-        marginx: 200, 
-        marginy: 200,
+        nodesep: 100, // Increased horizontal spacing
+        ranksep: 120, // Increased vertical spacing
+        marginx: 100, 
+        marginy: 100,
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -77,7 +77,7 @@ const FamilyTree = () => {
       });
 
       // 3. Assign children to unions or direct parents
-      const directParentLinks: { parentId: string, childId: string }[] = [];
+      const processedLinks = new Set<string>();
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         let parentId = '';
@@ -92,99 +92,42 @@ const FamilyTree = () => {
         }
 
         if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
-          if (parentId === childId) return;
+          const linkKey = `${parentId}-${childId}`;
+          if (processedLinks.has(linkKey)) return;
+          processedLinks.add(linkKey);
+
           const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
           if (union) {
             union.children.add(childId);
           } else {
-            directParentLinks.push({ parentId, childId });
+            // Direct parent link if no union found
+            g.setEdge(parentId, childId, { type: 'lineage', weight: 1 });
           }
         }
       });
 
-      // 4. Add Sibling Adjacency (to prevent intermingling)
-      relationships.forEach(r => {
-        if (['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) {
-          if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
-            // Add a high-weight edge between siblings to keep them together
-            g.setEdge(r.person_id, r.related_person_id, { weight: 100, type: 'sibling_link' });
-          }
-        }
-      });
-
-      // Cycle Detection Helper
-      const lineageGraph: Record<string, string[]> = {};
-      const addLineageEdge = (from: string, to: string) => {
-        if (!lineageGraph[from]) lineageGraph[from] = [];
-        lineageGraph[from].push(to);
-      };
-
-      const hasCycle = (startNode: string) => {
-        const visited = new Set();
-        const stack = new Set();
-        const check = (node: string): boolean => {
-          if (stack.has(node)) return true;
-          if (visited.has(node)) return false;
-          visited.add(node);
-          stack.add(node);
-          for (const neighbor of (lineageGraph[node] || [])) {
-            if (check(neighbor)) return true;
-          }
-          stack.delete(node);
-          return false;
-        };
-        return check(startNode);
-      };
-
-      // 5. Add Union Nodes and Edges to Graph
+      // 4. Add Union Nodes and Marriage Edges
       Object.values(unions).forEach(u => {
-        const safeChildren = Array.from(u.children).filter(childId => {
-          addLineageEdge(u.p1, childId);
-          addLineageEdge(u.p2, childId);
-          if (hasCycle(u.p1) || hasCycle(u.p2)) {
-            lineageGraph[u.p1].pop();
-            lineageGraph[u.p2].pop();
-            return false;
-          }
-          return true;
+        g.setNode(u.id, { width: 20, height: 20, isUnion: true });
+        g.setEdge(u.p1, u.id, { type: 'marriage', weight: 2 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', weight: 2 });
+        
+        u.children.forEach(childId => {
+          g.setEdge(u.id, childId, { type: 'lineage', weight: 1, parentId: u.id });
         });
-
-        g.setNode(u.id, { width: 1, height: 1, isUnion: true });
-        g.setEdge(u.p1, u.id, { type: 'marriage', weight: 10 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', weight: 10 });
-        safeChildren.forEach(childId => {
-          g.setEdge(u.id, childId, { type: 'lineage', weight: 5, parentId: u.id });
-        });
-      });
-
-      // 6. Add Direct Parent Links
-      directParentLinks.forEach(link => {
-        const alreadyCovered = Object.values(unions).some(u => 
-          (u.p1 === link.parentId || u.p2 === link.parentId) && u.children.has(link.childId)
-        );
-        if (!alreadyCovered) {
-          addLineageEdge(link.parentId, link.childId);
-          if (!hasCycle(link.parentId)) {
-            g.setEdge(link.parentId, link.childId, { type: 'lineage', weight: 5, parentId: link.parentId });
-          } else {
-            lineageGraph[link.parentId].pop();
-          }
-        }
       });
 
       dagre.layout(g);
       
       const nodes = g.nodes().map(v => ({ id: v, ...g.node(v) }));
-      const edges = g.edges()
-        .filter(e => g.edge(e).type !== 'sibling_link') // Don't draw the invisible sibling links
-        .map(e => ({ 
-          from: g.node(e.v), 
-          to: g.node(e.w),
-          type: g.edge(e).type,
-          parentId: g.edge(e).parentId
-        }));
+      const edges = g.edges().map(e => ({ 
+        from: g.node(e.v), 
+        to: g.node(e.w),
+        type: g.edge(e).type,
+        parentId: g.edge(e).parentId
+      }));
 
-      // Calculate bounding box for the container
+      // Calculate bounding box
       const minX = Math.min(...nodes.map(n => n.x - 120));
       const maxX = Math.max(...nodes.map(n => n.x + 120));
       const minY = Math.min(...nodes.map(n => n.y - 50));
@@ -193,10 +136,10 @@ const FamilyTree = () => {
       return {
         nodes,
         edges,
-        width: maxX - minX + 400,
-        height: maxY - minY + 400,
-        offsetX: -minX + 200,
-        offsetY: -minY + 200
+        width: maxX - minX + 200,
+        height: maxY - minY + 200,
+        offsetX: -minX + 100,
+        offsetY: -minY + 100
       };
     } catch (err) {
       console.error("[FamilyTree] Layout error:", err);
@@ -215,30 +158,17 @@ const FamilyTree = () => {
           </div>
           <h2 className="text-3xl font-serif text-stone-800">Tree Layout Error</h2>
           <p className="text-stone-500 leading-relaxed">
-            We encountered a conflict in the family relationships. This usually happens if there are circular links or redundant connections.
+            We encountered a conflict in the family relationships. This usually happens if there are circular links.
           </p>
-          <div className="flex flex-col gap-3">
-            <Button onClick={() => refreshData()} className="rounded-full bg-amber-600 hover:bg-amber-700 gap-2">
-              <RefreshCw className="w-4 h-4" /> Retry Loading
-            </Button>
-            <Button onClick={() => navigate('/')} variant="ghost" className="rounded-full text-stone-400">Return Home</Button>
-          </div>
+          <Button onClick={() => refreshData()} className="rounded-full bg-amber-600 hover:bg-amber-700 gap-2">
+            <RefreshCw className="w-4 h-4" /> Retry Loading
+          </Button>
         </div>
       </div>
     );
   }
 
   const data = treeData as { nodes: any[], edges: any[], width: number, height: number, offsetX: number, offsetY: number };
-
-  // Helper to generate a consistent offset for a family group
-  const getFamilyOffset = (parentId: string | undefined) => {
-    if (!parentId) return 0;
-    let hash = 0;
-    for (let i = 0; i < parentId.length; i++) {
-      hash = parentId.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return (Math.abs(hash) % 40) - 20; // +/- 20px offset
-  };
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] overflow-hidden flex flex-col">
@@ -300,10 +230,8 @@ const FamilyTree = () => {
               if (isMarriage) {
                 path = `M ${startX} ${startY} L ${endX} ${endY}`;
               } else {
-                // Add a family-specific offset to the horizontal bar height
-                const familyOffset = getFamilyOffset(edge.parentId);
-                const midY = startY + (endY - startY) / 2 + familyOffset;
-                
+                // Standard elbow connector
+                const midY = startY + (endY - startY) / 2;
                 path = `M ${startX} ${startY} 
                         L ${startX} ${midY} 
                         L ${endX} ${midY} 
@@ -328,7 +256,17 @@ const FamilyTree = () => {
           </svg>
 
           {data.nodes.map((node: any) => {
-            if (node.isUnion) return null;
+            if (node.isUnion) {
+              return (
+                <div 
+                  key={node.id}
+                  style={{ left: node.x - 10, top: node.y - 10 }}
+                  className="absolute w-5 h-5 rounded-full bg-red-100 border-2 border-red-400 flex items-center justify-center"
+                >
+                  <Heart className="w-2 h-2 text-red-500 fill-current" />
+                </div>
+              );
+            }
 
             return (
               <motion.div
