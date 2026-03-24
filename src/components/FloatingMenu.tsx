@@ -7,9 +7,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AddPersonDialog from './AddPersonDialog';
 import AddMemoryDialog from './AddMemoryDialog';
 import { cn } from '@/lib/utils';
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 
 const FloatingMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isPersonDialogOpen, setIsPersonDialogOpen] = useState(false);
+  const [isMemoryDialogOpen, setIsMemoryDialogOpen] = useState(false);
+
+  // Add shortcuts for the floating menu actions
+  useKeyboardShortcuts([
+    { key: 'n', action: () => setIsMemoryDialogOpen(true), description: 'New Story' },
+    { key: 'a', action: () => setIsPersonDialogOpen(true), description: 'Add Person' }
+  ]);
 
   return (
     <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-4">
@@ -22,8 +31,13 @@ const FloatingMenu = () => {
             className="flex flex-col items-end gap-3 mb-2"
           >
             <div className="flex items-center gap-3">
-              <span className="bg-stone-800 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg">Add to Family</span>
+              <div className="flex flex-col items-end">
+                <span className="bg-stone-800 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg">Add to Family</span>
+                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mt-1 mr-1">Press 'A'</span>
+              </div>
               <AddPersonDialog 
+                open={isPersonDialogOpen}
+                onOpenChange={setIsPersonDialogOpen}
                 trigger={
                   <Button className="h-14 w-14 rounded-full bg-white text-stone-800 shadow-xl border-2 border-stone-100 hover:bg-stone-50">
                     <UserPlus className="w-6 h-6" />
@@ -32,9 +46,14 @@ const FloatingMenu = () => {
               />
             </div>
             <div className="flex items-center gap-3">
-              <span className="bg-stone-800 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg">Tell a Story</span>
+              <div className="flex flex-col items-end">
+                <span className="bg-stone-800 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg">Tell a Story</span>
+                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mt-1 mr-1">Press 'N'</span>
+              </div>
               <AddMemoryDialog 
                 personName="the family"
+                open={isMemoryDialogOpen}
+                onOpenChange={setIsMemoryDialogOpen}
                 trigger={
                   <Button className="h-14 w-14 rounded-full bg-amber-600 text-white shadow-xl border-2 border-white hover:bg-amber-700">
                     <Mic className="w-6 h-6" />

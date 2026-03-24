@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { FamilyProvider, useFamily } from "./context/FamilyContext";
 import { supabase } from "./integrations/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
+import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import Index from "./pages/Index";
 import PersonDetail from "./pages/PersonDetail";
 import JoinFamily from "./pages/JoinFamily";
@@ -62,16 +63,21 @@ const OnboardingCheck = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const PageWrapper = ({ children }: { children: React.ReactNode }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -10 }}
-    transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-  >
-    {children}
-  </motion.div>
-);
+const PageWrapper = ({ children }: { children: React.ReactNode }) => {
+  // Initialize global shortcuts
+  useKeyboardShortcuts();
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
+};
 
 const AnimatedRoutes = () => {
   const location = useLocation();
