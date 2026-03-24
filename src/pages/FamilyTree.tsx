@@ -102,6 +102,16 @@ const FamilyTree = () => {
         }
       });
 
+      // 4. Add Sibling Adjacency (to prevent intermingling)
+      relationships.forEach(r => {
+        if (['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())) {
+          if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
+            // Add a high-weight edge between siblings to keep them together
+            g.setEdge(r.person_id, r.related_person_id, { weight: 100, type: 'sibling_link' });
+          }
+        }
+      });
+
       // Cycle Detection Helper
       const lineageGraph: Record<string, string[]> = {};
       const addLineageEdge = (from: string, to: string) => {
@@ -126,7 +136,7 @@ const FamilyTree = () => {
         return check(startNode);
       };
 
-      // 4. Add Union Nodes and Edges to Graph
+      // 5. Add Union Nodes and Edges to Graph
       Object.values(unions).forEach(u => {
         const safeChildren = Array.from(u.children).filter(childId => {
           addLineageEdge(u.p1, childId);
@@ -143,11 +153,11 @@ const FamilyTree = () => {
         g.setEdge(u.p1, u.id, { type: 'marriage', weight: 10 });
         g.setEdge(u.p2, u.id, { type: 'marriage', weight: 10 });
         safeChildren.forEach(childId => {
-          g.setEdge(u.id, childId, { type: 'lineage', weight: 1 });
+          g.setEdge(u.id, childId, { type: 'lineage', weight: 5, parentId: u.id });
         });
       });
 
-      // 5. Add Direct Parent Links
+      // 6. Add Direct Parent Links
       directParentLinks.forEach(link => {
         const alreadyCovered = Object.values(unions).some(u => 
           (u.p1 === link.parentId || u.p2 === link.parentId) && u.children.has(link.childId)
@@ -155,7 +165,7 @@ const FamilyTree = () => {
         if (!alreadyCovered) {
           addLineageEdge(link.parentId, link.childId);
           if (!hasCycle(link.parentId)) {
-            g.setEdge(link.parentId, link.childId, { type: 'lineage', weight: 1 });
+            g.setEdge(link.parentId, link.childId, { type: 'lineage', weight: 5, parentId: link.parentId });
           } else {
             lineageGraph[link.parentId].pop();
           }
@@ -165,11 +175,14 @@ const FamilyTree = () => {
       dagre.layout(g);
       
       const nodes = g.nodes().map(v => ({ id: v, ...g.node(v) }));
-      const edges = g.edges().map(e => ({ 
-        from: g.node(e.v), 
-        to: g.node(e.w),
-        type: g.edge(e).type
-      }));
+      const edges = g.edges()
+        .filter(e => g.edge(e).type !== 'sibling_link') // Don't draw the invisible sibling links
+        .map(e => ({ 
+          from: g.node(e.v), 
+          to: g.node(e.w),
+          type: g.edge(e).type,
+          parentId: g.edge(e).parentId
+        }));
 
       // Calculate bounding box for the container
       const minX = Math.min(...nodes.map(n => n.x - 120));
@@ -216,6 +229,16 @@ const FamilyTree = () => {
   }
 
   const data = treeData as { nodes: any[], edges: any[], width: number, height: number, offsetX: number, offsetY: number };
+
+  // Helper to generate a consistent offset for a family group
+  const getFamilyOffset = (parentId: string | undefined) => {
+    if (!parentId) return 0;
+    let hash = 0;
+    for (let i = 0; i < parentId.length; i++) {
+      hash = parentId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return (Math.abs(hash) % 40) - 20; // +/- 20px offset
+  };
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] overflow-hidden flex flex-col">
@@ -277,7 +300,10 @@ const FamilyTree = () => {
               if (isMarriage) {
                 path = `M ${startX} ${startY} L ${endX} ${endY}`;
               } else {
-                const midY = startY + (endY - startY) / 2;
+                // Add a family-specific offset to the horizontal bar height
+                const familyOffset = getFamilyOffset(edge.parentId);
+                const midY = startY + (endY - startY) / 2 + familyOffset;
+                
                 path = `M ${startX} ${startY} 
                         L ${startX} ${midY} 
                         L ${endX} ${midY} 
