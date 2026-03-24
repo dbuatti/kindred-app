@@ -79,7 +79,6 @@ const FamilyTree = () => {
         let parentId = '';
         let childId = '';
 
-        // The relationship_type describes the person_id relative to the related_person_id
         if (['mother', 'father', 'parent'].includes(type)) {
           parentId = r.person_id;
           childId = r.related_person_id;
@@ -89,9 +88,7 @@ const FamilyTree = () => {
         }
 
         if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
-          // Prevent self-loops
           if (parentId === childId) return;
-
           const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
           if (union) {
             union.children.add(childId);
@@ -101,24 +98,65 @@ const FamilyTree = () => {
         }
       });
 
-      // 4. Add Union Nodes and Edges to Graph
+      // Cycle Detection Helper
+      const lineageGraph: Record<string, string[]> = {};
+      const addLineageEdge = (from: string, to: string) => {
+        if (!lineageGraph[from]) lineageGraph[from] = [];
+        lineageGraph[from].push(to);
+      };
+
+      const hasCycle = (startNode: string) => {
+        const visited = new Set();
+        const stack = new Set();
+        const check = (node: string): boolean => {
+          if (stack.has(node)) return true;
+          if (visited.has(node)) return false;
+          visited.add(node);
+          stack.add(node);
+          for (const neighbor of (lineageGraph[node] || [])) {
+            if (check(neighbor)) return true;
+          }
+          stack.delete(node);
+          return false;
+        };
+        return check(startNode);
+      };
+
+      // 4. Add Union Nodes and Edges to Graph (with cycle prevention)
       Object.values(unions).forEach(u => {
+        // Check if adding this union's children creates a cycle
+        const safeChildren = Array.from(u.children).filter(childId => {
+          addLineageEdge(u.p1, childId);
+          addLineageEdge(u.p2, childId);
+          if (hasCycle(u.p1) || hasCycle(u.p2)) {
+            // Remove the edges if they caused a cycle
+            lineageGraph[u.p1].pop();
+            lineageGraph[u.p2].pop();
+            return false;
+          }
+          return true;
+        });
+
         g.setNode(u.id, { width: 1, height: 1, isUnion: true });
         g.setEdge(u.p1, u.id, { type: 'marriage', weight: 10 });
         g.setEdge(u.p2, u.id, { type: 'marriage', weight: 10 });
-        u.children.forEach(childId => {
+        safeChildren.forEach(childId => {
           g.setEdge(u.id, childId, { type: 'lineage', weight: 1 });
         });
       });
 
-      // 5. Add Direct Parent Links (for single parents)
+      // 5. Add Direct Parent Links (with cycle prevention)
       directParentLinks.forEach(link => {
-        // Only add if not already covered by a union to prevent cycles/redundancy
         const alreadyCovered = Object.values(unions).some(u => 
           (u.p1 === link.parentId || u.p2 === link.parentId) && u.children.has(link.childId)
         );
         if (!alreadyCovered) {
-          g.setEdge(link.parentId, link.childId, { type: 'lineage', weight: 1 });
+          addLineageEdge(link.parentId, link.childId);
+          if (!hasCycle(link.parentId)) {
+            g.setEdge(link.parentId, link.childId, { type: 'lineage', weight: 1 });
+          } else {
+            lineageGraph[link.parentId].pop();
+          }
         }
       });
 

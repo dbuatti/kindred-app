@@ -49,14 +49,14 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
     const relType = rel.toLowerCase();
 
     // Logic to find the parents of the current person
-    const myParents = relationships
+    const myParents = Array.from(new Set(relationships
       .filter(r => {
         const type = r.relationship_type.toLowerCase();
         if (r.related_person_id === person.id && ['mother', 'father', 'parent'].includes(type)) return true;
         if (r.person_id === person.id && ['son', 'daughter', 'child'].includes(type)) return true;
         return false;
       })
-      .map(r => r.related_person_id === person.id ? r.person_id : r.related_person_id);
+      .map(r => r.related_person_id === person.id ? r.person_id : r.related_person_id)));
 
     if (relType === "brother" || relType === "sister") {
       myParents.forEach(parentId => {
