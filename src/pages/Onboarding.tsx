@@ -249,7 +249,21 @@ const Onboarding = () => {
     ).slice(0, 5);
   }, [selfSearchQuery, unclaimedPeople]);
 
-  if (contextLoading) return null;
+  if (contextLoading) {
+    return (
+      <div className="min-h-screen bg-[#FDFCF9] flex flex-col items-center justify-center p-6">
+        <div className="animate-pulse flex flex-col items-center gap-6">
+          <div className="h-20 w-20 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
+            <Heart className="w-10 h-10 fill-current" />
+          </div>
+          <div className="space-y-2 text-center">
+            <h2 className="text-2xl font-serif text-stone-800">Preparing your welcome...</h2>
+            <p className="text-stone-400 italic">Opening the family archive.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] flex flex-col items-center justify-center p-6">

@@ -95,7 +95,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [user]);
 
   const fetchData = useCallback(async (silent = false) => {
-    // Throttle: Don't fetch more than once every 2 seconds unless it's the initial load
     const now = Date.now();
     if (isFetching.current || (silent && now - lastFetchTime.current < 2000)) {
       return;
@@ -109,15 +108,18 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       console.log("[FamilyContext] Fetching family data...");
       
+      // Optimized: Fetching people and memories separately is often faster than nested selects in Supabase
       const [
         { data: peopleData, error: peopleError },
+        { data: memoriesData },
         { data: suggestionsData },
         { data: profilesData },
         { data: reactionsData },
         { data: commentsData },
         { data: relData }
       ] = await Promise.all([
-        supabase.from('people').select('*, memories(*)'),
+        supabase.from('people').select('*'),
+        supabase.from('memories').select('*').order('created_at', { ascending: false }),
         supabase.from('suggestions').select('*').eq('status', 'pending'),
         supabase.from('profiles').select('*'),
         supabase.from('reactions').select('*'),
@@ -164,49 +166,55 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setActivityLogs(logs || []);
       }
 
-      const mappedPeople: Person[] = (peopleData || []).map((p: any) => ({
-        id: p.id,
-        familyId: p.family_id,
-        name: p.name,
-        nickname: p.nickname,
-        maidenName: p.maiden_name,
-        gender: p.gender,
-        isLiving: p.is_living,
-        birthYear: p.birth_year,
-        birthDate: p.birth_date,
-        birthPlace: p.birth_place,
-        deathYear: p.death_year,
-        deathDate: p.death_date,
-        deathPlace: p.death_place,
-        occupation: p.occupation,
-        vibeSentence: p.vibe_sentence,
-        personality_tags: p.personality_tags || [],
-        personalityTags: p.personality_tags || [],
-        photoUrl: p.photo_url,
-        createdByEmail: p.created_by_email,
-        createdAt: p.created_at,
-        userId: p.user_id,
-        inviteToken: p.invite_token,
-        education: p.education,
-        militaryService: p.military_service,
-        burialPlace: p.burial_place,
-        physicalTraits: p.physical_traits,
-        favoriteThings: p.favorite_things,
-        memories: (p.memories || []).map((m: any) => ({
-          id: m.id,
-          personId: m.person_id,
-          content: m.content,
-          type: m.type,
-          createdByEmail: m.created_by_email,
-          createdAt: m.created_at,
-          voiceUrl: m.voice_url,
-          imageUrl: m.image_url,
-          eventDate: m.event_date,
-          isMilestone: m.is_milestone,
-          authorName: profileMap[m.user_id]?.first_name || m.created_by_email.split('@')[0],
-          comments: commentMap[m.id] || []
-        }))
-      }));
+      // Map memories to people in memory (client-side join)
+      const mappedPeople: Person[] = (peopleData || []).map((p: any) => {
+        const personMemories = (memoriesData || [])
+          .filter((m: any) => m.person_id === p.id)
+          .map((m: any) => ({
+            id: m.id,
+            personId: m.person_id,
+            content: m.content,
+            type: m.type,
+            createdByEmail: m.created_by_email,
+            createdAt: m.created_at,
+            voiceUrl: m.voice_url,
+            imageUrl: m.image_url,
+            eventDate: m.event_date,
+            isMilestone: m.is_milestone,
+            authorName: profileMap[m.user_id]?.first_name || m.created_by_email.split('@')[0],
+            comments: commentMap[m.id] || []
+          }));
+
+        return {
+          id: p.id,
+          familyId: p.family_id,
+          name: p.name,
+          nickname: p.nickname,
+          maidenName: p.maiden_name,
+          gender: p.gender,
+          isLiving: p.is_living,
+          birthYear: p.birth_year,
+          birthDate: p.birth_date,
+          birthPlace: p.birth_place,
+          deathYear: p.death_year,
+          deathDate: p.death_date,
+          deathPlace: p.death_place,
+          occupation: p.occupation,
+          vibeSentence: p.vibe_sentence,
+          personalityTags: p.personality_tags || [],
+          photoUrl: p.photo_url,
+          createdByEmail: p.created_by_email,
+          createdAt: p.created_at,
+          userId: p.user_id,
+          inviteToken: p.invite_token,
+          education: p.education,
+          militaryService: p.military_service,
+          burialPlace: p.burial_place,
+          physicalTraits: p.physical_traits,
+          favoriteThings: p.favorite_things,
+          memories: personMemories
+        };
+      });
 
       setPeople(mappedPeople);
       setSuggestions((suggestionsData || []).map((s: any) => ({
