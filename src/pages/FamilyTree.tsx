@@ -10,7 +10,8 @@ import {
   ZoomOut, 
   UserCircle,
   Heart,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
@@ -19,7 +20,7 @@ import dagre from 'dagre';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
-  const { people, relationships, loading } = useFamily();
+  const { people, relationships, loading, refreshData } = useFamily();
   const [zoom, setZoom] = useState(0.8);
 
   const treeData = useMemo(() => {
@@ -78,15 +79,19 @@ const FamilyTree = () => {
         let parentId = '';
         let childId = '';
 
+        // The relationship_type describes the person_id relative to the related_person_id
         if (['mother', 'father', 'parent'].includes(type)) {
-          parentId = r.related_person_id;
-          childId = r.person_id;
-        } else if (['son', 'daughter', 'child'].includes(type)) {
           parentId = r.person_id;
           childId = r.related_person_id;
+        } else if (['son', 'daughter', 'child'].includes(type)) {
+          childId = r.person_id;
+          parentId = r.related_person_id;
         }
 
         if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
+          // Prevent self-loops
+          if (parentId === childId) return;
+
           const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
           if (union) {
             union.children.add(childId);
@@ -144,9 +149,14 @@ const FamilyTree = () => {
           </div>
           <h2 className="text-3xl font-serif text-stone-800">Tree Layout Error</h2>
           <p className="text-stone-500 leading-relaxed">
-            We encountered a conflict in the family relationships. This usually happens if there are circular links or redundant sibling connections.
+            We encountered a conflict in the family relationships. This usually happens if there are circular links (e.g., someone marked as their own parent) or redundant connections.
           </p>
-          <Button onClick={() => navigate('/')} className="rounded-full bg-stone-800">Return Home</Button>
+          <div className="flex flex-col gap-3">
+            <Button onClick={() => refreshData()} className="rounded-full bg-amber-600 hover:bg-amber-700 gap-2">
+              <RefreshCw className="w-4 h-4" /> Retry Loading
+            </Button>
+            <Button onClick={() => navigate('/')} variant="ghost" className="rounded-full text-stone-400">Return Home</Button>
+          </div>
         </div>
       </div>
     );
