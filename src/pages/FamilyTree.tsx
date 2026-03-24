@@ -25,12 +25,12 @@ const FamilyTree = () => {
     if (loading || people.length === 0) return null;
 
     const g = new dagre.graphlib.Graph();
-    // ranksep: vertical distance. nodesep: horizontal distance.
-    // 'network-simplex' ranker is better at keeping nodes on the same level.
+    // ranksep: vertical distance between generations
+    // nodesep: horizontal distance between people
     g.setGraph({ 
       rankdir: 'TB', 
-      nodesep: 120, 
-      ranksep: 180, 
+      nodesep: 150, 
+      ranksep: 200, 
       marginx: 50, 
       marginy: 50,
       ranker: 'network-simplex' 
@@ -55,12 +55,14 @@ const FamilyTree = () => {
     relationships.forEach(r => {
       const type = r.relationship_type.toLowerCase();
       
+      // Parental links (Vertical)
       if (['mother', 'father', 'parent'].includes(type)) {
         g.setEdge(r.person_id, r.related_person_id, { type: 'parental' });
       } else if (['son', 'daughter', 'child'].includes(type)) {
         g.setEdge(r.related_person_id, r.person_id, { type: 'parental' });
       } 
-      // Spouses and Siblings get minlen: 0 to force them onto the same rank
+      // Spouse/Sibling links (Horizontal)
+      // minlen: 0 forces them onto the same rank (horizontal line)
       else if (['spouse', 'wife', 'husband'].includes(type)) {
         g.setEdge(r.person_id, r.related_person_id, { type: 'spouse', minlen: 0, weight: 10 });
       } else if (['brother', 'sister', 'sibling'].includes(type)) {
@@ -127,13 +129,13 @@ const FamilyTree = () => {
                   let endX = edge.to.x;
                   let endY = edge.to.y;
 
-                  // Route horizontal lines between the sides of the cards
                   if (isHorizontal) {
+                    // Connect sides for horizontal relationships
                     const fromLeft = edge.from.x < edge.to.x;
                     startX = edge.from.x + (fromLeft ? 120 : -120);
                     endX = edge.to.x + (fromLeft ? -120 : 120);
                   } else {
-                    // Vertical lines go from bottom of parent to top of child
+                    // Connect bottom to top for vertical lineage
                     startY = edge.from.y + 60;
                     endY = edge.to.y - 60;
                   }
@@ -143,7 +145,7 @@ const FamilyTree = () => {
                       key={i}
                       d={`M ${startX} ${startY} L ${endX} ${endY}`}
                       stroke={isSpouse ? '#f87171' : isSibling ? '#94a3b8' : '#e7e5e4'}
-                      strokeWidth={isSpouse ? "3" : "2"}
+                      strokeWidth={isSpouse ? "4" : "2"}
                       strokeDasharray={isSibling ? "5,5" : "0"}
                       fill="none"
                       className="transition-all duration-1000"
