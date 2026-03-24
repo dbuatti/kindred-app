@@ -37,7 +37,7 @@ const FIELD_TO_KEY_MAP: Record<string, keyof Person> = {
 };
 
 const FIELD_CONFIG: Record<string, { label: string, icon: any, placeholder: string, type: 'input' | 'textarea' | 'select' }> = {
-  middle_name: { label: 'Middle Name', icon: User, placeholder: 'e.g. Maria or "No middle name"', type: 'input' },
+  middle_name: { label: 'Middle Name', icon: User, placeholder: 'e.g. Maria or "NA"', type: 'input' },
   birth_year: { label: 'Birth Year', icon: Calendar, placeholder: 'e.g. 1945', type: 'input' },
   birth_date: { label: 'Birth Date', icon: Calendar, placeholder: 'e.g. 15/05/1945', type: 'input' },
   birth_place: { label: 'Birth Place', icon: MapPin, placeholder: 'e.g. Brooklyn, NY', type: 'input' },
@@ -45,12 +45,12 @@ const FIELD_CONFIG: Record<string, { label: string, icon: any, placeholder: stri
   death_place: { label: 'Place of Passing', icon: MapPin, placeholder: 'e.g. London, UK', type: 'input' },
   occupation: { label: 'Occupation', icon: Briefcase, placeholder: 'e.g. Librarian', type: 'input' },
   gender: { label: 'Gender', icon: User, placeholder: 'Select gender', type: 'select' },
-  nickname: { label: 'Nickname', icon: Tag, placeholder: 'e.g. "Bibi"', type: 'input' },
+  nickname: { label: 'Nickname', icon: Tag, placeholder: 'e.g. "Bibi" or "NA"', type: 'input' },
   maiden_name: { label: 'Maiden Name', icon: Heart, placeholder: 'Their family name at birth', type: 'input' },
   vibe_sentence: { label: 'Detailed Bio', icon: Quote, placeholder: 'Tell us about their personality...', type: 'textarea' },
   photo_url: { label: 'Photo URL', icon: Camera, placeholder: 'Link to a photo...', type: 'input' },
   education: { label: 'Education', icon: GraduationCap, placeholder: 'Schools, degrees, or mentors...', type: 'textarea' },
-  military_service: { label: 'Military Service', icon: Shield, placeholder: 'Branch, rank, or years served...', type: 'textarea' },
+  military_service: { label: 'Military Service', icon: Shield, placeholder: 'Branch, rank, or "NA" if they did not serve.', type: 'textarea' },
   burial_place: { label: 'Final Resting Place', icon: MapPin, placeholder: 'Cemetery name and location...', type: 'input' },
   physical_traits: { label: 'Physical Traits', icon: Eye, placeholder: 'Eye color, height, or unique features...', type: 'textarea' },
   favorite_things: { label: 'Favorite Things', icon: Utensils, placeholder: 'Favorite meal, song, or hobby...', type: 'textarea' }

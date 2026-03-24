@@ -37,6 +37,9 @@ const PersonHero = ({
   
   const canEditDirectly = isOwnProfile || isAdmin;
 
+  // Check if nickname is a valid display name (not NA)
+  const hasValidNickname = person.nickname && !['na', 'n/a', 'none'].includes(person.nickname.toLowerCase());
+
   return (
     <section className="flex flex-col md:flex-row gap-12 items-start">
       <motion.div 
@@ -90,7 +93,7 @@ const PersonHero = ({
                 <h1 className="text-5xl font-serif font-bold text-stone-800 leading-tight">
                   {formatDisplayName(person.name)}
                 </h1>
-                {person.nickname && (
+                {hasValidNickname && (
                   <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-none rounded-full px-4 py-1 text-sm italic">
                     "{person.nickname}"
                   </Badge>

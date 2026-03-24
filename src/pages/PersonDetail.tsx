@@ -213,7 +213,7 @@ const PersonDetail = () => {
 
         <PhotoGallery photos={photos} onAddPhoto={() => setIsAddMemoryOpen(true)} />
 
-        {!isOwnProfile && <ProfileCompletionCard person={person} />}
+        <ProfileCompletionCard person={person} />
 
         <LifeTimeline person={person} />
 
