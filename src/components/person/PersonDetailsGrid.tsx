@@ -17,9 +17,11 @@ import {
   Utensils,
   Info,
   Fingerprint,
-  BookOpen
+  BookOpen,
+  Plus
 } from 'lucide-react';
 import { cn, getFullLegalName } from '@/lib/utils';
+import SuggestionDialog from '../SuggestionDialog';
 
 interface PersonDetailsGridProps {
   person: Person;
@@ -30,6 +32,7 @@ interface DetailItem {
   value: string | React.ReactNode | undefined | null;
   icon: any;
   highlight?: boolean;
+  id?: string;
 }
 
 interface DetailSection {
@@ -37,6 +40,7 @@ interface DetailSection {
   icon: any;
   condition?: boolean;
   items: DetailItem[];
+  id?: string;
 }
 
 const PersonDetailsGrid = ({ person }: PersonDetailsGridProps) => {
@@ -78,8 +82,10 @@ const PersonDetailsGrid = ({ person }: PersonDetailsGridProps) => {
     {
       title: "Legacy & Traits",
       icon: Info,
+      id: 'legacy',
       items: [
         { 
+          id: 'education',
           label: "Education", 
           value: person.educationRecords && person.educationRecords.length > 0 ? (
             <div className="space-y-4 mt-2">
@@ -92,6 +98,15 @@ const PersonDetailsGrid = ({ person }: PersonDetailsGridProps) => {
                   </p>
                 </div>
               ))}
+              <SuggestionDialog 
+                person={person}
+                initialField="education"
+                trigger={
+                  <button className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-amber-600 hover:text-amber-700 transition-colors mt-2">
+                    <Plus className="w-3 h-3" /> Add Another Entry
+                  </button>
+                }
+              />
             </div>
           ) : person.education, 
           icon: GraduationCap 
@@ -122,9 +137,11 @@ const PersonDetailsGrid = ({ person }: PersonDetailsGridProps) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {activeSections.map((section) => (
           <Card key={section.title} className="p-8 rounded-[2.5rem] border-none bg-white shadow-sm space-y-6">
-            <div className="flex items-center gap-3 border-b border-stone-50 pb-4">
-              <section.icon className="w-5 h-5 text-amber-600" />
-              <h3 className="text-xl font-serif font-bold text-stone-800">{section.title}</h3>
+            <div className="flex items-center justify-between border-b border-stone-50 pb-4">
+              <div className="flex items-center gap-3">
+                <section.icon className="w-5 h-5 text-amber-600" />
+                <h3 className="text-xl font-serif font-bold text-stone-800">{section.title}</h3>
+              </div>
             </div>
             
             <div className="grid grid-cols-1 gap-6">

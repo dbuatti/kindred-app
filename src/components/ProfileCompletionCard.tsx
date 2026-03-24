@@ -21,7 +21,8 @@ import {
   GraduationCap,
   Shield,
   Eye,
-  Utensils
+  Utensils,
+  Plus
 } from 'lucide-react';
 import SuggestionDialog from './SuggestionDialog';
 import { useFamily } from '../context/FamilyContext';
@@ -44,24 +45,22 @@ const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
       { id: 'nickname', label: 'Nickname', value: person.nickname, icon: Tag },
       { id: 'photo_url', label: 'Photo', value: person.photoUrl, icon: Camera },
       { id: 'vibe_sentence', label: 'Detailed Bio', value: person.vibeSentence && person.vibeSentence.length > 30, icon: Quote },
-      // Education is complete if the text field is set OR if there are records
       { 
         id: 'education', 
         label: 'Education', 
         value: person.education || (person.educationRecords && person.educationRecords.length > 0), 
-        icon: GraduationCap 
+        icon: GraduationCap,
+        alwaysInteractive: true // Allow adding more even if "complete"
       },
       { id: 'military_service', label: 'Military', value: person.militaryService, icon: Shield },
       { id: 'physical_traits', label: 'Traits', value: person.physicalTraits, icon: Eye },
       { id: 'favorite_things', label: 'Favorites', value: person.favoriteThings, icon: Utensils },
     ];
 
-    // Add Maiden Name for females
     if (person.gender?.toLowerCase() === 'female') {
       items.push({ id: 'maiden_name', label: 'Maiden Name', value: person.maidenName, icon: Heart });
     }
 
-    // Add Passing info for those no longer with us
     if (person.isLiving === false) {
       items.push({ id: 'death_date', label: 'Date of Passing', value: person.deathDate || person.deathYear, icon: Skull });
       items.push({ id: 'death_place', label: 'Place of Passing', value: person.deathPlace, icon: MapPin });
@@ -79,7 +78,6 @@ const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
 
   return (
     <section className="relative overflow-hidden bg-white rounded-[3rem] border-4 border-stone-100 shadow-sm p-10 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-      {/* Decorative background element */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 blur-[80px] rounded-full -mr-32 -mt-32 pointer-events-none" />
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 relative z-10">
@@ -125,37 +123,55 @@ const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 relative z-10">
-        {stats.allItems.map((item) => (
-          <SuggestionDialog 
-            key={item.id}
-            person={person}
-            initialField={item.id}
-            trigger={
-              <button 
-                disabled={!!item.value}
-                className={cn(
-                  "flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all duration-300 group",
-                  item.value 
-                    ? "bg-stone-50 border-stone-100 opacity-50 cursor-default" 
-                    : "bg-white border-stone-200 hover:bg-amber-50 hover:border-amber-200 hover:scale-105 shadow-sm"
-                )}
-              >
-                <div className={cn(
-                  "h-10 w-10 rounded-full flex items-center justify-center shadow-sm transition-colors",
-                  item.value ? "bg-stone-100 text-stone-400" : "bg-stone-50 text-stone-300 group-hover:text-amber-600 group-hover:bg-white"
-                )}>
-                  {item.value ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <item.icon className="w-5 h-5" />}
-                </div>
-                <span className={cn(
-                  "text-[10px] font-bold uppercase tracking-widest text-center",
-                  item.value ? "text-stone-400" : "text-stone-500 group-hover:text-amber-700"
-                )}>
-                  {item.label}
-                </span>
-              </button>
-            }
-          />
-        ))}
+        {stats.allItems.map((item) => {
+          const isComplete = !!item.value;
+          const isInteractive = !isComplete || (item as any).alwaysInteractive;
+
+          return (
+            <SuggestionDialog 
+              key={item.id}
+              person={person}
+              initialField={item.id}
+              trigger={
+                <button 
+                  disabled={!isInteractive}
+                  className={cn(
+                    "flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all duration-300 group",
+                    !isInteractive 
+                      ? "bg-stone-50 border-stone-100 opacity-50 cursor-default" 
+                      : isComplete 
+                        ? "bg-amber-50/30 border-amber-100 hover:bg-amber-50 hover:border-amber-200 shadow-sm"
+                        : "bg-white border-stone-200 hover:bg-amber-50 hover:border-amber-200 hover:scale-105 shadow-sm"
+                  )}
+                >
+                  <div className={cn(
+                    "h-10 w-10 rounded-full flex items-center justify-center shadow-sm transition-colors relative",
+                    isComplete ? "bg-white text-green-500" : "bg-stone-50 text-stone-300 group-hover:text-amber-600 group-hover:bg-white"
+                  )}>
+                    {isComplete ? (
+                      <>
+                        <CheckCircle2 className="w-5 h-5" />
+                        {(item as any).alwaysInteractive && (
+                          <div className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 shadow-sm">
+                            <Plus className="w-2 h-2" />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <item.icon className="w-5 h-5" />
+                    )}
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-bold uppercase tracking-widest text-center",
+                    isComplete ? "text-amber-700/60" : "text-stone-500 group-hover:text-amber-700"
+                  )}>
+                    {item.label}
+                  </span>
+                </button>
+              }
+            />
+          );
+        })}
       </div>
 
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-4 border-t border-stone-50 relative z-10">
