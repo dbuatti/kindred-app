@@ -19,7 +19,6 @@ import {
   Search,
   Globe,
   MapPin,
-  ChevronsUpDown,
   X,
   Save
 } from 'lucide-react';
@@ -90,7 +89,6 @@ const Onboarding = () => {
     if (!contextLoading && user && profiles[user.id]) {
       const profile = profiles[user.id];
       
-      // Only load if onboarding isn't completed
       if (!profile.onboarding_completed) {
         setFormData(prev => ({
           ...prev,
@@ -103,7 +101,6 @@ const Onboarding = () => {
           bio: profile.bio || ''
         }));
 
-        // Try to find if they already claimed a person
         const claimed = people.find(p => p.userId === user.id);
         if (claimed) {
           setFormData(prev => ({ ...prev, claimedPersonId: claimed.id }));
@@ -179,7 +176,7 @@ const Onboarding = () => {
     if (person.vibeSentence) updateField('bio', person.vibeSentence);
     
     setSelfSearchQuery('');
-    toast.success(`Linked to ${person.name}!`);
+    toast.success(`Linked to ${person.name}! You can still edit your name below.`);
   };
 
   const saveProgress = async () => {
@@ -200,7 +197,6 @@ const Onboarding = () => {
           updated_at: new Date().toISOString()
         });
       
-      // If they claimed a person, update that record too
       if (formData.claimedPersonId) {
         const fullName = `${formData.firstName} ${formData.lastName}`.trim();
         await supabase
@@ -255,6 +251,11 @@ const Onboarding = () => {
       const birthYear = extractYear(formData.birthDate);
       
       // 2. Link or Create Person record
+      // If we claimed a person, we want to preserve their existing tags but add the "Family Member" tag
+      const existingPerson = formData.claimedPersonId ? people.find(p => p.id === formData.claimedPersonId) : null;
+      const existingTags = existingPerson?.personalityTags || [];
+      const newTags = Array.from(new Set([...existingTags, "✨ Family Member"]));
+
       const personData = {
         user_id: user.id,
         name: fullName,
@@ -264,7 +265,7 @@ const Onboarding = () => {
         birth_date: formData.birthDate || null,
         birth_place: formData.birthPlace,
         vibe_sentence: formData.bio || "",
-        personality_tags: ["✨ Family Member"],
+        personality_tags: newTags,
         created_by_email: user.email,
         is_living: true
       };
@@ -272,12 +273,14 @@ const Onboarding = () => {
       let myPersonId = formData.claimedPersonId;
 
       if (myPersonId) {
+        // Update the SPECIFIC record that was claimed
         const { error: updateErr } = await supabase
           .from('people')
           .update(personData)
           .eq('id', myPersonId);
         if (updateErr) throw updateErr;
       } else {
+        // Create a new record or update one already linked to this user_id
         const { data: person, error: pErr } = await supabase
           .from('people')
           .upsert(personData, { onConflict: 'user_id' })
