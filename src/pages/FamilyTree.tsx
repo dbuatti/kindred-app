@@ -33,7 +33,7 @@ const BRANCH_COLORS = [
   '#ec4899', // Pink
 ];
 
-const LINEAGE_COLOR = '#a8a29e'; // stone-400 for better visibility
+const LINEAGE_COLOR = '#a8a29e'; 
 const PLACEHOLDER_URL = "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&q=80&w=400";
 
 const FamilyTree = () => {
@@ -45,11 +45,11 @@ const FamilyTree = () => {
     if (loading || people.length === 0) return null;
 
     try {
-      const g = new dagre.graphlib.Graph();
+      const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 150, 
-        ranksep: 200, 
+        nodesep: 100, 
+        ranksep: 150, 
         marginx: 100, 
         marginy: 100,
       });
@@ -57,6 +57,7 @@ const FamilyTree = () => {
 
       const validIds = new Set(people.map(p => p.id));
 
+      // 1. Add all people as nodes
       people.forEach(p => {
         let displayYear = p.birthYear;
         if (!displayYear && p.birthDate) {
@@ -71,6 +72,7 @@ const FamilyTree = () => {
         });
       });
 
+      // 2. Identify Unions (Marriages)
       const unions: Record<string, { id: string, p1: string, p2: string, children: string[], color: string }> = {};
       let colorIdx = 0;
 
@@ -92,6 +94,7 @@ const FamilyTree = () => {
         }
       });
 
+      // 3. Map Children to Unions or Parents
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         let parentId = '';
@@ -110,29 +113,56 @@ const FamilyTree = () => {
           if (union) {
             if (!union.children.includes(childId)) union.children.push(childId);
           } else {
-            g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR });
+            // Direct lineage if no union found
+            g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR, weight: 1 });
           }
         }
       });
 
+      // 4. Create Clusters and add Union nodes
       Object.values(unions).forEach(u => {
-        g.setNode(u.id, { width: 60, height: 60, isUnion: true, color: u.color });
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color });
+        const clusterId = `cluster_${u.id}`;
+        g.setNode(clusterId, { label: '', style: 'fill: none; stroke: none;' });
         
+        // Add union node and parents to cluster
+        g.setNode(u.id, { width: 60, height: 60, isUnion: true, color: u.color });
+        g.setParent(u.id, clusterId);
+        g.setParent(u.p1, clusterId);
+        g.setParent(u.p2, clusterId);
+
+        // Add marriage edges with high weight to keep parents together
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10 });
+        
+        // Add children to cluster and connect them
         u.children.forEach((childId) => {
-          g.setEdge(u.id, childId, { type: 'lineage', color: u.color });
+          g.setParent(childId, clusterId);
+          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 5 });
         });
+      });
+
+      // 5. Add Sibling/Other edges to help layout engine group branches
+      relationships.forEach(r => {
+        const type = r.relationship_type.toLowerCase();
+        if (['brother', 'sister', 'sibling'].includes(type)) {
+          if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
+            // Sibling edges help keep branches together
+            g.setEdge(r.person_id, r.related_person_id, { type: 'sibling', color: 'transparent', weight: 2 });
+          }
+        }
       });
 
       dagre.layout(g);
       
-      const nodes = g.nodes().map(v => ({ id: v, ...g.node(v) }));
+      const nodes = g.nodes()
+        .filter(v => !v.startsWith('cluster_')) // Don't render cluster nodes themselves
+        .map(v => ({ id: v, ...g.node(v) }));
+        
       const edges = g.edges().map(e => ({ 
         from: g.node(e.v), 
         to: g.node(e.w),
         ...g.edge(e)
-      }));
+      })).filter(e => e.color !== 'transparent');
 
       const minX = Math.min(...nodes.map(n => n.x - 200));
       const maxX = Math.max(...nodes.map(n => n.x + 200));
