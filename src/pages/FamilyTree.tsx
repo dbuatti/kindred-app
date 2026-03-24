@@ -45,8 +45,8 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph();
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 200, // Wide spacing for distinct paths
-        ranksep: 250, // Tall spacing for staggered curves
+        nodesep: 200, 
+        ranksep: 250, 
         marginx: 100, 
         marginy: 100,
       });
@@ -123,7 +123,6 @@ const FamilyTree = () => {
         g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color });
         
         u.children.forEach((childId, idx) => {
-          // Pass the index to the edge for staggering
           g.setEdge(u.id, childId, { type: 'lineage', color: u.color, index: idx });
         });
       });
@@ -232,29 +231,29 @@ const FamilyTree = () => {
 
               const isMarriage = edge.type === 'marriage';
               
-              // Adjust start/end points to node boundaries
               const startX = edge.from.x;
-              const startY = edge.from.y + (edge.from.isUnion ? 0 : 50); // Bottom of person node
+              const startY = edge.from.y + (edge.from.isUnion ? 0 : 50); 
               const endX = edge.to.x;
-              const endY = edge.to.y - (edge.to.isUnion ? 20 : 50); // Top of node
+              const endY = edge.to.y - (edge.to.isUnion ? 20 : 50); 
 
               let path = "";
 
               if (isMarriage) {
-                // Curved "V" meeting at the heart
+                // Smooth "V" curve for marriage
                 const midY = startY + (endY - startY) * 0.5;
                 path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               } else {
-                // Staggered "Step" path
-                // Every child gets a slightly different horizontal height (midY)
+                // Structured "Step" path with rounded corners and staggering
                 const staggerOffset = (edge.index || 0) * 15; 
                 const midY = startY + 60 + staggerOffset; 
+                const radius = 20;
+                const direction = endX > startX ? 1 : -1;
                 
                 path = `M ${startX} ${startY} 
-                        L ${startX} ${midY - 20}
-                        Q ${startX} ${midY}, ${startX + (endX > startX ? 20 : -20)} ${midY}
-                        L ${endX + (endX > startX ? -20 : 20)} ${midY}
-                        Q ${endX} ${midY}, ${endX} ${midY + 20}
+                        L ${startX} ${midY - radius}
+                        Q ${startX} ${midY}, ${startX + (radius * direction)} ${midY}
+                        L ${endX - (radius * direction)} ${midY}
+                        Q ${endX} ${midY}, ${endX} ${midY + radius}
                         L ${endX} ${endY}`;
               }
               
