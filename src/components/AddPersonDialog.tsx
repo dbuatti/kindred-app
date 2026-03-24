@@ -5,7 +5,7 @@ import { Input } from './ui/input';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { UserPlus, History, CheckCircle2, Heart, Skull } from 'lucide-react';
+import { UserPlus, History, CheckCircle2, Heart, Skull, Info } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -53,6 +53,10 @@ const AddPersonDialog = ({
   const myPerson = useMemo(() => {
     return people.find(p => p.userId === user?.id);
   }, [people, user]);
+
+  const targetPerson = useMemo(() => {
+    return people.find(p => p.id === relatedToId);
+  }, [people, relatedToId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -187,6 +191,16 @@ const AddPersonDialog = ({
               </Select>
             </div>
           </div>
+
+          {/* Relationship Preview Sentence */}
+          {name && relationship && targetPerson && (
+            <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-100 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+              <Info className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-sm text-amber-900 leading-relaxed">
+                This means <span className="font-bold">{name}</span> is the <span className="font-bold">{relationship}</span> of <span className="font-bold">{targetPerson.name}</span>.
+              </p>
+            </div>
+          )}
 
           <div className="pt-4 flex flex-col gap-3">
             <Button 

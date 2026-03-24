@@ -107,6 +107,14 @@ const TreeSmartInbox = () => {
           ];
           
           if (theirChildIds.some(id => myChildIds.includes(id))) {
+            // Check if they share a parent (likely backwards data entry)
+            const theirParentIds = [
+              ...getRelIds(spouse.id, ['mother', 'father', 'parent'], 'to'),
+              ...getRelIds(spouse.id, ['son', 'daughter', 'child'], 'from')
+            ];
+            const sharesParent = theirParentIds.some(id => myParentIds.includes(id));
+            if (sharesParent) return;
+
             seenPairs.add(pairKey);
             items.push({
               id: `spouse-${pairKey}`,

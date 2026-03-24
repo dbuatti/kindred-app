@@ -123,6 +123,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     // 3. Spouse Inference: Share a child but not marked as spouses
     if (myChildIds.length > 0) {
       const potentialSpouses = people.filter(p => {
+        // Don't suggest spouses if they are already siblings or spouses
         if (p.id === personId || mySpouseIds.includes(p.id) || mySiblingIds.includes(p.id)) return false;
         
         const theirChildIds = [
@@ -130,7 +131,18 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
           ...getRelIds(p.id, ['son', 'daughter', 'child'], 'to')
         ];
         
-        return theirChildIds.some(id => myChildIds.includes(id));
+        const sharesChild = theirChildIds.some(id => myChildIds.includes(id));
+        if (!sharesChild) return false;
+
+        // CRITICAL: Don't suggest spouses if they share a parent (likely backwards data entry)
+        const theirParentIds = [
+          ...getRelIds(p.id, ['mother', 'father', 'parent'], 'to'),
+          ...getRelIds(p.id, ['son', 'daughter', 'child'], 'from')
+        ];
+        const sharesParent = theirParentIds.some(id => myParentIds.includes(id));
+        if (sharesParent) return false;
+
+        return true;
       });
 
       potentialSpouses.forEach(spouse => {
@@ -212,7 +224,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
                     }}
                     disabled={!!isProcessing}
                   >
-                    {isProcessing === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3 mr-1" />}
+                    {isProcessing === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}
                     Yes
                   </Button>
                   <Button 
