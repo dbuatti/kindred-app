@@ -10,26 +10,26 @@ import {
   Users, 
   MessageSquare, 
   ShieldCheck, 
-  TrendingUp,
-  UserCircle,
-  Clock,
-  ChevronRight,
-  Link as LinkIcon,
-  Activity,
-  LogIn,
-  UserPlus,
-  Edit3,
-  Heart,
-  GitMerge,
-  Brain,
-  History,
-  Mail,
-  Calendar,
-  Send,
-  Trash2,
-  Loader2,
-  CheckCircle2,
-  AlertTriangle
+  TrendingUp, 
+  UserCircle, 
+  Clock, 
+  ChevronRight, 
+  Link as LinkIcon, 
+  Activity, 
+  LogIn, 
+  UserPlus, 
+  Edit3, 
+  Heart, 
+  GitMerge, 
+  Brain, 
+  History, 
+  Mail, 
+  Calendar, 
+  Send, 
+  Trash2, 
+  Loader2, 
+  CheckCircle2, 
+  AlertTriangle 
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -38,10 +38,8 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
-  Cell,
-  LineChart,
-  Line
+  ResponsiveContainer, 
+  Cell 
 } from 'recharts';
 import { formatDistanceToNow, format, subDays, isSameDay } from 'date-fns';
 import { getPersonUrl } from '@/lib/slugify';
@@ -58,7 +56,7 @@ const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { people, suggestions, user, loading, activityLogs, profiles, resendMagicLink, deleteUserAccount } = useFamily();
+  const { people, suggestions, user, loading, activityLogs, profiles, authUsers, resendMagicLink, deleteUserAccount } = useFamily();
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
 
   if (!loading && user?.email !== ADMIN_EMAIL) {
@@ -86,32 +84,16 @@ const AdminDashboard = () => {
   const totalMemories = people.reduce((acc, p) => acc + p.memories.length, 0);
   const pendingSuggestions = suggestions.filter(s => s.status === 'pending').length;
   
-  const recentMemories = people
-    .flatMap(p => p.memories.map(m => ({ ...m, personName: p.name, personId: p.id })))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
-
   const chartData = people.map(p => ({
     name: p.name.split(' ')[0],
     memories: p.memories.length
   })).sort((a, b) => b.memories - a.memories).slice(0, 5);
 
-  const engagementStats = useMemo(() => {
-    const last7Days = Array.from({ length: 7 }).map((_, i) => subDays(new Date(), i)).reverse();
-    return last7Days.map(day => {
-      const dayLogs = activityLogs.filter(log => isSameDay(new Date(log.created_at), day));
-      return {
-        date: format(day, 'MMM d'),
-        logins: dayLogs.filter(l => l.event_type === 'login').length,
-        edits: dayLogs.filter(l => ['edit_person', 'add_memory', 'add_suggestion'].includes(l.event_type)).length
-      };
-    });
-  }, [activityLogs]);
-
   const COLORS = ['#d97706', '#b45309', '#92400e', '#78350f', '#451a03'];
 
   if (loading) return null;
 
+  // Combine profiles with auth data
   const allProfiles = Object.values(profiles).sort((a, b) => 
     (a.updated_at || '').localeCompare(b.updated_at || '')
   ).reverse();
@@ -121,7 +103,7 @@ const AdminDashboard = () => {
       <header className="sticky top-0 z-10 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
         <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full text-stone-500"><ArrowLeft className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full text-stone-50"><ArrowLeft className="w-5 h-5" /></Button>
             <div>
               <h1 className="text-2xl font-serif font-medium text-stone-800">Admin Zone</h1>
               <p className="text-stone-400 text-xs uppercase tracking-widest font-medium">Archive Oversight</p>
@@ -209,9 +191,14 @@ const AdminDashboard = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {allProfiles.map((profile) => {
-                const userEmail = activityLogs.find(l => l.user_id === profile.id)?.user_email || 'Unknown Email';
+                const authUser = authUsers[profile.id];
+                const userEmail = authUser?.email || activityLogs.find(l => l.user_id === profile.id)?.user_email || 'Unknown Email';
                 const isMe = profile.id === user?.id;
                 
+                const displayName = profile.first_name 
+                  ? `${profile.first_name} ${profile.last_name || ''}`.trim() 
+                  : userEmail.split('@')[0];
+
                 return (
                   <Card key={profile.id} className="p-6 bg-white border-stone-100 shadow-sm rounded-[2rem] space-y-6 relative group overflow-hidden">
                     <div className="flex items-start justify-between">
@@ -224,7 +211,7 @@ const AdminDashboard = () => {
                       {profile.onboarding_completed ? (
                         <Badge className="bg-green-50 text-green-600 border-none text-[8px] uppercase tracking-widest">Active</Badge>
                       ) : (
-                        <Badge variant="secondary" className="bg-amber-50 text-amber-600 border-none text-[8px] uppercase tracking-widest">Pending</Badge>
+                        <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-none text-[8px] uppercase tracking-widest">Pending</Badge>
                       )}
                     </div>
 
@@ -234,9 +221,12 @@ const AdminDashboard = () => {
                       </div>
                       <div className="min-w-0">
                         <p className="font-serif text-xl font-bold text-stone-800 truncate">
-                          {profile.first_name} {profile.last_name}
+                          {displayName}
                         </p>
-                        <p className="text-xs text-stone-400 truncate">{userEmail}</p>
+                        <div className="flex items-center gap-1.5 text-xs text-stone-400">
+                          <Mail className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{userEmail}</span>
+                        </div>
                       </div>
                     </div>
 
@@ -267,7 +257,7 @@ const AdminDashboard = () => {
                             <AlertDialogHeader>
                               <AlertDialogTitle className="text-2xl font-serif">Remove Family Member?</AlertDialogTitle>
                               <AlertDialogDescription className="text-stone-500 text-lg">
-                                This will permanently delete the user account for <strong>{profile.first_name}</strong>. They will lose all access to the archive.
+                                This will permanently delete the user account for <strong>{displayName}</strong>. They will lose all access to the archive.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter className="gap-3">

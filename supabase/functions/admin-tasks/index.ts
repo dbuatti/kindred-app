@@ -35,10 +35,26 @@ serve(async (req) => {
     const { action, targetEmail, targetUserId } = await req.json()
     console.log(`[admin-tasks] Action: ${action} for ${targetEmail || targetUserId}`);
 
+    if (action === 'list-users') {
+      const { data: { users }, error } = await supabaseClient.auth.admin.listUsers()
+      if (error) throw error
+      
+      // Return only necessary info
+      const simplifiedUsers = users.map(u => ({
+        id: u.id,
+        email: u.email,
+        last_sign_in_at: u.last_sign_in_at,
+        created_at: u.created_at
+      }))
+
+      return new Response(JSON.stringify({ users: simplifiedUsers }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      })
+    }
+
     if (action === 'resend-magic-link') {
       let email = targetEmail;
       
-      // If we only have an ID, look up the email using admin privileges
       if (!email && targetUserId) {
         const { data: { user: targetUser }, error: getError } = await supabaseClient.auth.admin.getUserById(targetUserId)
         if (getError || !targetUser) throw new Error('User not found')

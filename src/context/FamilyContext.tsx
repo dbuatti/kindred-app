@@ -21,10 +21,18 @@ interface ActivityLog {
   created_at: string;
 }
 
+interface AuthUser {
+  id: string;
+  email: string;
+  last_sign_in_at?: string;
+  created_at: string;
+}
+
 interface FamilyContextType {
   people: Person[];
   suggestions: Suggestion[];
   profiles: Record<string, Profile>;
+  authUsers: Record<string, AuthUser>;
   reactions: Record<string, string[]>;
   relationships: Relationship[];
   activityLogs: ActivityLog[];
@@ -57,6 +65,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [people, setPeople] = useState<Person[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+  const [authUsers, setAuthUsers] = useState<Record<string, AuthUser>>({});
   const [reactions, setReactions] = useState<Record<string, string[]>>({});
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
@@ -177,12 +186,29 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setRelationships(relData || []);
 
       if (user?.email === ADMIN_EMAIL) {
+        // Fetch logs
         const { data: logs } = await supabase
           .from('activity_logs')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(100);
         setActivityLogs(logs || []);
+
+        // Fetch full user list via edge function
+        try {
+          const { data: authData, error: authError } = await supabase.functions.invoke('admin-tasks', {
+            body: { action: 'list-users' }
+          });
+          if (!authError && authData?.users) {
+            const authMap: Record<string, AuthUser> = {};
+            authData.users.forEach((u: AuthUser) => {
+              authMap[u.id] = u;
+            });
+            setAuthUsers(authMap);
+          }
+        } catch (err) {
+          console.error("[FamilyContext] Failed to fetch auth users:", err);
+        }
       }
 
       const mappedPeople: Person[] = (peopleData || []).map((p: any) => {
@@ -267,6 +293,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setUser(currentUser);
       if (event === 'SIGNED_OUT') {
         setPeople([]);
+        setAuthUsers({});
         setLoading(false);
       }
     });
@@ -513,7 +540,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   return (
     <FamilyContext.Provider value={{ 
-      people, suggestions, profiles, reactions, relationships, activityLogs, loading, user, isAdmin, theme, setTheme, treeLayoutData, setTreeLayoutData,
+      people, suggestions, profiles, authUsers, reactions, relationships, activityLogs, loading, user, isAdmin, theme, setTheme, treeLayoutData, setTreeLayoutData,
       addPerson, updatePerson, deletePerson, addMemory, addComment, addSuggestion, addRelationship, resolveSuggestion, resolveAllSuggestions, toggleReaction, refreshData: fetchData, logActivity,
       resendMagicLink, deleteUserAccount
     }}>
