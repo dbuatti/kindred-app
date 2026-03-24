@@ -40,7 +40,7 @@ const PersonCard = ({ person, relatives = [], onClick, searchQuery }: PersonCard
     }
   };
 
-  const birthDisplay = person.birthDate ? formatFamilyDate(person.birthDate) : (person.birthYear || 'Unknown Year');
+  const birthDisplay = person.birthDate ? formatFamilyDate(person.birthDate) : (person.birthYear || 'Year Unknown');
 
   // Create a summary of relatives, prioritizing parents/spouses but including others like cousins
   const connectionSummary = relatives
@@ -51,7 +51,10 @@ const PersonCard = ({ person, relatives = [], onClick, searchQuery }: PersonCard
       return aPrio - bPrio;
     })
     .slice(0, 2)
-    .map(r => `${r.type} of ${r.name.split(' ')[0]}`)
+    .map(r => {
+      const type = r.type.charAt(0).toUpperCase() + r.type.slice(1).toLowerCase();
+      return `${type} of ${r.name.split(' ')[0]}`;
+    })
     .join(' • ');
 
   return (

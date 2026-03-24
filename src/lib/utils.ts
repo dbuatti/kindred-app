@@ -8,15 +8,11 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Formats a name with the surname in ALL CAPS for genealogical legibility.
+ * Formats a name naturally.
  */
 export function formatDisplayName(name: string) {
   if (!name) return "";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length <= 1) return name;
-  
-  const surname = parts.pop()?.toUpperCase();
-  return `${parts.join(" ")} ${surname}`;
+  return name.trim();
 }
 
 /**
