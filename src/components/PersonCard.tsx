@@ -2,7 +2,7 @@ import React from 'react';
 import { Person } from '../types';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
-import { Quote, MessageSquare, History, MapPin, Calendar, Share2, Users, ArrowRight, Heart, Skull } from 'lucide-react';
+import { Quote, MessageSquare, History, MapPin, Calendar, Share2, Users, ArrowRight, Heart, Skull, Sparkles } from 'lucide-react';
 import { cn, formatDisplayName, formatFamilyDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
@@ -16,6 +16,14 @@ interface PersonCardProps {
 }
 
 const PersonCard = ({ person, relatives = [], onClick, searchQuery, variant = 'list' }: PersonCardProps) => {
+  const isNew = React.useMemo(() => {
+    if (!person.createdAt) return false;
+    const createdDate = new Date(person.createdAt);
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    return createdDate > threeDaysAgo;
+  }, [person.createdAt]);
+
   const highlightText = (text: string, query: string) => {
     if (!query) return text;
     const parts = text.split(new RegExp(`(${query})`, 'gi'));
@@ -86,13 +94,18 @@ const PersonCard = ({ person, relatives = [], onClick, searchQuery, variant = 'l
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           
-          <div className="absolute top-4 right-4">
+          <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
             <div className={cn(
               "h-8 w-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white",
               person.isLiving ? "bg-red-500 text-white" : "bg-stone-800 text-white"
             )}>
               {person.isLiving ? <Heart className="w-4 h-4 fill-current" /> : <Skull className="w-4 h-4" />}
             </div>
+            {isNew && (
+              <Badge className="bg-amber-500 text-white border-none rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest shadow-lg animate-bounce">
+                New
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -140,11 +153,24 @@ const PersonCard = ({ person, relatives = [], onClick, searchQuery, variant = 'l
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-stone-900/60 via-transparent to-transparent md:hidden" />
           
-          <div className="absolute bottom-4 left-4 md:hidden">
+          <div className="absolute bottom-4 left-4 md:hidden flex items-center gap-2">
             <Badge className="bg-amber-500 text-white border-none rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest">
               {birthDisplay}
             </Badge>
+            {isNew && (
+              <Badge className="bg-white text-amber-600 border-none rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest shadow-lg">
+                New
+              </Badge>
+            )}
           </div>
+
+          {isNew && (
+            <div className="absolute top-4 left-4 hidden md:block">
+              <Badge className="bg-amber-500 text-white border-none rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest shadow-lg flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> New Entry
+              </Badge>
+            </div>
+          )}
         </div>
 
         <div className="p-8 flex-1 flex flex-col justify-between space-y-6">

@@ -22,6 +22,7 @@ import Profile from "./pages/Profile";
 import CompleteArchive from "./pages/CompleteArchive";
 import FamilyTree from "./pages/FamilyTree";
 import DataExportButton from "./components/DataExportButton";
+import ShortcutHelpDialog from "./components/ShortcutHelpDialog";
 
 const queryClient = new QueryClient();
 
@@ -111,6 +112,7 @@ const App = () => (
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AnimatedRoutes />
           <DataExportButton />
+          <ShortcutHelpDialog />
         </BrowserRouter>
       </TooltipProvider>
     </FamilyProvider>

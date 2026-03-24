@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { 
   ArrowLeft, 
   ZoomIn, 
@@ -15,9 +16,11 @@ import {
   RefreshCw,
   UserPlus,
   Maximize,
-  Sparkles
+  Sparkles,
+  Search,
+  X
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
 import { cn } from '@/lib/utils';
 import dagre from 'dagre';
@@ -39,6 +42,9 @@ const FamilyTree = () => {
   const navigate = useNavigate();
   const { people, relationships, loading, refreshData } = useFamily();
   const [zoom, setZoom] = useState(0.75);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const treeContainerRef = useRef<HTMLDivElement>(null);
 
   const treeData = useMemo(() => {
     if (loading || people.length === 0) return null;
@@ -47,8 +53,8 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 60, // Tighter horizontal spacing
-        ranksep: 100, // Tighter vertical spacing
+        nodesep: 60, 
+        ranksep: 100, 
         marginx: 50, 
         marginy: 50,
         ranker: 'network-simplex'
@@ -57,7 +63,6 @@ const FamilyTree = () => {
 
       const validIds = new Set(people.map(p => p.id));
 
-      // 1. Add People Nodes
       people.forEach(p => {
         let displayYear = p.birthYear;
         if (!displayYear && p.birthDate) {
@@ -72,7 +77,6 @@ const FamilyTree = () => {
         });
       });
 
-      // 2. Identify Unions (Marriages)
       const unions: Record<string, { id: string, p1: string, p2: string, children: string[], color: string }> = {};
       let colorIdx = 0;
 
@@ -94,7 +98,6 @@ const FamilyTree = () => {
         }
       });
 
-      // 3. Map Children
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         if (['cousin', 'aunt', 'uncle', 'nephew', 'niece'].includes(type)) return;
@@ -120,14 +123,10 @@ const FamilyTree = () => {
         }
       });
 
-      // 4. Add Union Nodes and Marriage Edges
       Object.values(unions).forEach(u => {
         g.setNode(u.id, { width: 30, height: 30, isUnion: true, color: u.color });
-        
-        // Force spouses to stay on the same rank
         g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10 });
         g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10 });
-        
         u.children.forEach((childId) => {
           g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 5 });
         });
@@ -161,6 +160,33 @@ const FamilyTree = () => {
     }
   }, [people, relationships, loading]);
 
+  const searchResults = useMemo(() => {
+    if (!searchQuery || searchQuery.length < 2) return [];
+    return people.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 5);
+  }, [searchQuery, people]);
+
+  const jumpToPerson = (id: string) => {
+    const node = treeData?.nodes.find(n => n.id === id);
+    if (node && treeContainerRef.current) {
+      setHighlightedId(id);
+      setZoom(1);
+      
+      // Calculate scroll position
+      const container = treeContainerRef.current;
+      const scrollX = (node.x * 1) - (container.clientWidth / 2);
+      const scrollY = (node.y * 1) - (container.clientHeight / 2);
+      
+      container.scrollTo({
+        left: scrollX,
+        top: scrollY,
+        behavior: 'smooth'
+      });
+
+      setSearchQuery('');
+      setTimeout(() => setHighlightedId(null), 3000);
+    }
+  };
+
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the lineage...</div>;
 
   if (!treeData || (treeData as any).error) {
@@ -187,12 +213,12 @@ const FamilyTree = () => {
   return (
     <div className="min-h-screen bg-[#FDFCF9] overflow-hidden flex flex-col">
       <header className="bg-white/90 backdrop-blur-xl border-b-4 border-stone-100 px-6 py-6 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
+          <div className="flex items-center gap-4 shrink-0">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full text-stone-500 hover:bg-stone-100">
               <ArrowLeft className="w-6 h-6" />
             </Button>
-            <div>
+            <div className="hidden sm:block">
               <h1 className="text-3xl font-serif font-bold text-stone-800 tracking-tight">Family Tree</h1>
               <div className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -200,12 +226,51 @@ const FamilyTree = () => {
               </div>
             </div>
           </div>
+
+          <div className="flex-1 max-w-md relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 group-focus-within:text-amber-600 transition-colors" />
+            <Input 
+              placeholder="Find someone in the tree..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-11 bg-stone-100 border-none rounded-full text-sm focus-visible:ring-amber-500/20"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
+                <X className="w-4 h-4" />
+              </button>
+            )}
+            
+            <AnimatePresence>
+              {searchResults.length > 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-stone-100 overflow-hidden z-50"
+                >
+                  {searchResults.map(p => (
+                    <button 
+                      key={p.id}
+                      onClick={() => jumpToPerson(p.id)}
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-amber-50 transition-colors text-left border-b border-stone-50 last:border-none"
+                    >
+                      <div className="h-8 w-8 rounded-full overflow-hidden bg-stone-100 shrink-0">
+                        {p.photoUrl ? <img src={p.photoUrl} className="w-full h-full object-cover" /> : <UserCircle className="w-full h-full text-stone-300" />}
+                      </div>
+                      <span className="font-medium text-stone-800">{p.name}</span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 shrink-0">
             <TreeSmartInbox />
             <AddPersonDialog 
               trigger={
-                <Button variant="outline" className="hidden md:flex rounded-full border-stone-200 text-stone-600 gap-2 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition-all h-11 px-6">
+                <Button variant="outline" className="hidden lg:flex rounded-full border-stone-200 text-stone-600 gap-2 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition-all h-11 px-6">
                   <UserPlus className="w-4 h-4" /> Add to Family
                 </Button>
               }
@@ -220,7 +285,10 @@ const FamilyTree = () => {
         </div>
       </header>
 
-      <main className="flex-1 relative overflow-auto p-10 cursor-grab active:cursor-grabbing bg-[radial-gradient(#e5e7eb_1.5px,transparent_1.5px)] [background-size:60px_60px]">
+      <main 
+        ref={treeContainerRef}
+        className="flex-1 relative overflow-auto p-10 cursor-grab active:cursor-grabbing bg-[radial-gradient(#e5e7eb_1.5px,transparent_1.5px)] [background-size:60px_60px]"
+      >
         <motion.div 
           style={{ 
             scale: zoom, 
@@ -237,28 +305,17 @@ const FamilyTree = () => {
           >
             {data.edges.map((edge, i) => {
               if (!edge.from || !edge.to) return null;
-
               const isMarriage = edge.type === 'marriage';
-              
               const startX = edge.from.x;
               const startY = edge.from.y + (edge.from.isUnion ? 0 : 30); 
               const endX = edge.to.x;
               const endY = edge.to.y - (edge.to.isUnion ? 15 : 30); 
-
-              // Smooth Organic Curve Path
               const midY = startY + (endY - startY) * 0.5;
               const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               
               return (
                 <g key={i}>
-                  <path
-                    d={path}
-                    stroke="white"
-                    strokeWidth={isMarriage ? "6" : "4"}
-                    fill="none"
-                    strokeLinecap="round"
-                    opacity="0.4"
-                  />
+                  <path d={path} stroke="white" strokeWidth={isMarriage ? "6" : "4"} fill="none" strokeLinecap="round" opacity="0.4" />
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
@@ -283,12 +340,7 @@ const FamilyTree = () => {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', damping: 12, delay: 0.3 }}
-                  style={{ 
-                    left: node.x - 15, 
-                    top: node.y - 15,
-                    backgroundColor: 'white',
-                    borderColor: node.color
-                  }}
+                  style={{ left: node.x - 15, top: node.y - 15, backgroundColor: 'white', borderColor: node.color }}
                   className="absolute w-8 h-8 rounded-full border-2 flex items-center justify-center shadow-md z-10 group"
                 >
                   <Heart className="w-4 h-4 fill-current transition-transform group-hover:scale-125" style={{ color: node.color }} />
@@ -296,20 +348,22 @@ const FamilyTree = () => {
               );
             }
 
+            const isHighlighted = highlightedId === node.id;
+
             return (
               <motion.div
                 key={node.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ scale: 1.05, y: -2 }}
-                style={{ 
-                  left: node.x - 100, 
-                  top: node.y - 30,
-                  width: 200,
-                  height: 60
-                }}
+                style={{ left: node.x - 100, top: node.y - 30, width: 200, height: 60 }}
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
-                className="absolute bg-white rounded-xl border border-stone-100 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] hover:border-amber-200 transition-all p-2 flex items-center gap-3 cursor-pointer group z-20"
+                className={cn(
+                  "absolute bg-white rounded-xl border transition-all p-2 flex items-center gap-3 cursor-pointer group z-20",
+                  isHighlighted 
+                    ? "ring-4 ring-amber-500 border-amber-500 shadow-2xl scale-110 z-50" 
+                    : "border-stone-100 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] hover:border-amber-200"
+                )}
               >
                 <SmartSuggestionHover personId={node.id} />
                 

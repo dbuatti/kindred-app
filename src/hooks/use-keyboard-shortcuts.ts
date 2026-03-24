@@ -39,6 +39,9 @@ export const useKeyboardShortcuts = (customShortcuts: ShortcutConfig[] = []) => 
       } else if (key === 'p') {
         navigate('/profile');
         toast.info("Opening Your Profile", { duration: 1000 });
+      } else if (key === '?') {
+        // This will be handled by the ShortcutHelpDialog component
+        window.dispatchEvent(new CustomEvent('toggle-shortcut-help'));
       }
 
       // Custom shortcuts passed to the hook

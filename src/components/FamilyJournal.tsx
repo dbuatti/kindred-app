@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useFamily } from '../context/FamilyContext';
 import { formatDistanceToNow } from 'date-fns';
-import { Mic, MessageSquare, Heart, ArrowRight, Camera, Users, Filter, X } from 'lucide-react';
+import { Mic, MessageSquare, Heart, ArrowRight, Camera, Users, Filter, X, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -33,6 +33,23 @@ const FamilyJournal = () => {
       toast.success("You warmed this story. The family will feel the love!", {
         icon: <Heart className="w-4 h-4 text-red-500 fill-current" />
       });
+    }
+  };
+
+  const handleShareMemory = (memory: any) => {
+    const baseUrl = window.location.origin;
+    const personUrl = getPersonUrl(memory.personId, memory.personName);
+    const shareUrl = `${baseUrl}${personUrl}?memory=${memory.id}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: `A story about ${memory.personName}`,
+        text: memory.content,
+        url: shareUrl
+      });
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+      toast.success("Link to this story copied!");
     }
   };
 
@@ -127,6 +144,13 @@ const FamilyJournal = () => {
                           </button>
                         )}
                       </div>
+                      <button 
+                        onClick={() => handleShareMemory(memory)}
+                        className="p-2 rounded-full text-stone-300 hover:text-amber-600 hover:bg-amber-50 transition-all opacity-0 group-hover:opacity-100"
+                        title="Share this story"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
                     <div className={cn(
