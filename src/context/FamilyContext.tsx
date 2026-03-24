@@ -33,6 +33,8 @@ interface FamilyContextType {
   isAdmin: boolean;
   theme: 'default' | 'heritage';
   setTheme: (theme: 'default' | 'heritage') => void;
+  treeLayoutData: any;
+  setTreeLayoutData: (data: any) => void;
   addPerson: (person: Partial<Person>, relativeId?: string, relType?: string) => Promise<string | undefined>;
   updatePerson: (id: string, updates: Partial<Person> | Record<string, any>) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
@@ -59,6 +61,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [theme, setThemeState] = useState<'default' | 'heritage'>('default');
+  const [treeLayoutData, setTreeLayoutData] = useState<any>(null);
   
   const isFetching = useRef(false);
   const lastFetchTime = useRef(0);
@@ -642,6 +645,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       isAdmin,
       theme,
       setTheme,
+      treeLayoutData,
+      setTreeLayoutData,
       addPerson, 
       updatePerson,
       deletePerson,

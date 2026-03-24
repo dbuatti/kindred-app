@@ -43,16 +43,21 @@ const LINEAGE_COLOR = '#e2e8f0';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
-  const { people, relationships, loading, user } = useFamily();
+  const { people, relationships, loading, user, treeLayoutData, setTreeLayoutData } = useFamily();
   const [zoom, setZoom] = useState(0.75);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
-  const [layoutData, setLayoutData] = useState<any>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const treeContainerRef = useRef<HTMLDivElement>(null);
+  const lastDataHash = useRef<string>('');
 
   const calculateLayout = useCallback(async () => {
     if (loading || people.length === 0) return;
+    
+    // Simple hash to check if data actually changed
+    const currentHash = JSON.stringify(people.length + relationships.length);
+    if (treeLayoutData && currentHash === lastDataHash.current) return;
+    
     setIsCalculating(true);
     try {
       const validIds = new Set(people.map(p => p.id));
@@ -133,8 +138,8 @@ const FamilyTree = () => {
         layoutOptions: {
           'elk.algorithm': 'layered',
           'elk.direction': 'DOWN',
-          'elk.spacing.nodeNode': '105', // Tuned for tighter grouping
-          'elk.layered.spacing.nodeNodeBetweenLayers': '165', // Tuned for hierarchy clarity
+          'elk.spacing.nodeNode': '105',
+          'elk.layered.spacing.nodeNodeBetweenLayers': '165',
           'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
           'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
           'elk.edgeRouting': 'ORTHOGONAL',
@@ -158,29 +163,32 @@ const FamilyTree = () => {
       const minY = Math.min(...nodes.map(n => n.y || 0));
       const maxY = Math.max(...nodes.map(n => (n.y || 0) + (n.height || 0)));
 
-      setLayoutData({
+      const newLayout = {
         nodes,
         edges,
         width: maxX - minX + 600,
         height: maxY - minY + 600,
         offsetX: -minX + 300,
         offsetY: -minY + 300
-      });
+      };
+
+      setTreeLayoutData(newLayout);
+      lastDataHash.current = currentHash;
     } catch (err) {
       console.error("[FamilyTree] Layout error:", err);
     } finally {
       setIsCalculating(false);
     }
-  }, [people, relationships, loading]);
+  }, [people, relationships, loading, treeLayoutData, setTreeLayoutData]);
 
   useEffect(() => {
     calculateLayout();
   }, [calculateLayout]);
 
   const centerTree = useCallback(() => {
-    if (layoutData && treeContainerRef.current) {
+    if (treeLayoutData && treeContainerRef.current) {
       const container = treeContainerRef.current;
-      const scrollX = (layoutData.width * zoom) / 2 - container.clientWidth / 2;
+      const scrollX = (treeLayoutData.width * zoom) / 2 - container.clientWidth / 2;
       const scrollY = 100; 
       
       container.scrollTo({
@@ -189,14 +197,15 @@ const FamilyTree = () => {
         behavior: 'smooth'
       });
     }
-  }, [layoutData, zoom]);
+  }, [treeLayoutData, zoom]);
 
   useEffect(() => {
-    if (layoutData) {
+    // Only auto-center on first load of the layout
+    if (treeLayoutData && !lastDataHash.current) {
       const timer = setTimeout(centerTree, 500);
       return () => clearTimeout(timer);
     }
-  }, [layoutData, centerTree]);
+  }, [treeLayoutData, centerTree]);
 
   const searchResults = useMemo(() => {
     if (!searchQuery || searchQuery.length < 2) return [];
@@ -204,14 +213,14 @@ const FamilyTree = () => {
   }, [searchQuery, people]);
 
   const jumpToPerson = (id: string) => {
-    const node = layoutData?.nodes.find((n: any) => n.id === id);
+    const node = treeLayoutData?.nodes.find((n: any) => n.id === id);
     if (node && treeContainerRef.current) {
       setHighlightedId(id);
       setZoom(1);
       
       const container = treeContainerRef.current;
-      const scrollX = ((node.x + layoutData.offsetX + node.width / 2) * 1) - (container.clientWidth / 2);
-      const scrollY = ((node.y + layoutData.offsetY + node.height / 2) * 1) - (container.clientHeight / 2);
+      const scrollX = ((node.x + treeLayoutData.offsetX + node.width / 2) * 1) - (container.clientWidth / 2);
+      const scrollY = ((node.y + treeLayoutData.offsetY + node.height / 2) * 1) - (container.clientHeight / 2);
       
       container.scrollTo({
         left: scrollX,
@@ -232,8 +241,8 @@ const FamilyTree = () => {
   const drawElkEdge = (edge: any) => {
     if (!edge.sections || edge.sections.length === 0) return "";
     const section = edge.sections[0];
-    const ox = layoutData.offsetX;
-    const oy = layoutData.offsetY;
+    const ox = treeLayoutData.offsetX;
+    const oy = treeLayoutData.offsetY;
     
     let path = `M ${section.startPoint.x + ox} ${section.startPoint.y + oy}`;
     
@@ -247,7 +256,8 @@ const FamilyTree = () => {
     return path;
   };
 
-  if (loading || isCalculating) return (
+  // Only show full-page loader if we have NO layout data yet
+  if (loading || (isCalculating && !treeLayoutData)) return (
     <div className="min-h-screen bg-[#FDFCF9] flex flex-col items-center justify-center gap-6">
       <div className="h-20 w-20 bg-amber-50 rounded-full flex items-center justify-center text-amber-600 animate-pulse">
         <Sparkles className="w-10 h-10" />
@@ -259,7 +269,7 @@ const FamilyTree = () => {
     </div>
   );
 
-  if (!layoutData) return null;
+  if (!treeLayoutData) return null;
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] overflow-hidden flex flex-col">
@@ -345,17 +355,17 @@ const FamilyTree = () => {
           style={{ 
             scale: zoom, 
             transformOrigin: 'center top',
-            width: layoutData.width,
-            height: layoutData.height
+            width: treeLayoutData.width,
+            height: treeLayoutData.height
           }}
           className="relative mx-auto"
         >
           <svg 
-            width={layoutData.width} 
-            height={layoutData.height} 
+            width={treeLayoutData.width} 
+            height={treeLayoutData.height} 
             className="absolute inset-0 pointer-events-none overflow-visible z-0"
           >
-            {layoutData.edges.map((edge: any, i: number) => {
+            {treeLayoutData.edges.map((edge: any, i: number) => {
               const isMarriage = edge.type === 'marriage';
               const path = drawElkEdge(edge);
               
@@ -378,9 +388,9 @@ const FamilyTree = () => {
             })}
           </svg>
 
-          {layoutData.nodes.map((node: any) => {
-            const x = node.x + layoutData.offsetX;
-            const y = node.y + layoutData.offsetY;
+          {treeLayoutData.nodes.map((node: any) => {
+            const x = node.x + treeLayoutData.offsetX;
+            const y = node.y + treeLayoutData.offsetY;
 
             if (node.isUnion) {
               return (
