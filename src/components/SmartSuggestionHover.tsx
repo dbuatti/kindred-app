@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { getInverseRelationship } from '@/lib/relationships';
 
 interface SmartSuggestionHoverProps {
   personId: string;
@@ -46,7 +47,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
 
     const items: { id: string; text: string; action: () => Promise<void> }[] = [];
 
-    // 1. Sibling Inference
+    // 1. Sibling Inference (Shared Parents)
     const actualParentIds = relationships
       .filter(r => {
         const t = r.relationship_type.toLowerCase();
@@ -92,7 +93,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       });
     }
 
-    // 2. Parent Inference
+    // 2. Parent Inference (Sibling of my sibling)
     mySiblingIds.forEach(sibId => {
       const sibParentIds = relationships
         .filter(r => {
@@ -130,54 +131,46 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       });
     });
 
-    // 3. Spouse Inference
-    const actualChildIds = relationships
-      .filter(r => {
-        const t = r.relationship_type.toLowerCase();
-        if (r.person_id === personId && ['mother', 'father', 'parent'].includes(t)) return true;
-        if (r.related_person_id === personId && ['son', 'daughter', 'child'].includes(t)) return true;
-        return false;
+    // 3. Sibling-of-Relative Inference (The "James/Scott" case)
+    // If A is my [Type] and B is A's sibling, then B is also my [Type]
+    const directRelatives = relationships
+      .filter(r => r.person_id === personId || r.related_person_id === personId)
+      .map(r => {
+        const isPrimary = r.person_id === personId;
+        const relId = isPrimary ? r.related_person_id : r.person_id;
+        const rel = people.find(p => p.id === relId);
+        if (!rel) return null;
+        const type = isPrimary ? r.relationship_type : getInverseRelationship(r.relationship_type, person.gender);
+        return { id: relId, name: rel.name, type };
       })
-      .map(r => r.person_id === personId ? r.related_person_id : r.person_id);
+      .filter(Boolean);
 
-    if (actualChildIds.length > 0) {
-      people.forEach(p => {
-        if (p.id === personId || areLinked(personId, p.id)) return;
+    directRelatives.forEach(rel => {
+      if (!rel) return;
+      const relId = rel.id;
+      const relType = rel.type;
+      
+      const siblingsOfRel = relationships
+        .filter(r => (r.person_id === relId || r.related_person_id === relId) && 
+                     ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
+        .map(r => r.person_id === relId ? r.related_person_id : r.person_id);
         
-        const theirChildIds = relationships
-          .filter(r => {
-            const t = r.relationship_type.toLowerCase();
-            if (r.person_id === p.id && ['mother', 'father', 'parent'].includes(t)) return true;
-            if (r.related_person_id === p.id && ['son', 'daughter', 'child'].includes(t)) return true;
-            return false;
-          })
-          .map(r => r.person_id === p.id ? r.related_person_id : r.person_id);
+      siblingsOfRel.forEach(sibId => {
+        if (sibId === personId || areLinked(personId, sibId)) return;
         
-        const sharesChild = theirChildIds.some(id => actualChildIds.includes(id));
-        if (sharesChild) {
-          const theirParentIds = relationships
-            .filter(r => {
-              const t = r.relationship_type.toLowerCase();
-              if (r.related_person_id === p.id && ['mother', 'father', 'parent'].includes(t)) return true;
-              if (r.person_id === p.id && ['son', 'daughter', 'child'].includes(t)) return true;
-              return false;
-            })
-            .map(r => r.person_id === p.id ? r.related_person_id : r.person_id);
-          
-          const sharesParent = theirParentIds.some(id => actualParentIds.includes(id));
-          if (sharesParent) return;
-
+        const sibling = people.find(p => p.id === sibId);
+        if (sibling) {
           items.push({
-            id: `spouse-${p.id}`,
-            text: `Are ${person.name.split(' ')[0]} and ${p.name.split(' ')[0]} spouses?`,
+            id: `sib-rel-${relId}-${sibId}`,
+            text: `Since ${rel.name.split(' ')[0]} is a ${relType}, is their sibling ${sibling.name.split(' ')[0]} also a ${relType}?`,
             action: async () => {
               if (isAdmin) {
-                await addRelationship(personId, p.id, 'spouse');
+                await addRelationship(personId, sibId, relType);
               } else {
                 await addSuggestion({
                   personId: personId,
                   fieldName: 'link_existing',
-                  suggestedValue: `LINK_EXISTING: ${p.id} as spouse to ${personId}`,
+                  suggestedValue: `LINK_EXISTING: ${sibId} as ${relType} to ${personId}`,
                   suggestedByEmail: user?.email || 'family@kindred.com'
                 });
               }
@@ -185,7 +178,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
           });
         }
       });
-    }
+    });
 
     return items.filter(item => !dismissedIds.has(item.id));
   }, [person, personId, people, relationships, isAdmin, user, dismissedIds]);

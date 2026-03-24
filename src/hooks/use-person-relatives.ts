@@ -9,7 +9,10 @@ export const usePersonRelatives = (person: Person | null, people: Person[], rela
     if (!person || !relationships.length) return [];
     
     const seen = new Set();
-    return relationships
+    const relatives: any[] = [];
+
+    // 1. Get Direct Relatives
+    const direct = relationships
       .filter(r => r.person_id === person.id || r.related_person_id === person.id)
       .map(r => {
         const isPrimary = r.person_id === person.id;
@@ -31,9 +34,47 @@ export const usePersonRelatives = (person: Person | null, people: Person[], rela
         
         return {
           ...relative,
-          type: type
+          type: type,
+          isDirect: true
         };
       })
-      .filter(Boolean);
+      .filter((r): r is any => r !== null);
+
+    relatives.push(...direct);
+
+    // 2. Infer Siblings of Direct Relatives
+    // This solves the "James is Scott's brother, Scott is Daniele's cousin" case.
+    direct.forEach(rel => {
+      const siblings = relationships
+        .filter(r => (r.person_id === rel.id || r.related_person_id === rel.id) && 
+                     ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
+        .map(r => {
+          const sibId = r.person_id === rel.id ? r.related_person_id : r.person_id;
+          if (sibId === person.id) return null; // Don't link to self
+          
+          const sibling = people.find(p => p.id === sibId);
+          if (!sibling) return null;
+          
+          // Skip if this person is already a direct relative
+          if (relatives.some(existing => existing.id === sibling.id)) return null;
+          
+          return {
+            ...sibling,
+            type: rel.type, // Inherit the relationship type (e.g. Cousin)
+            isInferred: true,
+            inferredFrom: rel.name
+          };
+        })
+        .filter((s): s is any => s !== null);
+      
+      siblings.forEach(sib => {
+        // Final check to avoid duplicates
+        if (!relatives.some(r => r.id === sib.id)) {
+          relatives.push(sib);
+        }
+      });
+    });
+
+    return relatives;
   }, [person, relationships, people]);
 };
