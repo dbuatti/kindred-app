@@ -23,6 +23,17 @@ import AddPersonDialog from '../components/AddPersonDialog';
 import SmartSuggestionHover from '../components/SmartSuggestionHover';
 import TreeSmartInbox from '../components/TreeSmartInbox';
 
+// A palette of soft, distinct colors for family branches
+const BRANCH_COLORS = [
+  '#d97706', // Amber
+  '#2563eb', // Blue
+  '#059669', // Emerald
+  '#7c3aed', // Violet
+  '#db2777', // Pink
+  '#ea580c', // Orange
+  '#0891b2', // Cyan
+];
+
 const FamilyTree = () => {
   const navigate = useNavigate();
   const { people, relationships, loading, refreshData } = useFamily();
@@ -35,8 +46,8 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph();
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 100, // Increased horizontal spacing
-        ranksep: 120, // Increased vertical spacing
+        nodesep: 120, 
+        ranksep: 150, // Increased vertical spacing for smoother curves
         marginx: 100, 
         marginy: 100,
       });
@@ -59,8 +70,10 @@ const FamilyTree = () => {
         });
       });
 
-      // 2. Identify Unions (Spouse pairs)
-      const unions: Record<string, { id: string, p1: string, p2: string, children: Set<string> }> = {};
+      // 2. Identify Unions (Spouse pairs) and assign branch colors
+      const unions: Record<string, { id: string, p1: string, p2: string, children: Set<string>, color: string }> = {};
+      let colorIdx = 0;
+
       relationships.forEach(r => {
         if (r.relationship_type.toLowerCase() === 'spouse') {
           if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
@@ -70,8 +83,10 @@ const FamilyTree = () => {
                 id: `union_${pairId}`, 
                 p1: r.person_id, 
                 p2: r.related_person_id, 
-                children: new Set() 
+                children: new Set(),
+                color: BRANCH_COLORS[colorIdx % BRANCH_COLORS.length]
               };
+              colorIdx++;
             }
           }
         }
@@ -102,19 +117,19 @@ const FamilyTree = () => {
             union.children.add(childId);
           } else {
             // Direct parent link if no union found
-            g.setEdge(parentId, childId, { type: 'lineage', weight: 1 });
+            g.setEdge(parentId, childId, { type: 'lineage', weight: 1, color: '#e7e5e4' });
           }
         }
       });
 
       // 4. Add Union Nodes and Marriage Edges
       Object.values(unions).forEach(u => {
-        g.setNode(u.id, { width: 20, height: 20, isUnion: true });
-        g.setEdge(u.p1, u.id, { type: 'marriage', weight: 2 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', weight: 2 });
+        g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
+        g.setEdge(u.p1, u.id, { type: 'marriage', weight: 2, color: u.color });
+        g.setEdge(u.p2, u.id, { type: 'marriage', weight: 2, color: u.color });
         
         u.children.forEach(childId => {
-          g.setEdge(u.id, childId, { type: 'lineage', weight: 1, parentId: u.id });
+          g.setEdge(u.id, childId, { type: 'lineage', weight: 1, parentId: u.id, color: u.color });
         });
       });
 
@@ -125,22 +140,22 @@ const FamilyTree = () => {
         from: g.node(e.v), 
         to: g.node(e.w),
         type: g.edge(e).type,
-        parentId: g.edge(e).parentId
+        color: g.edge(e).color
       }));
 
       // Calculate bounding box
-      const minX = Math.min(...nodes.map(n => n.x - 120));
-      const maxX = Math.max(...nodes.map(n => n.x + 120));
-      const minY = Math.min(...nodes.map(n => n.y - 50));
-      const maxY = Math.max(...nodes.map(n => n.y + 50));
+      const minX = Math.min(...nodes.map(n => n.x - 150));
+      const maxX = Math.max(...nodes.map(n => n.x + 150));
+      const minY = Math.min(...nodes.map(n => n.y - 100));
+      const maxY = Math.max(...nodes.map(n => n.y + 100));
 
       return {
         nodes,
         edges,
-        width: maxX - minX + 200,
-        height: maxY - minY + 200,
-        offsetX: -minX + 100,
-        offsetY: -minY + 100
+        width: maxX - minX + 300,
+        height: maxY - minY + 300,
+        offsetX: -minX + 150,
+        offsetY: -minY + 150
       };
     } catch (err) {
       console.error("[FamilyTree] Layout error:", err);
@@ -230,14 +245,14 @@ const FamilyTree = () => {
               let path = "";
 
               if (isMarriage) {
+                // Straight line for marriage
                 path = `M ${startX} ${startY} L ${endX} ${endY}`;
               } else {
-                // Standard elbow connector
-                const midY = startY + (endY - startY) / 2;
+                // Smooth Cubic Bezier curve for lineage
+                // This prevents multiple children from sharing a single horizontal line
+                const midY = startY + (endY - startY) * 0.5;
                 path = `M ${startX} ${startY} 
-                        L ${startX} ${midY} 
-                        L ${endX} ${midY} 
-                        L ${endX} ${endY}`;
+                        C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               }
               
               return (
@@ -247,11 +262,12 @@ const FamilyTree = () => {
                   animate={{ pathLength: 1, opacity: 1 }}
                   transition={{ duration: 1.5, ease: "easeInOut" }}
                   d={path}
-                  stroke={isMarriage ? '#f87171' : '#e7e5e4'}
-                  strokeWidth={isMarriage ? "3" : "2"}
+                  stroke={edge.color}
+                  strokeWidth={isMarriage ? "4" : "2.5"}
                   fill="none"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  style={{ filter: isMarriage ? 'drop-shadow(0 0 2px rgba(0,0,0,0.1))' : 'none' }}
                 />
               );
             })}
@@ -262,10 +278,15 @@ const FamilyTree = () => {
               return (
                 <div 
                   key={node.id}
-                  style={{ left: node.x - 10, top: node.y - 10 }}
-                  className="absolute w-5 h-5 rounded-full bg-red-100 border-2 border-red-400 flex items-center justify-center"
+                  style={{ 
+                    left: node.x - 20, 
+                    top: node.y - 20,
+                    backgroundColor: node.color + '20', // 20% opacity
+                    borderColor: node.color
+                  }}
+                  className="absolute w-10 h-10 rounded-full border-2 flex items-center justify-center shadow-sm z-10"
                 >
-                  <Heart className="w-2 h-2 text-red-500 fill-current" />
+                  <Heart className="w-5 h-5 fill-current" style={{ color: node.color }} />
                 </div>
               );
             }
@@ -316,12 +337,12 @@ const FamilyTree = () => {
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-20">
         <div className="bg-stone-900 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-stone-200" />
+            <div className="h-2 w-2 rounded-full bg-stone-400" />
             <span className="text-[10px] font-bold uppercase tracking-widest">Lineage</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-red-400" />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Marriage</span>
+            <Heart className="w-3 h-3 text-red-400 fill-current" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Marriage Branch</span>
           </div>
         </div>
       </div>
