@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
@@ -7,57 +7,58 @@ import { toast } from 'sonner';
 const AuthCallback = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const processed = useRef(false);
 
   useEffect(() => {
     const handleAuth = async () => {
+      // Prevent double-processing in Strict Mode
+      if (processed.current) return;
+      processed.current = true;
+
       const token_hash = searchParams.get('token_hash');
       const type = searchParams.get('type');
       const inviteToken = searchParams.get('token');
 
-      if (token_hash && type) {
-        console.log("[auth-callback] Verifying token...", { type });
-        const { error } = await supabase.auth.verifyOtp({
-          token_hash,
-          type: type as any,
-        });
+      try {
+        if (token_hash && type) {
+          console.log("[auth-callback] Verifying token...", { type });
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash,
+            type: type as any,
+          });
 
-        if (error) {
-          console.error("[auth-callback] Verification error:", error.message);
-          toast.error("Verification failed: " + error.message);
-          navigate('/login');
-          return;
+          if (error) throw error;
         }
-      }
 
-      const { data, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error("[auth-callback] Session error:", sessionError.message);
-        toast.error("Authentication failed: " + sessionError.message);
-        navigate('/login');
-      } else if (data.session) {
-        console.log("[auth-callback] Success! Checking for invite token...");
+        // Wait a tiny bit for the session to propagate
+        const { data, error: sessionError } = await supabase.auth.getSession();
         
-        // If we have an invite token, link the user to the person record
-        if (inviteToken) {
-          const { error: linkError } = await supabase
-            .from('people')
-            .update({ user_id: data.session.user.id })
-            .eq('invite_token', inviteToken)
-            .is('user_id', null);
+        if (sessionError) throw sessionError;
 
-          if (linkError) {
-            console.error("[auth-callback] Error linking profile:", linkError.message);
-          } else {
-            console.log("[auth-callback] Profile linked successfully.");
+        if (data.session) {
+          console.log("[auth-callback] Success! Checking for invite token...");
+          
+          if (inviteToken) {
+            const { error: linkError } = await supabase
+              .from('people')
+              .update({ user_id: data.session.user.id })
+              .eq('invite_token', inviteToken)
+              .is('user_id', null);
+
+            if (linkError) console.error("[auth-callback] Error linking profile:", linkError.message);
           }
-        }
 
-        toast.success("Welcome back!");
-        navigate('/');
-      } else {
-        console.warn("[auth-callback] No session found, redirecting to login.");
-        navigate('/login');
+          toast.success("Welcome back!");
+          // Use replace to prevent going back to the callback page
+          navigate('/', { replace: true });
+        } else {
+          console.warn("[auth-callback] No session found, redirecting to login.");
+          navigate('/login', { replace: true });
+        }
+      } catch (error: any) {
+        console.error("[auth-callback] Auth error:", error.message);
+        toast.error("Authentication failed. Please try again.");
+        navigate('/login', { replace: true });
       }
     };
 

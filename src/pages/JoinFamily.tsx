@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Heart, ArrowRight, Mail, Loader2 } from 'lucide-react';
@@ -9,11 +9,19 @@ import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 
 const JoinFamily = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const [email, setEmail] = useState('');
   const [isSent, setIsSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // If user is already logged in, just send them home
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) navigate('/');
+    });
+  }, [navigate]);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +29,6 @@ const JoinFamily = () => {
 
     setIsLoading(true);
     try {
-      // Append the token to the redirect URL so AuthCallback can process it
       const redirectTo = token 
         ? `${window.location.origin}/auth/confirm?token=${token}`
         : `${window.location.origin}/auth/confirm`;

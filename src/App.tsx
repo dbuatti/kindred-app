@@ -26,46 +26,38 @@ import ShortcutHelpDialog from "./components/ShortcutHelpDialog";
 
 const queryClient = new QueryClient();
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (loading) return null;
-  if (!session) return <Navigate to="/login" />;
-
-  return <>{children}</>;
-};
-
-const OnboardingCheck = ({ children }: { children: React.ReactNode }) => {
-  const { user, profiles, loading } = useFamily();
+const AuthGuard = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading, profiles } = useFamily();
   const location = useLocation();
 
-  if (loading) return null;
-  
-  const profile = user ? profiles[user.id] : null;
-  
-  if (user && profile && !profile.onboarding_completed && location.pathname !== '/onboarding') {
-    return <Navigate to="/onboarding" />;
+  // While the app is determining if we are logged in, show nothing (or a loader)
+  // to prevent flickering or premature redirects
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#FDFCF9] flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="h-12 w-12 bg-amber-100 rounded-full" />
+          <p className="text-stone-400 font-serif italic">Opening the archive...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not logged in, send to login
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // If logged in but onboarding isn't done, send to onboarding
+  const profile = profiles[user.id];
+  if (profile && !profile.onboarding_completed && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return <>{children}</>;
 };
 
 const PageWrapper = ({ children }: { children: React.ReactNode }) => {
-  // Initialize global shortcuts
   useKeyboardShortcuts();
   
   return (
@@ -85,18 +77,22 @@ const AnimatedRoutes = () => {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
+        {/* Public Routes */}
         <Route path="/login" element={<PageWrapper><Login /></PageWrapper>} />
         <Route path="/join" element={<PageWrapper><JoinFamily /></PageWrapper>} />
         <Route path="/auth/confirm" element={<PageWrapper><AuthCallback /></PageWrapper>} />
-        <Route path="/onboarding" element={<ProtectedRoute><PageWrapper><Onboarding /></PageWrapper></ProtectedRoute>} />
-        <Route path="/edit-profile" element={<ProtectedRoute><PageWrapper><EditProfile /></PageWrapper></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><PageWrapper><Profile /></PageWrapper></ProtectedRoute>} />
-        <Route path="/help" element={<ProtectedRoute><PageWrapper><Help /></PageWrapper></ProtectedRoute>} />
-        <Route path="/tree" element={<ProtectedRoute><OnboardingCheck><PageWrapper><FamilyTree /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
-        <Route path="/complete" element={<ProtectedRoute><OnboardingCheck><PageWrapper><CompleteArchive /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
-        <Route path="/" element={<ProtectedRoute><OnboardingCheck><PageWrapper><Index /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
-        <Route path="/person/:slug" element={<ProtectedRoute><OnboardingCheck><PageWrapper><PersonDetail /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
-        <Route path="/admin" element={<ProtectedRoute><OnboardingCheck><PageWrapper><AdminDashboard /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
+        
+        {/* Protected Routes */}
+        <Route path="/onboarding" element={<AuthGuard><PageWrapper><Onboarding /></PageWrapper></AuthGuard>} />
+        <Route path="/edit-profile" element={<AuthGuard><PageWrapper><EditProfile /></PageWrapper></AuthGuard>} />
+        <Route path="/profile" element={<AuthGuard><PageWrapper><Profile /></PageWrapper></AuthGuard>} />
+        <Route path="/help" element={<AuthGuard><PageWrapper><Help /></PageWrapper></AuthGuard>} />
+        <Route path="/tree" element={<AuthGuard><PageWrapper><FamilyTree /></PageWrapper></AuthGuard>} />
+        <Route path="/complete" element={<AuthGuard><PageWrapper><CompleteArchive /></PageWrapper></AuthGuard>} />
+        <Route path="/" element={<AuthGuard><PageWrapper><Index /></PageWrapper></AuthGuard>} />
+        <Route path="/person/:slug" element={<AuthGuard><PageWrapper><PersonDetail /></PageWrapper></AuthGuard>} />
+        <Route path="/admin" element={<AuthGuard><PageWrapper><AdminDashboard /></PageWrapper></AuthGuard>} />
+        
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
