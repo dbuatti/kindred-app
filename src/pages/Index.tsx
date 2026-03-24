@@ -62,8 +62,9 @@ const Index = () => {
     return nameMatch || memoryMatch;
   });
 
-  // Helper to get relatives for a person card
+  // Helper to get relatives for a person card - updated to show the PERSON'S role to the relative
   const getRelativesForPerson = (personId: string) => {
+    const person = people.find(p => p.id === personId);
     return relationships
       .filter(r => r.person_id === personId || r.related_person_id === personId)
       .map(r => {
@@ -72,9 +73,11 @@ const Index = () => {
         const relative = people.find(p => p.id === relativeId);
         if (!relative) return null;
 
-        const type = !isPrimary 
+        // If we are the Subject (isPrimary), the relationship_type is OUR role.
+        // If we are the Object (!isPrimary), we need the inverse of the Subject's role to get OUR role.
+        const type = isPrimary 
           ? r.relationship_type
-          : getInverseRelationship(r.relationship_type, relative.gender);
+          : getInverseRelationship(r.relationship_type, person?.gender);
 
         return { name: relative.name, type };
       })
