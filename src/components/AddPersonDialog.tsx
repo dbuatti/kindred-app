@@ -29,6 +29,8 @@ const GENDER_OPTIONS = [
   { label: "Other", value: "other" }
 ];
 
+const FORBIDDEN_NAMES = ["father", "mother", "parent", "child", "son", "daughter", "brother", "sister", "spouse"];
+
 const AddPersonDialog = ({ 
   trigger, 
   initialRelationship = '', 
@@ -62,6 +64,11 @@ const AddPersonDialog = ({
   const handleSave = async () => {
     if (!name || !relationship || !relatedToId) {
       toast.error("Please fill in all fields.");
+      return;
+    }
+
+    if (FORBIDDEN_NAMES.includes(name.toLowerCase().trim())) {
+      toast.error("Please enter a real name, not just a relationship title.");
       return;
     }
 

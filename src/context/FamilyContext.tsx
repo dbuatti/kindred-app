@@ -178,11 +178,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (error) throw error;
 
       if (relativeId && relType && person) {
-        await supabase.from('relationships').insert({
-          person_id: person.id,
-          related_person_id: relativeId,
-          relationship_type: relType.toLowerCase()
-        });
+        await addRelationship(person.id, relativeId, relType);
       }
 
       fetchData(true);
@@ -309,6 +305,19 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addRelationship = useCallback(async (personId: string, relatedId: string, type: string) => {
     if (!user) return;
+    
+    // Check if relationship already exists
+    const exists = relationships.some(r => 
+      ((r.person_id === personId && r.related_person_id === relatedId) || 
+       (r.person_id === relatedId && r.related_person_id === personId)) &&
+      r.relationship_type.toLowerCase() === type.toLowerCase()
+    );
+
+    if (exists) {
+      console.log("[FamilyContext] Relationship already exists, skipping.");
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('relationships')
@@ -323,7 +332,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.error("[FamilyContext] Error adding relationship:", error.message);
       toast.error("Failed to add relationship: " + error.message);
     }
-  }, [user, fetchData]);
+  }, [user, relationships, fetchData]);
 
   const resolveSuggestion = useCallback(async (id: string, status: 'approved' | 'rejected') => {
     try {
@@ -354,11 +363,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               const personId = match[3];
               primaryPersonId = targetId;
 
-              await supabase.from('relationships').insert({
-                person_id: targetId,
-                related_person_id: personId,
-                relationship_type: relType
-              });
+              await addRelationship(targetId, personId, relType);
             }
           } else {
             const match = mainLine.match(/^(.+)\s\((.+)\)/);
@@ -380,11 +385,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               if (pErr) throw pErr;
               primaryPersonId = newPerson.id;
 
-              await supabase.from('relationships').insert({
-                person_id: newPerson.id,
-                related_person_id: suggestion.personId,
-                relationship_type: type.toLowerCase()
-              });
+              await addRelationship(newPerson.id, suggestion.personId, type.toLowerCase());
             }
           }
 
@@ -395,11 +396,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               const targetMatch = line.match(/\[Target:\s(.+)\]/);
               const roleMatch = line.match(/\[Role:\s(.+)\]/);
               if (targetMatch && roleMatch) {
-                await supabase.from('relationships').insert({
-                  person_id: primaryPersonId,
-                  related_person_id: targetMatch[1],
-                  relationship_type: roleMatch[1].toLowerCase()
-                });
+                await addRelationship(primaryPersonId, targetMatch[1], roleMatch[1].toLowerCase());
               }
             }
           }
@@ -419,7 +416,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       toast.error("Failed to resolve suggestion: " + error.message);
       fetchData(true);
     }
-  }, [suggestions, fetchData]);
+  }, [suggestions, fetchData, addRelationship]);
 
   const resolveAllSuggestions = useCallback(async (status: 'approved' | 'rejected') => {
     const pending = suggestions.filter(s => s.status === 'pending');
