@@ -14,7 +14,7 @@ import BottomNav from '../components/BottomNav';
 import SearchBar from '../components/index/SearchBar';
 import RecentPeople from '../components/index/RecentPeople';
 import { PersonCardSkeleton } from '../components/SkeletonLoader';
-import { Share2, ScrollText, HelpCircle, UserCircle, Network, Users, ShieldCheck, Sparkles, History, ArrowRight, Search } from 'lucide-react';
+import { Share2, ScrollText, HelpCircle, UserCircle, Users, ShieldCheck, Sparkles, History, ArrowRight, Search } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
@@ -88,10 +88,6 @@ const Index = () => {
                   <span className="text-[10px] font-bold uppercase tracking-widest">Admin</span>
                 </button>
               )}
-              <button onClick={() => navigate('/tree')} className="flex flex-col items-center gap-1 text-stone-500 hover:text-amber-600 transition-colors">
-                <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center"><Network className="w-6 h-6" /></div>
-                <span className="text-[10px] font-bold uppercase tracking-widest">Tree</span>
-              </button>
               <button onClick={() => navigate('/help')} className="flex flex-col items-center gap-1 text-stone-500 hover:text-amber-600 transition-colors">
                 <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center"><HelpCircle className="w-6 h-6" /></div>
                 <span className="text-[10px] font-bold uppercase tracking-widest">Help</span>

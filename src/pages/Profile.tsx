@@ -240,9 +240,6 @@ const Profile = () => {
               {relatives.length === 0 ? (
                 <Card className="p-8 border-dashed border-2 border-stone-200 bg-transparent text-center space-y-4 md:col-span-2">
                   <p className="text-stone-400 italic">No connections mapped yet.</p>
-                  <Button variant="outline" onClick={() => navigate('/tree')} className="rounded-full">
-                    View Family Tree
-                  </Button>
                 </Card>
               ) : (
                 relatives.map((rel: any) => (

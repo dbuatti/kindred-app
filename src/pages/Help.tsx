@@ -21,7 +21,7 @@ const Help = () => {
   const sections = [
     {
       title: "How to find someone",
-      description: "Use the big search bar at the top to type a name, or look through the 'Family Tree' list to see everyone in our archive.",
+      description: "Use the big search bar at the top to type a name, or look through the 'Family Members' list to see everyone in our archive.",
       icon: <Search className="w-10 h-10 text-amber-600" />,
       color: "bg-amber-50"
     },

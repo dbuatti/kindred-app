@@ -18,7 +18,6 @@ import Onboarding from "./pages/Onboarding";
 import EditProfile from "./pages/EditProfile";
 import Help from "./pages/Help";
 import Profile from "./pages/Profile";
-import TreeDebug from "./pages/TreeDebug";
 import CompleteArchive from "./pages/CompleteArchive";
 import DataExportButton from "./components/DataExportButton";
 
@@ -86,7 +85,6 @@ const AnimatedRoutes = () => {
         <Route path="/profile" element={<ProtectedRoute><PageWrapper><Profile /></PageWrapper></ProtectedRoute>} />
         <Route path="/help" element={<ProtectedRoute><PageWrapper><Help /></PageWrapper></ProtectedRoute>} />
         <Route path="/complete" element={<ProtectedRoute><OnboardingCheck><PageWrapper><CompleteArchive /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
-        <Route path="/admin/tree" element={<ProtectedRoute><OnboardingCheck><PageWrapper><TreeDebug /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
         <Route path="/" element={<ProtectedRoute><OnboardingCheck><PageWrapper><Index /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
         <Route path="/person/:slug" element={<ProtectedRoute><OnboardingCheck><PageWrapper><PersonDetail /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><OnboardingCheck><PageWrapper><AdminDashboard /></PageWrapper></OnboardingCheck></ProtectedRoute>} />

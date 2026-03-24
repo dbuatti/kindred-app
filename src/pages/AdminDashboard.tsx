@@ -13,9 +13,7 @@ import {
   UserCircle,
   Clock,
   ChevronRight,
-  Link as LinkIcon,
-  Activity,
-  Network
+  Link as LinkIcon
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -31,7 +29,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { getPersonUrl } from '@/lib/slugify';
 import EditPersonDialog from '../components/EditPersonDialog';
 import AddPersonDialog from '../components/AddPersonDialog';
-import TreeDiagnostics from '../components/TreeDiagnostics';
 import AdminStats from '../components/admin/AdminStats';
 import { toast } from 'sonner';
 
@@ -94,26 +91,10 @@ const AdminDashboard = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-12 space-y-10">
-        <div className="bg-stone-900 text-white p-8 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
-          <div className="space-y-2 text-center md:text-left">
-            <h2 className="text-2xl font-serif font-bold">Tree Debugger</h2>
-            <p className="text-stone-400 text-sm">Access the full-screen logical grid to diagnose connection issues.</p>
-          </div>
-          <Button 
-            onClick={() => navigate('/admin/tree')}
-            className="bg-amber-600 hover:bg-amber-700 text-white rounded-2xl px-8 h-14 gap-2 font-bold"
-          >
-            <Network className="w-5 h-5" /> Open Debug Tree
-          </Button>
-        </div>
-
         <Tabs defaultValue="overview" className="space-y-8">
           <TabsList className="bg-stone-100 p-1 rounded-2xl h-14 w-full md:w-auto">
             <TabsTrigger value="overview" className="rounded-xl px-6 data-[state=active]:bg-white">Overview</TabsTrigger>
             <TabsTrigger value="people" className="rounded-xl px-6 data-[state=active]:bg-white">People</TabsTrigger>
-            <TabsTrigger value="diagnostics" className="rounded-xl px-6 data-[state=active]:bg-white flex items-center gap-2">
-              <Activity className="w-4 h-4" /> Diagnostics
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-10">
@@ -239,10 +220,6 @@ const AdminDashboard = () => {
                 </Card>
               ))}
             </div>
-          </TabsContent>
-
-          <TabsContent value="diagnostics">
-            <TreeDiagnostics />
           </TabsContent>
         </Tabs>
       </main>
