@@ -236,10 +236,6 @@ const FamilyTree = () => {
                 <feGaussianBlur stdDeviation="4" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
-              <filter id="aura" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="12" result="blur" />
-                <feColorMatrix type="matrix" values="0 0 0 0 0   0 0 0 0 0   0 0 0 0 0  0 0 0 0.3 0" />
-              </filter>
             </defs>
             
             {data.edges.map((edge, i) => {
@@ -252,19 +248,17 @@ const FamilyTree = () => {
               const endX = edge.to.x;
               const endY = edge.to.y - (edge.to.isUnion ? 30 : 60); 
 
-              // "Luminous Circuit" Path Logic
-              // Vertical exit -> Horizontal travel -> Vertical entry
-              // With massive rounded corners for that organic feel
-              const radius = 60;
-              const midY = isMarriage ? startY + (endY - startY) * 0.5 : startY + 80 + (edge.index || 0) * 20;
-              const direction = endX > startX ? 1 : -1;
-
               let path = "";
               if (isMarriage) {
-                // Smooth Cubic Bezier for marriage to keep it distinct
+                // Simple, bold curve for marriage
+                const midY = startY + (endY - startY) * 0.5;
                 path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               } else {
-                // Step-Curve for lineage
+                // Clean Step-Curve for lineage
+                const radius = 40;
+                const midY = startY + 80 + (edge.index || 0) * 20;
+                const direction = endX > startX ? 1 : -1;
+                
                 path = `M ${startX} ${startY} 
                         L ${startX} ${midY - radius}
                         Q ${startX} ${midY}, ${startX + (radius * direction)} ${midY}
@@ -275,16 +269,6 @@ const FamilyTree = () => {
               
               return (
                 <g key={i}>
-                  {/* Background Aura */}
-                  <path
-                    d={path}
-                    stroke={edge.color}
-                    strokeWidth="12"
-                    fill="none"
-                    strokeLinecap="round"
-                    opacity="0.1"
-                    style={{ filter: 'url(#aura)' }}
-                  />
                   {/* Thick white background for contrast */}
                   <path
                     d={path}
@@ -292,13 +276,13 @@ const FamilyTree = () => {
                     strokeWidth={isMarriage ? "10" : "8"}
                     fill="none"
                     strokeLinecap="round"
-                    opacity="0.5"
+                    opacity="0.6"
                   />
                   {/* The glowing colored path */}
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 1.5, ease: "easeInOut", delay: i * 0.02 }}
+                    transition={{ duration: 1.5, ease: "easeInOut", delay: i * 0.01 }}
                     d={path}
                     stroke={edge.color}
                     strokeWidth={isMarriage ? "5" : "3.5"}
@@ -347,7 +331,7 @@ const FamilyTree = () => {
                   height: 120
                 }}
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
-                className="absolute bg-white/90 backdrop-blur-md rounded-[2rem] border-2 border-stone-100 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] hover:border-amber-200 transition-all p-5 flex items-center gap-5 cursor-pointer group z-20"
+                className="absolute bg-white rounded-[2rem] border-2 border-stone-100 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] hover:border-amber-200 transition-all p-5 flex items-center gap-5 cursor-pointer group z-20"
               >
                 <SmartSuggestionHover personId={node.id} />
                 
