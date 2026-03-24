@@ -17,7 +17,11 @@ import {
   Users,
   Tag,
   Heart,
-  Skull
+  Skull,
+  GraduationCap,
+  Shield,
+  Eye,
+  Utensils
 } from 'lucide-react';
 import SuggestionDialog from './SuggestionDialog';
 import { useFamily } from '../context/FamilyContext';
@@ -39,6 +43,11 @@ const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
       { id: 'nickname', label: 'Nickname', value: person.nickname, icon: Tag },
       { id: 'photo_url', label: 'Photo', value: person.photoUrl, icon: Camera },
       { id: 'vibe_sentence', label: 'Detailed Bio', value: person.vibeSentence && person.vibeSentence.length > 30, icon: Quote },
+      // New Legacy Fields
+      { id: 'education', label: 'Education', value: person.education, icon: GraduationCap },
+      { id: 'military_service', label: 'Military', value: person.militaryService, icon: Shield },
+      { id: 'physical_traits', label: 'Traits', value: person.physicalTraits, icon: Eye },
+      { id: 'favorite_things', label: 'Favorites', value: person.favoriteThings, icon: Utensils },
     ];
 
     // Add Maiden Name for females
@@ -50,6 +59,7 @@ const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
     if (person.isLiving === false) {
       items.push({ id: 'death_date', label: 'Date of Passing', value: person.deathDate || person.deathYear, icon: Skull });
       items.push({ id: 'death_place', label: 'Place of Passing', value: person.deathPlace, icon: MapPin });
+      items.push({ id: 'burial_place', label: 'Resting Place', value: person.burialPlace, icon: MapPin });
     }
 
     const completedCount = items.filter(item => item.value).length;

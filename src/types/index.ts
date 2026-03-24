@@ -19,6 +19,12 @@ export interface Profile {
   bio?: string;
   gender?: string;
   onboarding_completed?: boolean;
+  // New Legacy Fields
+  education?: string;
+  military_service?: string;
+  burial_place?: string;
+  physical_traits?: string;
+  favorite_things?: string;
 }
 
 export interface Comment {
@@ -78,6 +84,12 @@ export interface Person {
   relationshipType?: string;
   gender?: string;
   inviteToken?: string;
+  // New Legacy Fields
+  education?: string;
+  militaryService?: string;
+  burialPlace?: string;
+  physicalTraits?: string;
+  favoriteThings?: string;
 }
 
 export interface StoryPrompt {

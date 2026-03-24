@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Edit3, Sparkles, Calendar, MapPin, Briefcase, User, Quote, Camera, Heart, Skull, Tag } from 'lucide-react';
+import { Edit3, Sparkles, Calendar, MapPin, Briefcase, User, Quote, Camera, Heart, Skull, Tag, GraduationCap, Shield, Eye, Utensils } from 'lucide-react';
 import { Person } from '../types';
 import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
@@ -27,7 +27,12 @@ const FIELD_TO_KEY_MAP: Record<string, keyof Person> = {
   nickname: 'nickname',
   maiden_name: 'maidenName',
   vibe_sentence: 'vibeSentence',
-  photo_url: 'photoUrl'
+  photo_url: 'photoUrl',
+  education: 'education',
+  military_service: 'militaryService',
+  burial_place: 'burialPlace',
+  physical_traits: 'physicalTraits',
+  favorite_things: 'favoriteThings'
 };
 
 const FIELD_CONFIG: Record<string, { label: string, icon: any, placeholder: string, type: 'input' | 'textarea' | 'select' }> = {
@@ -41,7 +46,12 @@ const FIELD_CONFIG: Record<string, { label: string, icon: any, placeholder: stri
   nickname: { label: 'Nickname', icon: Tag, placeholder: 'e.g. "Bibi"', type: 'input' },
   maiden_name: { label: 'Maiden Name', icon: Heart, placeholder: 'Their family name at birth', type: 'input' },
   vibe_sentence: { label: 'Detailed Bio', icon: Quote, placeholder: 'Tell us about their personality...', type: 'textarea' },
-  photo_url: { label: 'Photo URL', icon: Camera, placeholder: 'Link to a photo...', type: 'input' }
+  photo_url: { label: 'Photo URL', icon: Camera, placeholder: 'Link to a photo...', type: 'input' },
+  education: { label: 'Education', icon: GraduationCap, placeholder: 'Schools, degrees, or mentors...', type: 'textarea' },
+  military_service: { label: 'Military Service', icon: Shield, placeholder: 'Branch, rank, or years served...', type: 'textarea' },
+  burial_place: { label: 'Final Resting Place', icon: MapPin, placeholder: 'Cemetery name and location...', type: 'input' },
+  physical_traits: { label: 'Physical Traits', icon: Eye, placeholder: 'Eye color, height, or unique features...', type: 'textarea' },
+  favorite_things: { label: 'Favorite Things', icon: Utensils, placeholder: 'Favorite meal, song, or hobby...', type: 'textarea' }
 };
 
 const GENDER_OPTIONS = [

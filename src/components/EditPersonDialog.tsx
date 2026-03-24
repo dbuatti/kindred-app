@@ -24,7 +24,12 @@ import {
   UserCheck,
   Calendar,
   MapPin,
-  Briefcase
+  Briefcase,
+  GraduationCap,
+  Shield,
+  Eye,
+  Utensils,
+  History
 } from 'lucide-react';
 import { Person } from '../types';
 import { useFamily } from '../context/FamilyContext';
@@ -38,16 +43,6 @@ interface EditPersonDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
-
-const RELATIONSHIP_OPTIONS = [
-  { label: "Mother", value: "mother" },
-  { label: "Father", value: "father" },
-  { label: "Spouse", value: "spouse" },
-  { label: "Son", value: "son" },
-  { label: "Daughter", value: "daughter" },
-  { label: "Brother", value: "brother" },
-  { label: "Sister", value: "sister" }
-];
 
 const GENDER_OPTIONS = [
   { label: "Male", value: "male" },
@@ -78,13 +73,14 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
     occupation: person.occupation || '',
     vibeSentence: person.vibeSentence || '',
     photoUrl: person.photoUrl || '',
-    personalityTags: person.personalityTags?.join(', ') || ''
+    personalityTags: person.personalityTags?.join(', ') || '',
+    // Legacy Fields
+    education: person.education || '',
+    militaryService: person.militaryService || '',
+    burialPlace: person.burialPlace || '',
+    physicalTraits: person.physicalTraits || '',
+    favoriteThings: person.favoriteThings || ''
   });
-
-  const [newRelType, setNewRelType] = useState('');
-  const [newRelTargetId, setNewRelTargetId] = useState('');
-  const [newPersonName, setNewPersonName] = useState('');
-  const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -103,29 +99,15 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
         occupation: person.occupation || '',
         vibeSentence: person.vibeSentence || '',
         photoUrl: person.photoUrl || '',
-        personalityTags: person.personalityTags?.join(', ') || ''
+        personalityTags: person.personalityTags?.join(', ') || '',
+        education: person.education || '',
+        militaryService: person.militaryService || '',
+        burialPlace: person.burialPlace || '',
+        physicalTraits: person.physicalTraits || '',
+        favoriteThings: person.favoriteThings || ''
       });
     }
   }, [person, isOpen]);
-
-  const currentRels = useMemo(() => {
-    return relationships
-      .filter(r => r.person_id === person.id || r.related_person_id === person.id)
-      .map(r => {
-        const isPrimary = r.person_id === person.id;
-        const targetId = isPrimary ? r.related_person_id : r.person_id;
-        const target = people.find(p => p.id === targetId);
-        return {
-          id: r.id,
-          targetName: target?.name || 'Unknown',
-          type: r.relationship_type
-        };
-      });
-  }, [relationships, person.id, people]);
-
-  const otherPeople = useMemo(() => {
-    return people.filter(p => p.id !== person.id);
-  }, [people, person.id]);
 
   const handleSave = async () => {
     if (!formData.name) return;
@@ -142,27 +124,6 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
     
     toast.success("Changes saved to the archive.");
     setIsOpen(false);
-  };
-
-  const handleAddRelationship = async () => {
-    if (!newRelType) return;
-
-    if (isCreatingNew) {
-      if (!newPersonName) return;
-      await addPerson({ 
-        name: newPersonName,
-        personalityTags: [newRelType]
-      }, person.id, newRelType);
-      setNewPersonName('');
-      toast.success(`${newPersonName} added and connected!`);
-    } else {
-      if (!newRelTargetId) return;
-      await addRelationship(newRelTargetId, person.id, newRelType);
-      setNewRelTargetId('');
-      toast.success("Relationship added!");
-    }
-    
-    setNewRelType('');
   };
 
   const handleDelete = async () => {
@@ -329,6 +290,77 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
                     className="bg-stone-50 border-none rounded-2xl h-14 text-base pl-12 focus-visible:ring-amber-500/20"
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-6 pt-4 border-t border-stone-100">
+              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-stone-400 flex items-center gap-2">
+                <History className="w-3 h-3" /> Legacy & Details
+              </h3>
+              
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Education</label>
+                  <div className="relative">
+                    <GraduationCap className="absolute left-4 top-4 w-4 h-4 text-stone-300" />
+                    <Textarea 
+                      value={formData.education}
+                      onChange={(e) => setFormData({...formData, education: e.target.value})}
+                      placeholder="Schools, degrees, or mentors..."
+                      className="bg-stone-50 border-none rounded-2xl min-h-[80px] text-base pl-12 focus-visible:ring-amber-500/20"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Military Service</label>
+                  <div className="relative">
+                    <Shield className="absolute left-4 top-4 w-4 h-4 text-stone-300" />
+                    <Textarea 
+                      value={formData.militaryService}
+                      onChange={(e) => setFormData({...formData, militaryService: e.target.value})}
+                      placeholder="Branch, rank, or years served..."
+                      className="bg-stone-50 border-none rounded-2xl min-h-[80px] text-base pl-12 focus-visible:ring-amber-500/20"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Physical Traits</label>
+                  <div className="relative">
+                    <Eye className="absolute left-4 top-4 w-4 h-4 text-stone-300" />
+                    <Textarea 
+                      value={formData.physicalTraits}
+                      onChange={(e) => setFormData({...formData, physicalTraits: e.target.value})}
+                      placeholder="Eye color, height, or unique features..."
+                      className="bg-stone-50 border-none rounded-2xl min-h-[80px] text-base pl-12 focus-visible:ring-amber-500/20"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Favorite Things</label>
+                  <div className="relative">
+                    <Utensils className="absolute left-4 top-4 w-4 h-4 text-stone-300" />
+                    <Textarea 
+                      value={formData.favoriteThings}
+                      onChange={(e) => setFormData({...formData, favoriteThings: e.target.value})}
+                      placeholder="Favorite meal, song, or hobby..."
+                      className="bg-stone-50 border-none rounded-2xl min-h-[80px] text-base pl-12 focus-visible:ring-amber-500/20"
+                    />
+                  </div>
+                </div>
+                {!formData.isLiving && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Final Resting Place</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
+                      <Input 
+                        value={formData.burialPlace}
+                        onChange={(e) => setFormData({...formData, burialPlace: e.target.value})}
+                        placeholder="Cemetery name and location..."
+                        className="bg-stone-50 border-none rounded-2xl h-12 text-base pl-12 focus-visible:ring-amber-500/20"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

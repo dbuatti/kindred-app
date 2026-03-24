@@ -128,6 +128,11 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         createdAt: p.created_at,
         userId: p.user_id,
         inviteToken: p.invite_token,
+        education: p.education,
+        militaryService: p.military_service,
+        burialPlace: p.burial_place,
+        physicalTraits: p.physical_traits,
+        favoriteThings: p.favorite_things,
         memories: (p.memories || []).map((m: any) => ({
           id: m.id,
           personId: m.person_id,
@@ -194,6 +199,11 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           personality_tags: newPerson.personalityTags,
           photo_url: newPerson.photoUrl,
           created_by_email: user.email,
+          education: newPerson.education,
+          military_service: newPerson.militaryService,
+          burial_place: newPerson.burialPlace,
+          physical_traits: newPerson.physicalTraits,
+          favorite_things: newPerson.favoriteThings
         }])
         .select()
         .single();
@@ -223,7 +233,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         'name', 'nickname', 'birth_year', 'birth_date', 'birth_place', 
         'death_year', 'death_date', 'death_place', 'occupation', 
         'vibe_sentence', 'personality_tags', 'photo_url', 'is_living', 
-        'gender', 'maiden_name'
+        'gender', 'maiden_name', 'education', 'military_service',
+        'burial_place', 'physical_traits', 'favorite_things'
       ];
       
       directKeys.forEach(key => {
@@ -246,6 +257,11 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if ('isLiving' in updates) dbUpdates.is_living = (updates as any).isLiving;
       if ('gender' in updates) dbUpdates.gender = updates.gender;
       if ('maidenName' in updates) dbUpdates.maiden_name = (updates as any).maidenName;
+      if ('education' in updates) dbUpdates.education = updates.education;
+      if ('militaryService' in updates) dbUpdates.military_service = (updates as any).militaryService;
+      if ('burialPlace' in updates) dbUpdates.burial_place = (updates as any).burialPlace;
+      if ('physicalTraits' in updates) dbUpdates.physical_traits = (updates as any).physicalTraits;
+      if ('favoriteThings' in updates) dbUpdates.favorite_things = (updates as any).favoriteThings;
 
       const { error } = await supabase
         .from('people')
