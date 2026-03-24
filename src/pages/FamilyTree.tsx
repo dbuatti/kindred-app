@@ -12,7 +12,8 @@ import {
   Heart,
   AlertCircle,
   RefreshCw,
-  UserPlus
+  UserPlus,
+  Maximize
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
@@ -32,10 +33,10 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph();
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 100, 
-        ranksep: 120, 
-        marginx: 50, 
-        marginy: 50,
+        nodesep: 120, 
+        ranksep: 150, 
+        marginx: 200, 
+        marginy: 200,
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -50,8 +51,8 @@ const FamilyTree = () => {
         }
 
         g.setNode(p.id, { 
-          width: 220, 
-          height: 80, 
+          width: 240, 
+          height: 100, 
           person: { ...p, displayYear: displayYear || 'Year Unknown' } 
         });
       });
@@ -124,14 +125,12 @@ const FamilyTree = () => {
         return check(startNode);
       };
 
-      // 4. Add Union Nodes and Edges to Graph (with cycle prevention)
+      // 4. Add Union Nodes and Edges to Graph
       Object.values(unions).forEach(u => {
-        // Check if adding this union's children creates a cycle
         const safeChildren = Array.from(u.children).filter(childId => {
           addLineageEdge(u.p1, childId);
           addLineageEdge(u.p2, childId);
           if (hasCycle(u.p1) || hasCycle(u.p2)) {
-            // Remove the edges if they caused a cycle
             lineageGraph[u.p1].pop();
             lineageGraph[u.p2].pop();
             return false;
@@ -147,7 +146,7 @@ const FamilyTree = () => {
         });
       });
 
-      // 5. Add Direct Parent Links (with cycle prevention)
+      // 5. Add Direct Parent Links
       directParentLinks.forEach(link => {
         const alreadyCovered = Object.values(unions).some(u => 
           (u.p1 === link.parentId || u.p2 === link.parentId) && u.children.has(link.childId)
@@ -164,13 +163,26 @@ const FamilyTree = () => {
 
       dagre.layout(g);
       
+      const nodes = g.nodes().map(v => ({ id: v, ...g.node(v) }));
+      const edges = g.edges().map(e => ({ 
+        from: g.node(e.v), 
+        to: g.node(e.w),
+        type: g.edge(e).type
+      }));
+
+      // Calculate bounding box for the container
+      const minX = Math.min(...nodes.map(n => n.x - 120));
+      const maxX = Math.max(...nodes.map(n => n.x + 120));
+      const minY = Math.min(...nodes.map(n => n.y - 50));
+      const maxY = Math.max(...nodes.map(n => n.y + 50));
+
       return {
-        nodes: g.nodes().map(v => ({ id: v, ...g.node(v) })),
-        edges: g.edges().map(e => ({ 
-          from: g.node(e.v), 
-          to: g.node(e.w),
-          type: g.edge(e).type
-        }))
+        nodes,
+        edges,
+        width: maxX - minX + 400,
+        height: maxY - minY + 400,
+        offsetX: -minX + 200,
+        offsetY: -minY + 200
       };
     } catch (err) {
       console.error("[FamilyTree] Layout error:", err);
@@ -189,7 +201,7 @@ const FamilyTree = () => {
           </div>
           <h2 className="text-3xl font-serif text-stone-800">Tree Layout Error</h2>
           <p className="text-stone-500 leading-relaxed">
-            We encountered a conflict in the family relationships. This usually happens if there are circular links (e.g., someone marked as their own parent) or redundant connections.
+            We encountered a conflict in the family relationships. This usually happens if there are circular links or redundant connections.
           </p>
           <div className="flex flex-col gap-3">
             <Button onClick={() => refreshData()} className="rounded-full bg-amber-600 hover:bg-amber-700 gap-2">
@@ -202,7 +214,7 @@ const FamilyTree = () => {
     );
   }
 
-  const data = treeData as { nodes: any[], edges: any[] };
+  const data = treeData as { nodes: any[], edges: any[], width: number, height: number, offsetX: number, offsetY: number };
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] overflow-hidden flex flex-col">
@@ -230,17 +242,27 @@ const FamilyTree = () => {
               <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="h-8 w-8 rounded-full"><ZoomOut className="w-4 h-4" /></Button>
               <span className="text-[10px] font-bold w-12 text-center">{Math.round(zoom * 100)}%</span>
               <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="h-8 w-8 rounded-full"><ZoomIn className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setZoom(0.8)} className="h-8 w-8 rounded-full" title="Reset Zoom"><Maximize className="w-4 h-4" /></Button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 relative overflow-auto p-20 cursor-grab active:cursor-grabbing bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:40px_40px]">
+      <main className="flex-1 relative overflow-auto p-10 cursor-grab active:cursor-grabbing bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:40px_40px]">
         <motion.div 
-          style={{ scale: zoom, transformOrigin: 'center top' }}
-          className="relative min-w-max min-h-max mx-auto"
+          style={{ 
+            scale: zoom, 
+            transformOrigin: 'center top',
+            width: data.width,
+            height: data.height
+          }}
+          className="relative mx-auto"
         >
-          <svg className="absolute inset-0 pointer-events-none overflow-visible">
+          <svg 
+            width={data.width} 
+            height={data.height} 
+            className="absolute inset-0 pointer-events-none overflow-visible"
+          >
             {data.edges.map((edge, i) => {
               const isMarriage = edge.type === 'marriage';
               
@@ -287,32 +309,32 @@ const FamilyTree = () => {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 style={{ 
-                  left: node.x - 110, 
-                  top: node.y - 40,
-                  width: 220,
-                  height: 80
+                  left: node.x - 120, 
+                  top: node.y - 50,
+                  width: 240,
+                  height: 100
                 }}
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
-                className="absolute bg-white rounded-xl border-2 border-stone-100 shadow-sm hover:shadow-md hover:border-amber-200 transition-all p-3 flex items-center gap-3 cursor-pointer group"
+                className="absolute bg-white rounded-2xl border-2 border-stone-100 shadow-sm hover:shadow-md hover:border-amber-200 transition-all p-4 flex items-center gap-4 cursor-pointer group"
               >
-                <div className="h-12 w-12 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 shadow-inner">
+                <div className="h-14 w-14 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 shadow-inner">
                   {node.person.photoUrl ? (
                     <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-200">
-                      <UserCircle className="w-6 h-6" />
+                      <UserCircle className="w-8 h-8" />
                     </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-stone-800 truncate">{node.person.name}</p>
-                  <p className="text-[9px] text-stone-400 uppercase tracking-widest truncate">
+                  <p className="text-sm font-bold text-stone-800 truncate">{node.person.name}</p>
+                  <p className="text-[10px] text-stone-400 uppercase tracking-widest truncate">
                     {node.person.displayYear}
                   </p>
                   {!node.person.isLiving && (
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <Heart className="w-2.5 h-2.5 text-red-200 fill-current" />
-                      <span className="text-[7px] text-stone-300 uppercase font-bold">In Memory</span>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Heart className="w-3 h-3 text-red-200 fill-current" />
+                      <span className="text-[8px] text-stone-300 uppercase font-bold">In Memory</span>
                     </div>
                   )}
                 </div>
