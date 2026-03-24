@@ -29,10 +29,10 @@ const FamilyTree = () => {
     // nodesep: horizontal distance between people
     g.setGraph({ 
       rankdir: 'TB', 
-      nodesep: 150, 
-      ranksep: 200, 
-      marginx: 50, 
-      marginy: 50,
+      nodesep: 100, 
+      ranksep: 150, 
+      marginx: 100, 
+      marginy: 100,
       ranker: 'network-simplex' 
     });
     g.setDefaultEdgeLabel(() => ({}));
@@ -47,7 +47,7 @@ const FamilyTree = () => {
       g.setNode(p.id, { 
         label: p.name, 
         width: 240, 
-        height: 120, 
+        height: 100, 
         person: { ...p, displayYear: displayYear || 'Year Unknown' } 
       });
     });
@@ -57,19 +57,20 @@ const FamilyTree = () => {
       
       // Parental links (Vertical)
       if (['mother', 'father', 'parent'].includes(type)) {
-        g.setEdge(r.person_id, r.related_person_id, { type: 'parental' });
+        g.setEdge(r.person_id, r.related_person_id, { type: 'parental', weight: 1 });
       } else if (['son', 'daughter', 'child'].includes(type)) {
-        g.setEdge(r.related_person_id, r.person_id, { type: 'parental' });
+        g.setEdge(r.related_person_id, r.person_id, { type: 'parental', weight: 1 });
       } 
-      // Spouse/Sibling links (Horizontal)
-      // minlen: 0 forces them onto the same rank (horizontal line)
+      // Spouse links (Horizontal - High priority)
       else if (['spouse', 'wife', 'husband'].includes(type)) {
-        g.setEdge(r.person_id, r.related_person_id, { type: 'spouse', minlen: 0, weight: 10 });
-      } else if (['brother', 'sister', 'sibling'].includes(type)) {
-        g.setEdge(r.person_id, r.related_person_id, { type: 'sibling', minlen: 0, weight: 5 });
+        g.setEdge(r.person_id, r.related_person_id, { type: 'spouse', minlen: 0, weight: 100 });
+      } 
+      // Sibling links (Horizontal - Medium priority)
+      else if (['brother', 'sister', 'sibling'].includes(type)) {
+        g.setEdge(r.person_id, r.related_person_id, { type: 'sibling', minlen: 0, weight: 10 });
       }
       else {
-        g.setEdge(r.person_id, r.related_person_id, { type: 'extended', minlen: 0 });
+        g.setEdge(r.person_id, r.related_person_id, { type: 'extended', minlen: 1 });
       }
     });
 
@@ -124,30 +125,35 @@ const FamilyTree = () => {
                   const isSibling = edge.type === 'sibling';
                   const isHorizontal = isSpouse || isSibling;
                   
-                  let startX = edge.from.x;
-                  let startY = edge.from.y;
-                  let endX = edge.to.x;
-                  let endY = edge.to.y;
+                  const startX = edge.from.x;
+                  const startY = edge.from.y;
+                  const endX = edge.to.x;
+                  const endY = edge.to.y;
+
+                  let path = "";
 
                   if (isHorizontal) {
-                    // Connect sides for horizontal relationships
-                    const fromLeft = edge.from.x < edge.to.x;
-                    startX = edge.from.x + (fromLeft ? 120 : -120);
-                    endX = edge.to.x + (fromLeft ? -120 : 120);
+                    // Direct horizontal line for spouses/siblings
+                    path = `M ${startX} ${startY} L ${endX} ${endY}`;
                   } else {
-                    // Connect bottom to top for vertical lineage
-                    startY = edge.from.y + 60;
-                    endY = edge.to.y - 60;
+                    // Orthogonal (step) line for parents to children
+                    const midY = startY + (endY - startY) / 2;
+                    path = `M ${startX} ${startY + 50} 
+                            L ${startX} ${midY} 
+                            L ${endX} ${midY} 
+                            L ${endX} ${endY - 50}`;
                   }
                   
                   return (
                     <path
                       key={i}
-                      d={`M ${startX} ${startY} L ${endX} ${endY}`}
+                      d={path}
                       stroke={isSpouse ? '#f87171' : isSibling ? '#94a3b8' : '#e7e5e4'}
                       strokeWidth={isSpouse ? "4" : "2"}
                       strokeDasharray={isSibling ? "5,5" : "0"}
                       fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                       className="transition-all duration-1000"
                     />
                   );
@@ -161,19 +167,19 @@ const FamilyTree = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   style={{ 
                     left: node.x - 120, 
-                    top: node.y - 60,
+                    top: node.y - 50,
                     width: 240,
-                    height: 120
+                    height: 100
                   }}
                   onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
                   className="absolute bg-white rounded-2xl border-2 border-stone-100 shadow-sm hover:shadow-xl hover:border-amber-200 transition-all p-4 flex items-center gap-4 cursor-pointer group"
                 >
-                  <div className="h-16 w-16 rounded-full overflow-hidden bg-stone-50 shrink-0 border-2 border-white shadow-inner">
+                  <div className="h-14 w-14 rounded-full overflow-hidden bg-stone-50 shrink-0 border-2 border-white shadow-inner">
                     {node.person.photoUrl ? (
                       <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-stone-200">
-                        <UserCircle className="w-10 h-10" />
+                        <UserCircle className="w-8 h-8" />
                       </div>
                     )}
                   </div>
