@@ -24,55 +24,53 @@ const TreeSmartInbox = () => {
     const items: { id: string; text: string; type: 'sibling' | 'parent' | 'spouse'; personId: string; targetId: string; action: () => Promise<void> }[] = [];
     const seenPairs = new Set<string>();
 
-    // Helper to get specific relationship IDs for any person
-    const getRelIds = (id: string, types: string[], direction: 'to' | 'from' | 'both') => {
-      return relationships
-        .filter(r => {
-          const t = r.relationship_type.toLowerCase();
-          const matchesType = types.some(type => t.includes(type));
-          if (!matchesType) return false;
-          if (direction === 'from') return r.person_id === id;
-          if (direction === 'to') return r.related_person_id === id;
-          return r.person_id === id || r.related_person_id === id;
-        })
-        .map(r => r.person_id === id ? r.related_person_id : r.person_id);
+    // Helper to check if two people are linked in ANY way
+    const areLinked = (id1: string, id2: string) => {
+      return relationships.some(r => 
+        (r.person_id === id1 && r.related_person_id === id2) || 
+        (r.person_id === id2 && r.related_person_id === id1)
+      );
     };
 
     people.forEach(person => {
       const personId = person.id;
       
-      const myParentIds = [
-        ...getRelIds(personId, ['mother', 'father', 'parent'], 'to'),
-        ...getRelIds(personId, ['son', 'daughter', 'child'], 'from')
-      ];
+      // Get actual parents (Direction Agnostic)
+      const myParentIds = relationships
+        .filter(r => {
+          const t = r.relationship_type.toLowerCase();
+          if (r.related_person_id === personId && ['mother', 'father', 'parent'].includes(t)) return true;
+          if (r.person_id === personId && ['son', 'daughter', 'child'].includes(t)) return true;
+          return false;
+        })
+        .map(r => r.person_id === personId ? r.related_person_id : r.person_id);
       
-      const myChildIds = [
-        ...getRelIds(personId, ['mother', 'father', 'parent'], 'from'),
-        ...getRelIds(personId, ['son', 'daughter', 'child'], 'to')
-      ];
-
-      const mySpouseIds = getRelIds(personId, ['spouse', 'wife', 'husband'], 'both');
-      const mySiblingIds = getRelIds(personId, ['brother', 'sister', 'sibling'], 'both');
+      // Get actual children (Direction Agnostic)
+      const myChildIds = relationships
+        .filter(r => {
+          const t = r.relationship_type.toLowerCase();
+          if (r.person_id === personId && ['mother', 'father', 'parent'].includes(t)) return true;
+          if (r.related_person_id === personId && ['son', 'daughter', 'child'].includes(t)) return true;
+          return false;
+        })
+        .map(r => r.person_id === personId ? r.related_person_id : r.person_id);
 
       // 1. Sibling Inference
       if (myParentIds.length > 0) {
         people.forEach(sib => {
-          // Exclude self, existing siblings, spouses, OR existing parent/child links
-          if (
-            sib.id === personId || 
-            mySiblingIds.includes(sib.id) || 
-            mySpouseIds.includes(sib.id) ||
-            myParentIds.includes(sib.id) ||
-            myChildIds.includes(sib.id)
-          ) return;
+          if (sib.id === personId || areLinked(personId, sib.id)) return;
           
           const pairKey = [personId, sib.id].sort().join('-');
           if (seenPairs.has(pairKey)) return;
 
-          const theirParentIds = [
-            ...getRelIds(sib.id, ['mother', 'father', 'parent'], 'to'),
-            ...getRelIds(sib.id, ['son', 'daughter', 'child'], 'from')
-          ];
+          const theirParentIds = relationships
+            .filter(r => {
+              const t = r.relationship_type.toLowerCase();
+              if (r.related_person_id === sib.id && ['mother', 'father', 'parent'].includes(t)) return true;
+              if (r.person_id === sib.id && ['son', 'daughter', 'child'].includes(t)) return true;
+              return false;
+            })
+            .map(r => r.person_id === sib.id ? r.related_person_id : r.person_id);
           
           if (theirParentIds.some(id => myParentIds.includes(id))) {
             seenPairs.add(pairKey);
@@ -103,29 +101,31 @@ const TreeSmartInbox = () => {
       // 2. Spouse Inference
       if (myChildIds.length > 0) {
         people.forEach(spouse => {
-          // Exclude self, existing spouses, siblings, OR existing parent/child links
-          if (
-            spouse.id === personId || 
-            mySpouseIds.includes(spouse.id) || 
-            mySiblingIds.includes(spouse.id) ||
-            myParentIds.includes(spouse.id) ||
-            myChildIds.includes(spouse.id)
-          ) return;
+          if (spouse.id === personId || areLinked(personId, spouse.id)) return;
           
           const pairKey = [personId, spouse.id].sort().join('-');
           if (seenPairs.has(pairKey)) return;
 
-          const theirChildIds = [
-            ...getRelIds(spouse.id, ['mother', 'father', 'parent'], 'from'),
-            ...getRelIds(spouse.id, ['son', 'daughter', 'child'], 'to')
-          ];
+          const theirChildIds = relationships
+            .filter(r => {
+              const t = r.relationship_type.toLowerCase();
+              if (r.person_id === spouse.id && ['mother', 'father', 'parent'].includes(t)) return true;
+              if (r.related_person_id === spouse.id && ['son', 'daughter', 'child'].includes(t)) return true;
+              return false;
+            })
+            .map(r => r.person_id === spouse.id ? r.related_person_id : r.person_id);
           
           if (theirChildIds.some(id => myChildIds.includes(id))) {
             // Check if they share a parent (likely siblings, not spouses)
-            const theirParentIds = [
-              ...getRelIds(spouse.id, ['mother', 'father', 'parent'], 'to'),
-              ...getRelIds(spouse.id, ['son', 'daughter', 'child'], 'from')
-            ];
+            const theirParentIds = relationships
+              .filter(r => {
+                const t = r.relationship_type.toLowerCase();
+                if (r.related_person_id === spouse.id && ['mother', 'father', 'parent'].includes(t)) return true;
+                if (r.person_id === spouse.id && ['son', 'daughter', 'child'].includes(t)) return true;
+                return false;
+              })
+              .map(r => r.person_id === spouse.id ? r.related_person_id : r.person_id);
+            
             const sharesParent = theirParentIds.some(id => myParentIds.includes(id));
             if (sharesParent) return;
 
