@@ -52,20 +52,26 @@ const PersonHero = ({
         onDrop={onProfileDrop}
       >
         {person.photoUrl ? (
-          <img src={person.photoUrl} alt={person.name} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" />
+          <>
+            <img src={person.photoUrl} alt={person.name} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex flex-col items-center justify-center gap-2">
+              <Camera className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0" />
+              <span className="text-[10px] font-bold text-white uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all duration-300 delay-75">
+                Drop photo to update
+              </span>
+            </div>
+          </>
         ) : (
-          <div className="w-full h-full bg-stone-100 flex items-center justify-center">
-            <Camera className="w-12 h-12 text-stone-300" />
+          <div className="w-full h-full bg-stone-100 flex flex-col items-center justify-center gap-4 p-6 text-center">
+            <div className="h-16 w-16 rounded-full bg-white shadow-sm flex items-center justify-center text-stone-300">
+              <Camera className="w-8 h-8" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-stone-400 uppercase tracking-widest">No Photo</p>
+              <p className="text-[10px] font-medium text-stone-400 leading-tight">Drag & drop a photo here to add one</p>
+            </div>
           </div>
         )}
-        
-        {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex flex-col items-center justify-center gap-2">
-          <Camera className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0" />
-          <span className="text-[10px] font-bold text-white uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all duration-300 delay-75">
-            Drop photo to update
-          </span>
-        </div>
 
         {/* Active Drag Overlay */}
         {isDraggingOverProfile && (

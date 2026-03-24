@@ -221,8 +221,8 @@ const PersonDetail = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b-4 border-stone-100 pb-6">
             <div className="space-y-1">
               <h2 className="text-3xl font-serif font-bold text-stone-800 flex items-center gap-3">The Archive</h2>
-              <div className="flex items-center gap-2 text-stone-400">
-                <ImageIcon className="w-3 h-3" />
+              <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 rounded-full w-fit">
+                <UploadCloud className="w-3 h-3" />
                 <p className="text-[10px] font-bold uppercase tracking-widest">Drag & Drop photos anywhere to share</p>
               </div>
             </div>
