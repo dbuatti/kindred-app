@@ -18,7 +18,8 @@ import {
   LogIn,
   UserPlus,
   Edit3,
-  Heart
+  Heart,
+  GitMerge
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -37,6 +38,7 @@ import { getPersonUrl } from '@/lib/slugify';
 import EditPersonDialog from '../components/EditPersonDialog';
 import AddPersonDialog from '../components/AddPersonDialog';
 import AdminStats from '../components/admin/AdminStats';
+import MergeProfilesDialog from '../components/admin/MergeProfilesDialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -115,11 +117,17 @@ const AdminDashboard = () => {
 
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-10">
         <Tabs defaultValue="overview" className="space-y-8">
-          <TabsList className="bg-stone-100 p-1 rounded-2xl h-14 w-full md:w-auto">
-            <TabsTrigger value="overview" className="rounded-xl px-6 data-[state=active]:bg-white">Overview</TabsTrigger>
-            <TabsTrigger value="engagement" className="rounded-xl px-6 data-[state=active]:bg-white">Engagement</TabsTrigger>
-            <TabsTrigger value="people" className="rounded-xl px-6 data-[state=active]:bg-white">People</TabsTrigger>
-          </TabsList>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <TabsList className="bg-stone-100 p-1 rounded-2xl h-14 w-full md:w-auto">
+              <TabsTrigger value="overview" className="rounded-xl px-6 data-[state=active]:bg-white">Overview</TabsTrigger>
+              <TabsTrigger value="engagement" className="rounded-xl px-6 data-[state=active]:bg-white">Engagement</TabsTrigger>
+              <TabsTrigger value="people" className="rounded-xl px-6 data-[state=active]:bg-white">People</TabsTrigger>
+            </TabsList>
+            <div className="flex items-center gap-3">
+              <MergeProfilesDialog />
+              <AddPersonDialog />
+            </div>
+          </div>
 
           <TabsContent value="overview" className="space-y-10">
             <AdminStats 
@@ -259,7 +267,6 @@ const AdminDashboard = () => {
                 <Users className="w-5 h-5 text-stone-400" />
                 Manage Archive Entries
               </h2>
-              <AddPersonDialog />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {people.map((person) => (
