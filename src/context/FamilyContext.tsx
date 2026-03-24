@@ -22,7 +22,7 @@ interface FamilyContextType {
   user: any;
   isAdmin: boolean;
   addPerson: (person: Partial<Person>, relativeId?: string, relType?: string) => Promise<string | undefined>;
-  updatePerson: (id: string, updates: Partial<Person>) => Promise<void>;
+  updatePerson: (id: string, updates: Partial<Person> | Record<string, any>) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
   addMemory: (personId: string, content: string, type: MemoryType, imageUrl?: string) => Promise<void>;
   addComment: (memoryId: string, content: string) => Promise<void>;
@@ -212,28 +212,44 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [fetchData, user]);
 
-  const updatePerson = useCallback(async (id: string, updates: Partial<Person>) => {
+  const updatePerson = useCallback(async (id: string, updates: Partial<Person> | Record<string, any>) => {
     if (!user) return;
     try {
+      // Map camelCase to snake_case for the database update
+      const dbUpdates: Record<string, any> = {};
+      
+      // Handle direct database column names (snake_case)
+      const directKeys = [
+        'name', 'nickname', 'birth_year', 'birth_date', 'birth_place', 
+        'death_year', 'death_date', 'death_place', 'occupation', 
+        'vibe_sentence', 'personality_tags', 'photo_url', 'is_living', 
+        'gender', 'maiden_name'
+      ];
+      
+      directKeys.forEach(key => {
+        if (key in updates) dbUpdates[key] = (updates as any)[key];
+      });
+
+      // Handle camelCase keys from the Person interface
+      if ('name' in updates) dbUpdates.name = updates.name;
+      if ('nickname' in updates) dbUpdates.nickname = updates.nickname;
+      if ('birthYear' in updates) dbUpdates.birth_year = (updates as any).birthYear;
+      if ('birthDate' in updates) dbUpdates.birth_date = (updates as any).birthDate || null;
+      if ('birthPlace' in updates) dbUpdates.birth_place = (updates as any).birthPlace;
+      if ('deathYear' in updates) dbUpdates.death_year = (updates as any).deathYear;
+      if ('deathDate' in updates) dbUpdates.death_date = (updates as any).deathDate || null;
+      if ('deathPlace' in updates) dbUpdates.death_place = (updates as any).deathPlace;
+      if ('occupation' in updates) dbUpdates.occupation = updates.occupation;
+      if ('vibeSentence' in updates) dbUpdates.vibe_sentence = (updates as any).vibeSentence;
+      if ('personalityTags' in updates) dbUpdates.personality_tags = (updates as any).personalityTags;
+      if ('photoUrl' in updates) dbUpdates.photo_url = (updates as any).photoUrl;
+      if ('isLiving' in updates) dbUpdates.is_living = (updates as any).isLiving;
+      if ('gender' in updates) dbUpdates.gender = updates.gender;
+      if ('maidenName' in updates) dbUpdates.maiden_name = (updates as any).maidenName;
+
       const { error } = await supabase
         .from('people')
-        .update({
-          name: updates.name,
-          nickname: updates.nickname,
-          birth_year: updates.birthYear,
-          birth_date: updates.birthDate || null,
-          birth_place: updates.birthPlace,
-          death_year: updates.deathYear,
-          death_date: updates.deathDate || null,
-          death_place: updates.deathPlace,
-          occupation: updates.occupation,
-          vibe_sentence: updates.vibeSentence,
-          personality_tags: updates.personalityTags,
-          photo_url: updates.photoUrl,
-          is_living: updates.isLiving,
-          gender: updates.gender,
-          maiden_name: updates.maidenName
-        })
+        .update(dbUpdates)
         .eq('id', id);
 
       if (error) throw error;

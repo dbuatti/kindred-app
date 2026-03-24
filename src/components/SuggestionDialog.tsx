@@ -15,6 +15,21 @@ interface SuggestionDialogProps {
   initialField?: string;
 }
 
+// Map database column names to Person interface keys
+const FIELD_TO_KEY_MAP: Record<string, keyof Person> = {
+  birth_year: 'birthYear',
+  birth_date: 'birthDate',
+  birth_place: 'birthPlace',
+  death_date: 'deathDate',
+  death_place: 'deathPlace',
+  occupation: 'occupation',
+  gender: 'gender',
+  nickname: 'nickname',
+  maiden_name: 'maidenName',
+  vibe_sentence: 'vibeSentence',
+  photo_url: 'photoUrl'
+};
+
 const FIELD_CONFIG: Record<string, { label: string, icon: any, placeholder: string, type: 'input' | 'textarea' | 'select' }> = {
   birth_year: { label: 'Birth Year', icon: Calendar, placeholder: 'e.g. 1945', type: 'input' },
   birth_date: { label: 'Birth Date', icon: Calendar, placeholder: 'e.g. 15/05/1945', type: 'input' },
@@ -50,7 +65,8 @@ const SuggestionDialog = ({ person, trigger, initialField = 'vibe_sentence' }: S
     if (!value) return;
 
     if (isAdmin) {
-      await updatePerson(person.id, { [fieldName]: value });
+      const personKey = FIELD_TO_KEY_MAP[fieldName] || fieldName;
+      await updatePerson(person.id, { [personKey]: value });
       toast.success("Record updated directly.");
     } else {
       await addSuggestion({
