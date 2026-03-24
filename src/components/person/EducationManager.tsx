@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { EducationRecord } from '@/types';
 import { useFamily } from '@/context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { GraduationCap, Plus, Trash2, MapPin, Calendar, BookOpen, X } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { GraduationCap, Plus, Trash2, MapPin, Calendar, BookOpen, X, Loader2, Globe, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface EducationManagerProps {
@@ -13,9 +15,21 @@ interface EducationManagerProps {
   records: EducationRecord[];
 }
 
+const INITIAL_SUGGESTIONS = [
+  "Melbourne, Australia",
+  "Sydney, Australia",
+  "London, UK", 
+  "New York, USA", 
+  "Sicily, Italy"
+];
+
 const EducationManager = ({ personId, records }: EducationManagerProps) => {
   const { addEducation, deleteEducation } = useFamily();
   const [isAdding, setIsAdding] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [placePopoverOpen, setPlacePopoverOpen] = useState(false);
+  const [placeSuggestions, setPlaceSuggestions] = useState<string[]>(INITIAL_SUGGESTIONS);
+
   const [formData, setFormData] = useState({
     schoolName: '',
     location: '',
@@ -23,6 +37,43 @@ const EducationManager = ({ personId, records }: EducationManagerProps) => {
     startYear: '',
     endYear: ''
   });
+
+  // Location Search Logic
+  useEffect(() => {
+    if (!formData.location || formData.location.length < 3) {
+      if (!formData.location) setPlaceSuggestions(INITIAL_SUGGESTIONS);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(formData.location)}&limit=6&addressdetails=1`
+        );
+        const data = await response.json();
+        const places = data.map((item: any) => {
+          const addr = item.address;
+          const city = addr.city || addr.town || addr.village || addr.suburb || addr.hamlet;
+          const state = addr.state || addr.region;
+          const country = addr.country;
+          
+          if (city && country) {
+            return `${city}${state ? `, ${state}` : ''}, ${country}`;
+          }
+          return item.display_name.split(',').slice(0, 3).join(',');
+        });
+        
+        setPlaceSuggestions(Array.from(new Set(places as string[])));
+      } catch (error) {
+        console.error("Error fetching places:", error);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [formData.location]);
 
   const handleAdd = async () => {
     if (!formData.schoolName) return;
@@ -86,12 +137,66 @@ const EducationManager = ({ personId, records }: EducationManagerProps) => {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-amber-700/60 ml-2">Location</label>
-                <Input 
-                  value={formData.location}
-                  onChange={(e) => setFormData({...formData, location: e.target.value})}
-                  placeholder="e.g. Victoria, Australia"
-                  className="bg-white border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
-                />
+                <Popover open={placePopoverOpen} onOpenChange={setPlacePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={placePopoverOpen}
+                      className="w-full justify-between bg-white border-none rounded-2xl h-12 text-base font-normal text-stone-600 hover:bg-stone-50 focus:ring-amber-500/20 px-4"
+                    >
+                      <span className="truncate">{formData.location || "Select or type..."}</span>
+                      {isSearching ? <Loader2 className="ml-2 h-4 w-4 animate-spin opacity-50" /> : <Globe className="ml-2 h-4 w-4 shrink-0 opacity-50" />}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0 rounded-2xl border-stone-100 shadow-xl z-[100]">
+                    <Command className="rounded-2xl" shouldFilter={false}>
+                      <CommandInput 
+                        placeholder="Search city..." 
+                        value={formData.location}
+                        onValueChange={(val) => setFormData({...formData, location: val})}
+                        className="h-10 text-sm"
+                      />
+                      <CommandList>
+                        {isSearching && (
+                          <div className="p-4 text-center text-stone-400 text-xs italic flex items-center justify-center gap-2">
+                            <Loader2 className="w-3 h-3 animate-spin" /> Searching...
+                          </div>
+                        )}
+                        <CommandEmpty>
+                          <button 
+                            className="w-full text-left px-4 py-2 text-amber-600 hover:bg-amber-50 rounded-xl flex items-center gap-2 text-sm"
+                            onClick={() => setPlacePopoverOpen(false)}
+                          >
+                            <MapPin className="w-3 h-3" />
+                            Use "{formData.location}"
+                          </button>
+                        </CommandEmpty>
+                        <CommandGroup heading="Suggestions">
+                          {placeSuggestions.map((place) => (
+                            <CommandItem
+                              key={place}
+                              value={place}
+                              onSelect={() => {
+                                setFormData({...formData, location: place});
+                                setPlacePopoverOpen(false);
+                              }}
+                              className="rounded-xl py-2 text-sm"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-3 w-3",
+                                  formData.location === place ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {place}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
