@@ -82,11 +82,11 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph();
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 40, 
-        ranksep: 80, 
+        nodesep: 40, // Tightened horizontal spacing
+        ranksep: 80, // Tightened vertical spacing
         marginx: 50, 
         marginy: 50,
-        ranker: 'network-simplex'
+        ranker: 'network-simplex' // More balanced layout
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -109,6 +109,7 @@ const FamilyTree = () => {
       const unions: Record<string, { id: string, p1: string, p2: string, children: string[], color: string }> = {};
       let colorIdx = 0;
 
+      // 1. Identify Spouses/Unions
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         const isSpouse = type.includes('spouse') || type.includes('wife') || type.includes('husband') || type.includes('married');
@@ -128,6 +129,7 @@ const FamilyTree = () => {
         }
       });
 
+      // 2. Map Children to Unions or Parents
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         const isParental = type.includes('parent') || type.includes('father') || type.includes('mother') || type.includes('papa') || type.includes('mama');
@@ -156,6 +158,7 @@ const FamilyTree = () => {
         }
       });
 
+      // 3. Sibling Constraints (Keep siblings close)
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         if (type.includes('sister') || type.includes('brother') || type.includes('sibling')) {
@@ -166,6 +169,7 @@ const FamilyTree = () => {
         }
       });
 
+      // 4. Finalize Union Nodes
       Object.values(unions).forEach(u => {
         g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
         g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10, minlen: 1 });
@@ -208,9 +212,9 @@ const FamilyTree = () => {
     return people.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 5);
   }, [searchQuery, people]);
 
-  const jumpToPerson = useCallback((id: string) => {
-    const node = treeData && !('error' in treeData) ? treeData.nodes.find(n => n.id === id) : null;
-    if (node && treeContainerRef.current) {
+  const jumpToPerson = (id: string) => {
+    const node = treeData?.nodes.find(n => n.id === id);
+    if (node && treeContainerRef.current && !('error' in treeData)) {
       const data = treeData as any;
       setHighlightedId(id);
       setZoom(1);
@@ -228,7 +232,7 @@ const FamilyTree = () => {
       setSearchQuery('');
       setTimeout(() => setHighlightedId(null), 3000);
     }
-  }, [treeData]);
+  };
 
   const handleNavClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!treeContainerRef.current || !treeData || 'error' in treeData) return;
@@ -244,14 +248,10 @@ const FamilyTree = () => {
     });
   };
 
-  const centerOnMe = useCallback(() => {
+  const centerOnMe = () => {
     const myPerson = people.find(p => p.userId === user?.id);
     if (myPerson) jumpToPerson(myPerson.id);
-  }, [people, user, jumpToPerson]);
-
-  const zoomIn = useCallback(() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2))), []);
-  const zoomOut = useCallback(() => setZoom((z) => Math.max(0.2, +(z - 0.1).toFixed(2))), []);
-  const zoomReset = useCallback(() => setZoom(0.75), []);
+  };
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the lineage...</div>;
 
@@ -355,10 +355,10 @@ const FamilyTree = () => {
             </div>
 
             <div className="flex items-center gap-2 bg-stone-100/50 p-1.5 rounded-full border border-stone-200/50">
-              <Button variant="ghost" size="icon" onClick={zoomOut} className="h-8 w-8 rounded-full hover:bg-white shadow-sm"><ZoomOut className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="h-8 w-8 rounded-full hover:bg-white shadow-sm"><ZoomOut className="w-4 h-4" /></Button>
               <span className="text-[10px] font-bold w-12 text-center text-stone-600">{Math.round(zoom * 100)}%</span>
-              <Button variant="ghost" size="icon" onClick={zoomIn} className="h-8 w-8 rounded-full hover:bg-white shadow-sm"><ZoomIn className="w-4 h-4" /></Button>
-              <Button variant="ghost" size="icon" onClick={zoomReset} className="h-8 w-8 rounded-full hover:bg-white shadow-sm" title="Reset Zoom"><Maximize className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="h-8 w-8 rounded-full hover:bg-white shadow-sm"><ZoomIn className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setZoom(0.75)} className="h-8 w-8 rounded-full hover:bg-white shadow-sm" title="Reset Zoom"><Maximize className="w-4 h-4" /></Button>
             </div>
           </div>
         </div>
@@ -399,6 +399,7 @@ const FamilyTree = () => {
               if (!edge.from || !edge.to || edge.type === 'sibling-constraint') return null;
               const isMarriage = edge.type === 'marriage';
               
+              // Apply offsets to coordinates
               const startX = edge.from.x + data.offsetX;
               const startY = edge.from.y + data.offsetY + (edge.from.isUnion ? 0 : 35); 
               const endX = edge.to.x + data.offsetX;
