@@ -61,7 +61,7 @@ interface TreeLayout {
   offsetY: number;
 }
 
-const FamilyTree: React.FC = () => {
+const AuthCallback: React.FC = () => {
   const navigate = useNavigate();
   const { people, relationships, loading, refreshData } = useFamily();
 
@@ -266,7 +266,7 @@ const FamilyTree: React.FC = () => {
           <p className="text-stone-500">
             There appears to be a circular relationship or conflicting data preventing layout.
           </p>
-          <Button onClick={refreshData} className="rounded-full bg-amber-600 hover:bg-amber-700">
+          <Button onClick={() => refreshData()} className="rounded-full bg-amber-600 hover:bg-amber-700">
             <RefreshCw className="w-4 h-4 mr-2" /> Retry
           </Button>
         </div>
@@ -528,4 +528,4 @@ const FamilyTree: React.FC = () => {
   );
 };
 
-export default FamilyTree;
+export default AuthCallback;
