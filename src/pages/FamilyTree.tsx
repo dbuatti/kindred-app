@@ -82,11 +82,11 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 150, 
-        ranksep: 120, 
-        marginx: 200, 
-        marginy: 200,
-        ranker: 'network-simplex' 
+        nodesep: 80, // More compact horizontal spacing
+        ranksep: 100, // More compact vertical spacing
+        marginx: 100, 
+        marginy: 100,
+        ranker: 'tight-tree' // Better for family hierarchies
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -158,7 +158,7 @@ const FamilyTree = () => {
         }
       });
 
-      // 3. Sibling Constraints (Forces them to same level)
+      // 3. Sibling Constraints
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         if (type.includes('sister') || type.includes('brother') || type.includes('sibling')) {
@@ -398,7 +398,7 @@ const FamilyTree = () => {
               if (!edge.from || !edge.to || edge.type === 'sibling-constraint') return null;
               const isMarriage = edge.type === 'marriage';
               
-              // Orthogonal "Step" Path Logic
+              // Smooth Bezier Path Logic
               const startX = edge.from.x;
               const startY = edge.from.y + (edge.from.isUnion ? 0 : 35); 
               const endX = edge.to.x;
@@ -406,8 +406,8 @@ const FamilyTree = () => {
               
               const midY = startY + (endY - startY) * 0.5;
               
-              // Create a clean "Step" path (Vertical -> Horizontal -> Vertical)
-              const path = `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
+              // Create a smooth "S" curve path
+              const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               
               return (
                 <g key={i} filter="url(#shadow)">
