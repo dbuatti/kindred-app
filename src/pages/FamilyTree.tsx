@@ -25,18 +25,53 @@ const FamilyTree = () => {
     if (loading || people.length === 0) return null;
 
     const g = new dagre.graphlib.Graph();
-    // ranksep: vertical distance between generations
-    // nodesep: horizontal distance between people
     g.setGraph({ 
       rankdir: 'TB', 
-      nodesep: 100, 
-      ranksep: 150, 
-      marginx: 100, 
-      marginy: 100,
-      ranker: 'network-simplex' 
+      nodesep: 80, 
+      ranksep: 100, 
+      marginx: 50, 
+      marginy: 50,
     });
     g.setDefaultEdgeLabel(() => ({}));
 
+    // 1. Identify Spouse Pairs to create "Union" nodes
+    const unions: Record<string, { id: string, p1: string, p2: string, children: string[] }> = {};
+    
+    relationships.forEach(r => {
+      if (r.relationship_type.toLowerCase() === 'spouse') {
+        const pairId = [r.person_id, r.related_person_id].sort().join('_');
+        if (!unions[pairId]) {
+          unions[pairId] = { id: `union_${pairId}`, p1: r.person_id, p2: r.related_person_id, children: [] };
+        }
+      }
+    });
+
+    // 2. Assign children to unions
+    relationships.forEach(r => {
+      const type = r.relationship_type.toLowerCase();
+      if (['mother', 'father', 'parent'].includes(type)) {
+        // person_id is child, related_person_id is parent
+        const childId = r.person_id;
+        const parentId = r.related_person_id;
+        
+        // Find if this parent belongs to a union
+        const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
+        if (union && !union.children.includes(childId)) {
+          union.children.push(childId);
+        }
+      } else if (['son', 'daughter', 'child'].includes(type)) {
+        // person_id is parent, related_person_id is child
+        const parentId = r.person_id;
+        const childId = r.related_person_id;
+        
+        const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
+        if (union && !union.children.includes(childId)) {
+          union.children.push(childId);
+        }
+      }
+    });
+
+    // 3. Add People Nodes
     people.forEach(p => {
       let displayYear = p.birthYear;
       if (!displayYear && p.birthDate) {
@@ -45,32 +80,31 @@ const FamilyTree = () => {
       }
 
       g.setNode(p.id, { 
-        label: p.name, 
-        width: 240, 
-        height: 100, 
+        width: 220, 
+        height: 80, 
         person: { ...p, displayYear: displayYear || 'Year Unknown' } 
       });
     });
 
+    // 4. Add Union Nodes (Invisible anchors)
+    Object.values(unions).forEach(u => {
+      g.setNode(u.id, { width: 10, height: 10, isUnion: true });
+      
+      // Connect parents to union (Horizontal-ish)
+      g.setEdge(u.p1, u.id, { type: 'marriage', weight: 10 });
+      g.setEdge(u.p2, u.id, { type: 'marriage', weight: 10 });
+      
+      // Connect union to children (Vertical)
+      u.children.forEach(childId => {
+        g.setEdge(u.id, childId, { type: 'lineage', weight: 1 });
+      });
+    });
+
+    // 5. Add Sibling/Extended links that aren't covered by unions
     relationships.forEach(r => {
       const type = r.relationship_type.toLowerCase();
-      
-      // Parental links (Vertical)
-      if (['mother', 'father', 'parent'].includes(type)) {
-        g.setEdge(r.person_id, r.related_person_id, { type: 'parental', weight: 1 });
-      } else if (['son', 'daughter', 'child'].includes(type)) {
-        g.setEdge(r.related_person_id, r.person_id, { type: 'parental', weight: 1 });
-      } 
-      // Spouse links (Horizontal - High priority)
-      else if (['spouse', 'wife', 'husband'].includes(type)) {
-        g.setEdge(r.person_id, r.related_person_id, { type: 'spouse', minlen: 0, weight: 100 });
-      } 
-      // Sibling links (Horizontal - Medium priority)
-      else if (['brother', 'sister', 'sibling'].includes(type)) {
-        g.setEdge(r.person_id, r.related_person_id, { type: 'sibling', minlen: 0, weight: 10 });
-      }
-      else {
-        g.setEdge(r.person_id, r.related_person_id, { type: 'extended', minlen: 1 });
+      if (['brother', 'sister', 'sibling'].includes(type)) {
+        g.setEdge(r.person_id, r.related_person_id, { type: 'sibling', weight: 0.1 });
       }
     });
 
@@ -78,14 +112,11 @@ const FamilyTree = () => {
     
     return {
       nodes: g.nodes().map(v => ({ id: v, ...g.node(v) })),
-      edges: g.edges().map(e => {
-        const edgeData = g.edge(e);
-        return { 
-          from: g.node(e.v), 
-          to: g.node(e.w),
-          type: edgeData.type || 'parental'
-        };
-      })
+      edges: g.edges().map(e => ({ 
+        from: g.node(e.v), 
+        to: g.node(e.w),
+        type: g.edge(e).type
+      }))
     };
   }, [people, relationships, loading]);
 
@@ -121,9 +152,8 @@ const FamilyTree = () => {
             <>
               <svg className="absolute inset-0 pointer-events-none overflow-visible">
                 {treeData.edges.map((edge, i) => {
-                  const isSpouse = edge.type === 'spouse';
+                  const isMarriage = edge.type === 'marriage';
                   const isSibling = edge.type === 'sibling';
-                  const isHorizontal = isSpouse || isSibling;
                   
                   const startX = edge.from.x;
                   const startY = edge.from.y;
@@ -132,24 +162,27 @@ const FamilyTree = () => {
 
                   let path = "";
 
-                  if (isHorizontal) {
-                    // Direct horizontal line for spouses/siblings
+                  if (isMarriage) {
+                    // Simple line for marriage to union point
+                    path = `M ${startX} ${startY} L ${endX} ${endY}`;
+                  } else if (isSibling) {
+                    // Dashed line for siblings
                     path = `M ${startX} ${startY} L ${endX} ${endY}`;
                   } else {
-                    // Orthogonal (step) line for parents to children
+                    // Orthogonal step for lineage
                     const midY = startY + (endY - startY) / 2;
-                    path = `M ${startX} ${startY + 50} 
+                    path = `M ${startX} ${startY} 
                             L ${startX} ${midY} 
                             L ${endX} ${midY} 
-                            L ${endX} ${endY - 50}`;
+                            L ${endX} ${endY}`;
                   }
                   
                   return (
                     <path
                       key={i}
                       d={path}
-                      stroke={isSpouse ? '#f87171' : isSibling ? '#94a3b8' : '#e7e5e4'}
-                      strokeWidth={isSpouse ? "4" : "2"}
+                      stroke={isMarriage ? '#f87171' : isSibling ? '#cbd5e1' : '#e7e5e4'}
+                      strokeWidth={isMarriage ? "3" : "2"}
                       strokeDasharray={isSibling ? "5,5" : "0"}
                       fill="none"
                       strokeLinecap="round"
@@ -160,43 +193,47 @@ const FamilyTree = () => {
                 })}
               </svg>
 
-              {treeData.nodes.map((node: any) => (
-                <motion.div
-                  key={node.id}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  style={{ 
-                    left: node.x - 120, 
-                    top: node.y - 50,
-                    width: 240,
-                    height: 100
-                  }}
-                  onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
-                  className="absolute bg-white rounded-2xl border-2 border-stone-100 shadow-sm hover:shadow-xl hover:border-amber-200 transition-all p-4 flex items-center gap-4 cursor-pointer group"
-                >
-                  <div className="h-14 w-14 rounded-full overflow-hidden bg-stone-50 shrink-0 border-2 border-white shadow-inner">
-                    {node.person.photoUrl ? (
-                      <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-stone-200">
-                        <UserCircle className="w-8 h-8" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-stone-800 truncate">{node.person.name}</p>
-                    <p className="text-[10px] text-stone-400 uppercase tracking-widest truncate">
-                      {node.person.displayYear}
-                    </p>
-                    {!node.person.isLiving && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <Heart className="w-3 h-3 text-stone-200" />
-                        <span className="text-[8px] text-stone-300 uppercase font-bold">In Memory</span>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
+              {treeData.nodes.map((node: any) => {
+                if (node.isUnion) return null;
+
+                return (
+                  <motion.div
+                    key={node.id}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    style={{ 
+                      left: node.x - 110, 
+                      top: node.y - 40,
+                      width: 220,
+                      height: 80
+                    }}
+                    onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
+                    className="absolute bg-white rounded-xl border-2 border-stone-100 shadow-sm hover:shadow-md hover:border-amber-200 transition-all p-3 flex items-center gap-3 cursor-pointer group"
+                  >
+                    <div className="h-12 w-12 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 shadow-inner">
+                      {node.person.photoUrl ? (
+                        <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-stone-200">
+                          <UserCircle className="w-6 h-6" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-stone-800 truncate">{node.person.name}</p>
+                      <p className="text-[9px] text-stone-400 uppercase tracking-widest truncate">
+                        {node.person.displayYear}
+                      </p>
+                      {!node.person.isLiving && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <Heart className="w-2.5 h-2.5 text-red-200 fill-current" />
+                          <span className="text-[7px] text-stone-300 uppercase font-bold">In Memory</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
             </>
           )}
         </motion.div>
