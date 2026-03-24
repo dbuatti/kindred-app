@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
@@ -9,6 +11,7 @@ import { Person } from '../types';
 import { useFamily } from '../context/FamilyContext';
 import { toast } from 'sonner';
 import EducationManager from './person/EducationManager';
+import { cn } from '@/lib/utils';
 
 interface SuggestionDialogProps {
   person: Person;
@@ -85,7 +88,10 @@ const SuggestionDialog = ({ person, trigger, initialField = 'vibe_sentence' }: S
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md rounded-[2.5rem] border-none bg-stone-50 p-10 max-h-[90vh] overflow-y-auto">
+      <DialogContent className={cn(
+        "rounded-[2.5rem] border-none bg-stone-50 p-10 max-h-[90vh] overflow-y-auto transition-all duration-500",
+        isEducation ? "sm:max-w-2xl" : "sm:max-w-md"
+      )}>
         <DialogHeader>
           <DialogTitle className="font-serif text-3xl text-stone-800 flex items-center gap-3">
             <config.icon className="w-6 h-6 text-amber-500" />
@@ -100,7 +106,7 @@ const SuggestionDialog = ({ person, trigger, initialField = 'vibe_sentence' }: S
         
         <div className="space-y-8 py-6">
           {isEducation ? (
-            <div className="bg-white p-6 rounded-3xl border border-stone-100 shadow-sm">
+            <div className="bg-white p-8 rounded-[2rem] border border-stone-100 shadow-sm">
               <EducationManager personId={person.id} records={person.educationRecords || []} />
             </div>
           ) : (
