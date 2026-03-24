@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { Person, Memory, Suggestion, MemoryType, Profile, Comment } from '../types';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
@@ -59,6 +59,9 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [theme, setThemeState] = useState<'default' | 'heritage'>('default');
+  
+  // Use a ref to track if we are currently fetching to prevent overlapping requests
+  const isFetching = useRef(false);
 
   const setTheme = (newTheme: 'default' | 'heritage') => {
     setThemeState(newTheme);
@@ -92,23 +95,32 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [user]);
 
   const fetchData = useCallback(async (silent = false) => {
+    if (isFetching.current) return;
+    isFetching.current = true;
+    
     if (!silent) setLoading(true);
     
     try {
-      const { data: peopleData, error: peopleError } = await supabase
-        .from('people')
-        .select('*, memories(*)');
+      console.log("[FamilyContext] Fetching family data...");
+      
+      // Use Promise.all to fetch data in parallel for better performance
+      const [
+        { data: peopleData, error: peopleError },
+        { data: suggestionsData },
+        { data: profilesData },
+        { data: reactionsData },
+        { data: commentsData },
+        { data: relData }
+      ] = await Promise.all([
+        supabase.from('people').select('*, memories(*)'),
+        supabase.from('suggestions').select('*').eq('status', 'pending'),
+        supabase.from('profiles').select('*'),
+        supabase.from('reactions').select('*'),
+        supabase.from('comments').select('*').order('created_at', { ascending: true }),
+        supabase.from('relationships').select('*')
+      ]);
       
       if (peopleError) throw peopleError;
-
-      const { data: suggestionsData } = await supabase
-        .from('suggestions')
-        .select('*')
-        .eq('status', 'pending');
-
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('*');
 
       const profileMap: Record<string, Profile> = {};
       (profilesData || []).forEach((p: any) => {
@@ -116,21 +128,12 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
       setProfiles(profileMap);
 
-      const { data: reactionsData } = await supabase
-        .from('reactions')
-        .select('*');
-
       const reactionMap: Record<string, string[]> = {};
       (reactionsData || []).forEach((r: any) => {
         if (!reactionMap[r.memory_id]) reactionMap[r.memory_id] = [];
         reactionMap[r.memory_id].push(r.user_id);
       });
       setReactions(reactionMap);
-
-      const { data: commentsData } = await supabase
-        .from('comments')
-        .select('*')
-        .order('created_at', { ascending: true });
 
       const commentMap: Record<string, Comment[]> = {};
       (commentsData || []).forEach((c: any) => {
@@ -145,12 +148,9 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
       });
 
-      const { data: relData } = await supabase
-        .from('relationships')
-        .select('*');
       setRelationships(relData || []);
 
-      // Fetch activity logs for admin
+      // Fetch activity logs separately if admin
       if (user?.email === ADMIN_EMAIL) {
         const { data: logs } = await supabase
           .from('activity_logs')
@@ -176,6 +176,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         deathPlace: p.death_place,
         occupation: p.occupation,
         vibeSentence: p.vibe_sentence,
+        personality_tags: p.personality_tags || [],
         personalityTags: p.personality_tags || [],
         photoUrl: p.photo_url,
         createdByEmail: p.created_by_email,
@@ -215,17 +216,23 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
     } catch (error: any) {
       console.error("[FamilyContext] Error fetching data:", error.message);
-      toast.error("Failed to load family archive.");
+      // Only show toast if it's not a resource error which might be transient
+      if (!error.message.includes('fetch')) {
+        toast.error("Failed to load family archive.");
+      }
     } finally {
+      isFetching.current = false;
       if (!silent) setLoading(false);
     }
-  }, [user]);
+  }, [user?.email]); // Only depend on user email to avoid unnecessary recreations
 
+  // Effect for Auth Listener - Runs once on mount
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
+      
       if (session?.user) {
-        // Log login if it's a new session
         const lastLog = localStorage.getItem('kindred_last_login');
         const now = new Date().toDateString();
         if (lastLog !== now) {
@@ -236,7 +243,9 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }).then(() => localStorage.setItem('kindred_last_login', now));
         }
       }
-    });
+    };
+
+    initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
@@ -249,11 +258,14 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     });
 
-    fetchData();
-
     return () => {
       subscription.unsubscribe();
     };
+  }, []);
+
+  // Effect for Data Fetching - Runs when user changes or fetchData is updated
+  useEffect(() => {
+    fetchData();
   }, [fetchData]);
 
   const addPerson = useCallback(async (newPerson: Partial<Person>, relativeId?: string, relType?: string) => {
