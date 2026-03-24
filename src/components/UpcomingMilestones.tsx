@@ -7,6 +7,7 @@ import { Cake, Calendar, ChevronRight, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getPersonUrl } from '@/lib/slugify';
 import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 const UpcomingMilestones = () => {
   const { people } = useFamily();

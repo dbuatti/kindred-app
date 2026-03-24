@@ -40,7 +40,14 @@ const PersonCard = ({ person, relatives = [], onClick, searchQuery }: PersonCard
     }
   };
 
-  const birthDisplay = person.birthDate ? formatFamilyDate(person.birthDate) : (person.birthYear || 'Year Unknown');
+  // Improved birth display logic to catch years from full dates
+  let birthDisplay = person.birthYear;
+  if (!birthDisplay && person.birthDate) {
+    const match = person.birthDate.match(/\d{4}/);
+    birthDisplay = match ? match[0] : formatFamilyDate(person.birthDate);
+  } else if (!birthDisplay) {
+    birthDisplay = 'Year Unknown';
+  }
 
   // Create a summary of relatives, prioritizing parents/spouses but including others like cousins
   const connectionSummary = relatives
