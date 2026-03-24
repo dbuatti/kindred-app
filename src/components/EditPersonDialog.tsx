@@ -58,9 +58,16 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
   const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
   const setIsOpen = setExternalOpen || setInternalOpen;
 
+  // Split the name for the form
+  const nameParts = person.name.split(' ');
+  const initialFirstName = nameParts[0] || '';
+  const initialLastName = nameParts.slice(1).join(' ') || '';
+
   const [formData, setFormData] = useState({
-    name: person.name,
+    firstName: initialFirstName,
+    lastName: initialLastName,
     nickname: person.nickname || '',
+    middleName: person.middleName || '',
     maidenName: person.maidenName || '',
     gender: person.gender || '',
     birthYear: person.birthYear || '',
@@ -84,9 +91,12 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
 
   useEffect(() => {
     if (isOpen) {
+      const parts = person.name.split(' ');
       setFormData({
-        name: person.name,
+        firstName: parts[0] || '',
+        lastName: parts.slice(1).join(' ') || '',
         nickname: person.nickname || '',
+        middleName: person.middleName || '',
         maidenName: person.maidenName || '',
         gender: person.gender || '',
         birthYear: person.birthYear || '',
@@ -110,15 +120,19 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
   }, [person, isOpen]);
 
   const handleSave = async () => {
-    if (!formData.name) return;
+    if (!formData.firstName) return;
     
     const tagsArray = formData.personalityTags
       .split(',')
       .map(tag => tag.trim())
       .filter(tag => tag !== '');
 
+    // Combine names back for the display name
+    const combinedName = `${formData.firstName} ${formData.lastName}`.trim();
+
     await updatePerson(person.id, {
       ...formData,
+      name: combinedName,
       personalityTags: tagsArray
     });
     
@@ -172,10 +186,32 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Full Name</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">First Name</label>
                   <Input 
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                    placeholder="e.g. Daniele"
+                    className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Last Name</label>
+                  <Input 
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                    placeholder="e.g. Buatti"
+                    className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Middle Name(s)</label>
+                  <Input 
+                    value={formData.middleName}
+                    onChange={(e) => setFormData({...formData, middleName: e.target.value})}
+                    placeholder="e.g. Ezio Adriano"
                     className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
                   />
                 </div>

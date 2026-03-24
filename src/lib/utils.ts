@@ -16,6 +16,23 @@ export function formatDisplayName(name: string) {
 }
 
 /**
+ * Constructs the full legal name including middle names.
+ */
+export function getFullLegalName(person: { name: string, middleName?: string }) {
+  if (!person.middleName || person.middleName.toLowerCase() === 'na') {
+    return person.name;
+  }
+  
+  const parts = person.name.split(' ');
+  if (parts.length < 2) return `${person.name} ${person.middleName}`.trim();
+  
+  const firstName = parts[0];
+  const lastName = parts.slice(1).join(' ');
+  
+  return `${firstName} ${person.middleName} ${lastName}`;
+}
+
+/**
  * Extracts a 4-digit year from a string.
  */
 export function extractYear(dateStr: string | undefined | null): string {

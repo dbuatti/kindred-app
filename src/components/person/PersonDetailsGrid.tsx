@@ -18,20 +18,38 @@ import {
   Info,
   Fingerprint
 } from 'lucide-react';
-import { cn, formatFamilyDate } from '@/lib/utils';
+import { cn, getFullLegalName } from '@/lib/utils';
 
 interface PersonDetailsGridProps {
   person: Person;
 }
 
+interface DetailItem {
+  label: string;
+  value: string | undefined | null;
+  icon: any;
+  highlight?: boolean;
+}
+
+interface DetailSection {
+  title: string;
+  icon: any;
+  condition?: boolean;
+  items: DetailItem[];
+}
+
 const PersonDetailsGrid = ({ person }: PersonDetailsGridProps) => {
-  const sections = [
+  const fullLegalName = getFullLegalName(person);
+  const hasMiddleName = person.middleName && person.middleName.toLowerCase() !== 'na';
+
+  const sections: DetailSection[] = [
     {
       title: "Identity",
       icon: Fingerprint,
       items: [
-        { label: "Full Name", value: person.name, icon: User },
-        { label: "Middle Name", value: person.middleName, icon: User },
+        { label: "Full Legal Name", value: fullLegalName, icon: User, highlight: hasMiddleName },
+        { label: "Display Name", value: person.name, icon: User },
+        { label: "Middle Name(s)", value: person.middleName, icon: Tag },
         { label: "Nickname", value: person.nickname, icon: Tag },
         { label: "Maiden Name", value: person.maidenName, icon: Heart },
         { label: "Gender", value: person.gender, icon: User },
@@ -68,7 +86,6 @@ const PersonDetailsGrid = ({ person }: PersonDetailsGridProps) => {
     }
   ];
 
-  // Filter out sections that have no items with values
   const activeSections = sections.filter(section => {
     if (section.condition === false) return false;
     return section.items.some(item => item.value && item.value.trim() !== "");
@@ -96,12 +113,18 @@ const PersonDetailsGrid = ({ person }: PersonDetailsGridProps) => {
             <div className="grid grid-cols-1 gap-6">
               {section.items.filter(i => i.value && i.value.trim() !== "").map((item) => (
                 <div key={item.label} className="flex items-start gap-4 group">
-                  <div className="h-10 w-10 rounded-xl bg-stone-50 flex items-center justify-center text-stone-300 group-hover:text-amber-600 group-hover:bg-amber-50 transition-colors shrink-0">
+                  <div className={cn(
+                    "h-10 w-10 rounded-xl flex items-center justify-center transition-colors shrink-0",
+                    item.highlight ? "bg-amber-50 text-amber-600" : "bg-stone-50 text-stone-300 group-hover:text-amber-600 group-hover:bg-amber-50"
+                  )}>
                     <item.icon className="w-5 h-5" />
                   </div>
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">{item.label}</p>
-                    <p className="text-lg text-stone-700 font-medium leading-tight">
+                    <p className={cn(
+                      "text-lg text-stone-700 font-medium leading-tight",
+                      item.highlight && "text-stone-900 font-bold"
+                    )}>
                       {item.value}
                     </p>
                   </div>
