@@ -49,6 +49,9 @@ export interface Memory {
   authorName?: string;
   reactions?: Record<string, number>;
   comments?: Comment[];
+  // Milestone Fields
+  eventDate?: string;
+  isMilestone?: boolean;
 }
 
 export interface Suggestion {

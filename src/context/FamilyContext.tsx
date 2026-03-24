@@ -26,7 +26,7 @@ interface FamilyContextType {
   addPerson: (person: Partial<Person>, relativeId?: string, relType?: string) => Promise<string | undefined>;
   updatePerson: (id: string, updates: Partial<Person> | Record<string, any>) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
-  addMemory: (personId: string, content: string, type: MemoryType, imageUrl?: string) => Promise<void>;
+  addMemory: (personId: string, content: string, type: MemoryType, imageUrl?: string, eventDate?: string, isMilestone?: boolean) => Promise<void>;
   addComment: (memoryId: string, content: string) => Promise<void>;
   addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'status'>) => Promise<void>;
   addRelationship: (personId: string, relatedId: string, type: string) => Promise<void>;
@@ -160,6 +160,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           createdAt: m.created_at,
           voiceUrl: m.voice_url,
           imageUrl: m.image_url,
+          eventDate: m.event_date,
+          isMilestone: m.is_milestone,
           authorName: profileMap[m.user_id]?.first_name || m.created_by_email.split('@')[0],
           comments: commentMap[m.id] || []
         }))
@@ -307,7 +309,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [fetchData, user]);
 
-  const addMemory = useCallback(async (personId: string, content: string, type: MemoryType, imageUrl?: string) => {
+  const addMemory = useCallback(async (personId: string, content: string, type: MemoryType, imageUrl?: string, eventDate?: string, isMilestone?: boolean) => {
     if (!user) return;
     try {
       const { error } = await supabase
@@ -317,6 +319,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           content,
           type,
           image_url: imageUrl,
+          event_date: eventDate,
+          is_milestone: isMilestone || false,
           created_by_email: user.email,
           user_id: user.id
         }]);

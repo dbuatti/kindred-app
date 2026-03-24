@@ -11,7 +11,8 @@ import {
   Camera, 
   Mic, 
   Star,
-  ChevronRight
+  ChevronRight,
+  Trophy
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -25,6 +26,7 @@ interface TimelineEvent {
   icon: any;
   color: string;
   memoryId?: string;
+  isMilestone?: boolean;
 }
 
 interface LifeTimelineProps {
@@ -48,19 +50,22 @@ const LifeTimeline = ({ person }: LifeTimelineProps) => {
       });
     }
 
-    // 2. Memories with dates (if we had them, for now we use createdAt as a proxy or just all memories)
+    // 2. Memories & Milestones
     person.memories.forEach(m => {
-      // In a real app, we might have a 'date_of_event' field. 
-      // For now, we'll use the creation date but label it as a shared story.
+      // Use eventDate if available, otherwise fallback to createdAt
+      const dateToUse = m.eventDate || m.createdAt;
+      const year = parseInt(extractYear(dateToUse) || new Date(m.createdAt).getFullYear().toString());
+      
       items.push({
-        date: m.createdAt,
-        year: new Date(m.createdAt).getFullYear(),
-        title: m.type === 'photo' ? 'A Moment Captured' : 'A Story Shared',
+        date: dateToUse,
+        year: year,
+        title: m.isMilestone ? 'Significant Milestone' : (m.type === 'photo' ? 'A Moment Captured' : 'A Story Shared'),
         description: m.content,
-        type: 'memory',
-        icon: m.type === 'photo' ? Camera : m.type === 'voice' ? Mic : MessageSquare,
-        color: m.type === 'photo' ? 'bg-blue-500' : 'bg-stone-500',
-        memoryId: m.id
+        type: m.isMilestone ? 'milestone' : 'memory',
+        icon: m.isMilestone ? Trophy : (m.type === 'photo' ? Camera : m.type === 'voice' ? Mic : MessageSquare),
+        color: m.isMilestone ? 'bg-amber-600' : (m.type === 'photo' ? 'bg-blue-500' : 'bg-stone-500'),
+        memoryId: m.id,
+        isMilestone: m.isMilestone
       });
     });
 
@@ -111,8 +116,9 @@ const LifeTimeline = ({ person }: LifeTimelineProps) => {
               {/* Date Bubble */}
               <div className="absolute left-4 md:left-1/2 -translate-x-1/2 z-10">
                 <div className={cn(
-                  "h-10 w-10 rounded-full border-4 border-white shadow-lg flex items-center justify-center text-white",
-                  event.color
+                  "h-10 w-10 rounded-full border-4 border-white shadow-lg flex items-center justify-center text-white transition-transform hover:scale-110",
+                  event.color,
+                  event.isMilestone && "ring-4 ring-amber-100"
                 )}>
                   <event.icon className="w-4 h-4" />
                 </div>
@@ -123,10 +129,25 @@ const LifeTimeline = ({ person }: LifeTimelineProps) => {
                 "flex-1 ml-12 md:ml-0 w-full",
                 idx % 2 === 0 ? "md:text-right" : "md:text-left"
               )}>
-                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-stone-100 hover:shadow-md transition-all group cursor-default">
-                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-[0.2em] mb-2 block">
-                    {event.year !== 0 ? event.year : 'Unknown Date'}
-                  </span>
+                <div className={cn(
+                  "p-6 rounded-[2.5rem] shadow-sm border transition-all group cursor-default",
+                  event.isMilestone 
+                    ? "bg-amber-50/50 border-amber-200 shadow-amber-100/50" 
+                    : "bg-white border-stone-100 hover:shadow-md"
+                )}>
+                  <div className={cn(
+                    "flex items-center gap-2 mb-2",
+                    idx % 2 === 0 ? "md:flex-row-reverse" : ""
+                  )}>
+                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-[0.2em]">
+                      {event.year !== 0 ? event.year : 'Unknown Date'}
+                    </span>
+                    {event.isMilestone && (
+                      <span className="bg-amber-500 text-white text-[8px] font-bold uppercase px-2 py-0.5 rounded-full">
+                        Milestone
+                      </span>
+                    )}
+                  </div>
                   <h4 className="text-xl font-serif font-bold text-stone-800 mb-2">{event.title}</h4>
                   <p className="text-stone-500 italic line-clamp-3 group-hover:line-clamp-none transition-all">
                     "{event.description}"
@@ -137,7 +158,10 @@ const LifeTimeline = ({ person }: LifeTimelineProps) => {
                         const el = document.getElementById(`memory-${event.memoryId}`);
                         el?.scrollIntoView({ behavior: 'smooth' });
                       }}
-                      className="mt-4 text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center gap-1 hover:text-amber-600 transition-colors ml-auto md:ml-0"
+                      className={cn(
+                        "mt-4 text-[10px] font-bold text-stone-400 uppercase tracking-widest flex items-center gap-1 hover:text-amber-600 transition-colors",
+                        idx % 2 === 0 ? "md:ml-auto" : ""
+                      )}
                     >
                       View Story <ChevronRight className="w-3 h-3" />
                     </button>

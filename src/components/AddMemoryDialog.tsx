@@ -5,7 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
-import { Mic, Camera, X, Loader2, CheckCircle2, UploadCloud, Plus, Sparkles, RefreshCw, Trash2 } from 'lucide-react';
+import { Switch } from './ui/switch';
+import { Label } from './ui/label';
+import { Mic, Camera, X, Loader2, CheckCircle2, UploadCloud, Plus, Sparkles, RefreshCw, Trash2, Calendar, Star } from 'lucide-react';
 import { useVoiceInput } from '../hooks/use-voice';
 import { useFamily } from '../context/FamilyContext';
 import { cn } from '@/lib/utils';
@@ -50,6 +52,11 @@ const AddMemoryDialog = ({
   const [isSaving, setIsSaving] = useState(false);
   const [promptIndex, setPromptIndex] = useState(0);
   const [showPrompt, setShowPrompt] = useState(false);
+  
+  // Milestone Fields
+  const [eventDate, setEventDate] = useState('');
+  const [isMilestone, setIsMilestone] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
@@ -122,7 +129,14 @@ const AddMemoryDialog = ({
     setIsSaving(true);
     try {
       if (transcript.trim() && images.length === 0) {
-        await addMemory(personId || 'general', transcript, isListening ? 'voice' : 'text');
+        await addMemory(
+          personId || 'general', 
+          transcript, 
+          isListening ? 'voice' : 'text', 
+          undefined, 
+          eventDate, 
+          isMilestone
+        );
       } 
       else if (images.length > 0) {
         for (const img of images) {
@@ -130,7 +144,9 @@ const AddMemoryDialog = ({
             personId || 'general', 
             img.caption || transcript || "A family photo.", 
             'photo', 
-            img.url
+            img.url,
+            eventDate,
+            isMilestone
           );
         }
       }
@@ -146,6 +162,8 @@ const AddMemoryDialog = ({
       localStorage.removeItem(`kindred_draft_${personId || 'general'}`);
       setTranscript('');
       setImages([]);
+      setEventDate('');
+      setIsMilestone(false);
       setIsOpen(false);
     } catch (error: any) {
       toast.error("Couldn't save. Please try again.");
@@ -182,6 +200,38 @@ const AddMemoryDialog = ({
         </DialogHeader>
         
         <div className="space-y-8 py-4">
+          {/* Milestone & Date Controls */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100 flex items-center gap-4">
+              <Calendar className="w-5 h-5 text-stone-400" />
+              <div className="flex-1 space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400">When did this happen?</label>
+                <Input 
+                  type="text" 
+                  placeholder="e.g. 1985 or 15/05/1985" 
+                  value={eventDate}
+                  onChange={(e) => setEventDate(e.target.value)}
+                  className="h-8 bg-transparent border-none p-0 text-sm focus-visible:ring-0"
+                />
+              </div>
+            </div>
+            <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "h-8 w-8 rounded-full flex items-center justify-center transition-colors",
+                  isMilestone ? "bg-amber-500 text-white" : "bg-stone-200 text-stone-400"
+                )}>
+                  <Star className="w-4 h-4 fill-current" />
+                </div>
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-bold text-stone-800">Milestone</Label>
+                  <p className="text-[10px] text-stone-400 uppercase tracking-widest">Major Life Event</p>
+                </div>
+              </div>
+              <Switch checked={isMilestone} onCheckedChange={setIsMilestone} />
+            </div>
+          </div>
+
           {/* Story Starter Prompt */}
           {!images.length && !transcript && (
             <div className={cn(
