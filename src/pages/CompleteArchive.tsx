@@ -4,66 +4,70 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
 import { 
   ArrowLeft, 
   Sparkles, 
-  Calendar, 
-  MapPin, 
-  Briefcase, 
-  Camera, 
-  Quote, 
+  Search,
   ChevronRight,
   AlertCircle,
   Trophy,
   Target,
-  RefreshCw
+  RefreshCw,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getPersonUrl } from '@/lib/slugify';
 import MissionProgress from '../components/MissionProgress';
+import SuggestionDialog from '../components/SuggestionDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const CompleteArchive = () => {
   const navigate = useNavigate();
   const { people, loading } = useFamily();
   const [questIndex, setQuestIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const peopleWithScores = useMemo(() => {
     return people.map(person => {
       const items = [
-        { label: 'Birth Date', value: person.birthDate || person.birthYear },
-        { label: 'Birth Place', value: person.birthPlace },
-        { label: 'Occupation', value: person.occupation },
-        { label: 'Gender', value: person.gender },
-        { label: 'Nickname', value: person.nickname },
-        { label: 'Photo', value: person.photoUrl },
-        { label: 'Detailed Bio', value: person.vibeSentence && person.vibeSentence.length > 30 },
-        { label: 'Education', value: person.education },
-        { label: 'Military Service', value: person.militaryService },
-        { label: 'Physical Traits', value: person.physicalTraits },
-        { label: 'Favorite Things', value: person.favoriteThings },
+        { id: 'birth_date', label: 'Birth Date', value: person.birthDate || person.birthYear },
+        { id: 'birth_place', label: 'Birth Place', value: person.birthPlace },
+        { id: 'occupation', label: 'Occupation', value: person.occupation },
+        { id: 'gender', label: 'Gender', value: person.gender },
+        { id: 'nickname', label: 'Nickname', value: person.nickname },
+        { id: 'photo_url', label: 'Photo', value: person.photoUrl },
+        { id: 'vibe_sentence', label: 'Detailed Bio', value: person.vibeSentence && person.vibeSentence.length > 30 },
+        { id: 'education', label: 'Education', value: person.education },
+        { id: 'military_service', label: 'Military Service', value: person.militaryService },
+        { id: 'physical_traits', label: 'Physical Traits', value: person.physicalTraits },
+        { id: 'favorite_things', label: 'Favorite Things', value: person.favoriteThings },
       ];
 
-      // Add Maiden Name for females
       if (person.gender?.toLowerCase() === 'female') {
-        items.push({ label: 'Maiden Name', value: person.maidenName });
+        items.push({ id: 'maiden_name', label: 'Maiden Name', value: person.maidenName });
       }
 
-      // Add Passing info for those no longer with us
       if (person.isLiving === false) {
-        items.push({ label: 'Date of Passing', value: person.deathDate || person.deathYear });
-        items.push({ label: 'Place of Passing', value: person.deathPlace });
-        items.push({ label: 'Resting Place', value: person.burialPlace });
+        items.push({ id: 'death_date', label: 'Date of Passing', value: person.deathDate || person.deathYear });
+        items.push({ id: 'death_place', label: 'Place of Passing', value: person.deathPlace });
+        items.push({ id: 'burial_place', label: 'Resting Place', value: person.burialPlace });
       }
 
-      const missing = items.filter(i => !i.value).map(i => i.label);
+      const missing = items.filter(i => !i.value).map(i => ({ id: i.id, label: i.label }));
       const score = items.filter(i => i.value).length;
       const percentage = Math.round((score / items.length) * 100);
 
       return { ...person, percentage, missing };
     }).sort((a, b) => a.percentage - b.percentage);
   }, [people]);
+
+  const filteredPeople = useMemo(() => {
+    if (!searchQuery) return peopleWithScores;
+    return peopleWithScores.filter(p => 
+      p.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [peopleWithScores, searchQuery]);
 
   const stats = useMemo(() => {
     if (peopleWithScores.length === 0) return { avg: 0, totalMemories: 0 };
@@ -83,17 +87,29 @@ const CompleteArchive = () => {
   return (
     <div className="min-h-screen bg-[#FDFCF9] pb-32">
       <header className="bg-white border-b-8 border-stone-100 px-8 py-10 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto flex items-center gap-6">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/')} 
-            className="rounded-full h-16 w-16 text-stone-500"
-          >
-            <ArrowLeft className="w-8 h-8" />
-          </Button>
-          <div>
-            <h1 className="text-4xl font-serif font-bold text-stone-800">Family Mission</h1>
-            <p className="text-stone-500 text-xl italic">Preserving our story, one detail at a time.</p>
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
+          <div className="flex items-center gap-6">
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate('/')} 
+              className="rounded-full h-16 w-16 text-stone-500"
+            >
+              <ArrowLeft className="w-8 h-8" />
+            </Button>
+            <div>
+              <h1 className="text-4xl font-serif font-bold text-stone-800">Family Mission</h1>
+              <p className="text-stone-500 text-xl italic">Preserving our story, one detail at a time.</p>
+            </div>
+          </div>
+          
+          <div className="hidden md:block relative w-64">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+            <Input 
+              placeholder="Find a person..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-12 bg-stone-50 border-none rounded-2xl"
+            />
           </div>
         </div>
       </header>
@@ -105,7 +121,7 @@ const CompleteArchive = () => {
           totalMemories={stats.totalMemories} 
         />
 
-        {featuredQuest && (
+        {featuredQuest && !searchQuery && (
           <section className="bg-stone-900 text-white p-10 rounded-[3rem] shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[100px] rounded-full -mr-32 -mt-32" />
             
@@ -129,14 +145,14 @@ const CompleteArchive = () => {
                     <img src={featuredQuest.photoUrl} className="w-full h-full object-cover grayscale" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-600">
-                      <Camera className="w-10 h-10" />
+                      <Search className="w-10 h-10" />
                     </div>
                   )}
                 </div>
                 <div className="flex-1 text-center md:text-left space-y-4">
                   <h2 className="text-4xl font-serif font-bold">Help us remember {featuredQuest.name.split(' ')[0]}</h2>
                   <p className="text-stone-400 text-lg leading-relaxed">
-                    We're missing {featuredQuest.missing.length} key details about {featuredQuest.name.split(' ')[0]}. Do you know their {featuredQuest.missing[0].toLowerCase()}?
+                    We're missing {featuredQuest.missing.length} key details about {featuredQuest.name.split(' ')[0]}. Do you know their {featuredQuest.missing[0].label.toLowerCase()}?
                   </p>
                   <Button 
                     onClick={() => navigate(getPersonUrl(featuredQuest.id, featuredQuest.name))}
@@ -154,27 +170,33 @@ const CompleteArchive = () => {
         <div className="space-y-8">
           <div className="flex items-center justify-between border-b-4 border-stone-100 pb-4">
             <h2 className="text-2xl font-serif font-bold text-stone-800">The Archive List</h2>
-            <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Sorted by need</span>
+            <div className="flex items-center gap-4">
+              {searchQuery && (
+                <Button variant="ghost" size="sm" onClick={() => setSearchQuery('')} className="text-stone-400 gap-2">
+                  <X className="w-4 h-4" /> Clear Search
+                </Button>
+              )}
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Sorted by need</span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {peopleWithScores.map((person, idx) => (
+            {filteredPeople.map((person, idx) => (
               <motion.div 
                 key={person.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                onClick={() => navigate(getPersonUrl(person.id, person.name))}
-                className="bg-white p-8 rounded-[2.5rem] shadow-sm border-4 border-stone-100 hover:border-amber-200 transition-all cursor-pointer group"
+                className="bg-white p-8 rounded-[2.5rem] shadow-sm border-4 border-stone-100 hover:border-amber-200 transition-all group"
               >
                 <div className="flex items-start justify-between gap-6 mb-6">
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-6 cursor-pointer" onClick={() => navigate(getPersonUrl(person.id, person.name))}>
                     <div className="h-20 w-20 rounded-full overflow-hidden bg-stone-100 shrink-0 border-4 border-white shadow-sm">
                       {person.photoUrl ? (
                         <img src={person.photoUrl} className="w-full h-full object-cover grayscale-[0.3]" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-stone-300">
-                          <Camera className="w-8 h-8" />
+                          <Search className="w-8 h-8" />
                         </div>
                       )}
                     </div>
@@ -187,9 +209,14 @@ const CompleteArchive = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="h-14 w-14 rounded-full bg-stone-50 flex items-center justify-center text-stone-300 group-hover:bg-amber-50 group-hover:text-amber-600 transition-all">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => navigate(getPersonUrl(person.id, person.name))}
+                    className="h-14 w-14 rounded-full bg-stone-50 text-stone-300 group-hover:bg-amber-50 group-hover:text-amber-600 transition-all"
+                  >
                     <ChevronRight className="w-8 h-8" />
-                  </div>
+                  </Button>
                 </div>
 
                 <div className="space-y-6">
@@ -204,18 +231,22 @@ const CompleteArchive = () => {
                   </div>
                   
                   <div className="flex flex-wrap gap-3">
-                    {person.missing.slice(0, 4).map(item => (
-                      <span 
-                        key={item} 
-                        className="flex items-center gap-2 px-4 py-2 bg-stone-50 text-stone-500 rounded-full text-[10px] font-bold uppercase tracking-widest border border-stone-100"
-                      >
-                        <AlertCircle className="w-3 h-3 text-amber-500" />
-                        {item}
-                      </span>
+                    {person.missing.slice(0, 6).map(item => (
+                      <SuggestionDialog 
+                        key={item.id}
+                        person={person}
+                        initialField={item.id}
+                        trigger={
+                          <button className="flex items-center gap-2 px-4 py-2 bg-stone-50 text-stone-500 rounded-full text-[10px] font-bold uppercase tracking-widest border border-stone-100 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition-all">
+                            <AlertCircle className="w-3 h-3 text-amber-500" />
+                            {item.label}
+                          </button>
+                        }
+                      />
                     ))}
-                    {person.missing.length > 4 && (
+                    {person.missing.length > 6 && (
                       <span className="flex items-center gap-2 px-4 py-2 bg-stone-50 text-stone-400 rounded-full text-[10px] font-bold uppercase tracking-widest border border-stone-100">
-                        +{person.missing.length - 4} more
+                        +{person.missing.length - 6} more
                       </span>
                     )}
                     {person.percentage === 100 && (

@@ -32,6 +32,8 @@ import PhotoGallery from '../components/person/PhotoGallery';
 import LifeTimeline from '../components/person/LifeTimeline';
 import CommentSection from '../components/CommentSection';
 import FloatingMenu from '../components/FloatingMenu';
+import StoryStarter from '../components/StoryStarter';
+import QuickAddMenu from '../components/QuickAddMenu';
 import { PersonDetailSkeleton } from '../components/SkeletonLoader';
 import { cn, formatFamilyDate } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -217,7 +219,10 @@ const PersonDetail = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-3xl font-serif font-bold text-stone-800 flex items-center gap-3">Family Tree</h2>
           </div>
-          <FamilyConnections person={person} relatives={relatives} />
+          <div className="relative">
+            <QuickAddMenu personId={person.id} personName={person.name} />
+            <FamilyConnections person={person} relatives={relatives} />
+          </div>
         </section>
 
         <section className="space-y-12">
@@ -244,65 +249,73 @@ const PersonDetail = () => {
             </div>
           </div>
 
-          <div className="space-y-12 relative before:absolute before:left-[23px] before:top-4 before:bottom-4 before:w-1 before:bg-stone-100">
-            {filteredMemories.length === 0 ? (
-              <div className="text-center py-20 space-y-6 bg-white rounded-[3rem] border border-stone-100 shadow-sm">
-                <p className="text-stone-400 font-serif italic text-xl">No stories shared yet...</p>
-              </div>
-            ) : (
-              filteredMemories.map((memory, idx) => {
-                const memoryReactions = reactions[memory.id] || [];
-                const isWarmed = memoryReactions.includes(user?.id);
-                
-                return (
-                  <motion.div 
-                    key={memory.id} 
-                    id={`memory-${memory.id}`}
-                    initial={{ opacity: 0, x: -20 }} 
-                    whileInView={{ opacity: 1, x: 0 }} 
-                    viewport={{ once: true }} 
-                    transition={{ delay: idx * 0.1 }} 
-                    className="relative pl-16 group transition-all duration-500"
-                  >
-                    <div className="absolute left-0 top-2 w-12 h-12 rounded-full bg-white border-4 border-stone-50 flex items-center justify-center z-10 shadow-sm group-hover:border-amber-100 transition-colors">
-                      {memory.type === 'voice' ? <Mic className="w-5 h-5 text-amber-600" /> : memory.type === 'photo' ? <Camera className="w-5 h-5 text-stone-400" /> : <MessageSquare className="w-5 h-5 text-stone-400" />}
-                    </div>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-bold text-stone-800 uppercase tracking-widest">{memory.authorName || memory.createdByEmail.split('@')[0]}</span>
-                          <span className="text-stone-200">•</span>
-                          <span className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em]">
-                            {formatFamilyDate(memory.createdAt)}
-                          </span>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+            <div className="lg:col-span-2 space-y-12 relative before:absolute before:left-[23px] before:top-4 before:bottom-4 before:w-1 before:bg-stone-100">
+              {filteredMemories.length === 0 ? (
+                <div className="text-center py-20 space-y-6 bg-white rounded-[3rem] border border-stone-100 shadow-sm">
+                  <p className="text-stone-400 font-serif italic text-xl">No stories shared yet...</p>
+                </div>
+              ) : (
+                filteredMemories.map((memory, idx) => {
+                  const memoryReactions = reactions[memory.id] || [];
+                  const isWarmed = memoryReactions.includes(user?.id);
+                  
+                  return (
+                    <motion.div 
+                      key={memory.id} 
+                      id={`memory-${memory.id}`}
+                      initial={{ opacity: 0, x: -20 }} 
+                      whileInView={{ opacity: 1, x: 0 }} 
+                      viewport={{ once: true }} 
+                      transition={{ delay: idx * 0.1 }} 
+                      className="relative pl-16 group transition-all duration-500"
+                    >
+                      <div className="absolute left-0 top-2 w-12 h-12 rounded-full bg-white border-4 border-stone-50 flex items-center justify-center z-10 shadow-sm group-hover:border-amber-100 transition-colors">
+                        {memory.type === 'voice' ? <Mic className="w-5 h-5 text-amber-600" /> : memory.type === 'photo' ? <Camera className="w-5 h-5 text-stone-400" /> : <MessageSquare className="w-5 h-5 text-stone-400" />}
+                      </div>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-stone-800 uppercase tracking-widest">{memory.authorName || memory.createdByEmail.split('@')[0]}</span>
+                            <span className="text-stone-200">•</span>
+                            <span className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em]">
+                              {formatFamilyDate(memory.createdAt)}
+                            </span>
+                          </div>
+                          <button 
+                            onClick={() => handleWarm(memory.id)}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-1 rounded-full transition-all duration-300 group/heart",
+                              isWarmed 
+                                ? "bg-red-50 text-red-500" 
+                                : "bg-stone-50 text-stone-400 hover:bg-red-50 hover:text-red-500"
+                            )}
+                          >
+                            <Heart className={cn("w-3 h-3 transition-transform group-active:scale-125", isWarmed && "fill-current")} />
+                            <span className="text-[10px] font-bold uppercase tracking-widest">
+                              {memoryReactions.length > 0 ? memoryReactions.length : ''} {isWarmed ? 'Warmed' : 'Warm this'}
+                            </span>
+                          </button>
                         </div>
-                        <button 
-                          onClick={() => handleWarm(memory.id)}
-                          className={cn(
-                            "flex items-center gap-2 px-3 py-1 rounded-full transition-all duration-300 group/heart",
-                            isWarmed 
-                              ? "bg-red-50 text-red-500" 
-                              : "bg-stone-50 text-stone-400 hover:bg-red-50 hover:text-red-500"
-                          )}
-                        >
-                          <Heart className={cn("w-3 h-3 transition-transform group-active:scale-125", isWarmed && "fill-current")} />
-                          <span className="text-[10px] font-bold uppercase tracking-widest">
-                            {memoryReactions.length > 0 ? memoryReactions.length : ''} {isWarmed ? 'Warmed' : 'Warm this'}
-                          </span>
-                        </button>
+                        <div className={cn("p-8 rounded-[2.5rem] text-xl font-serif leading-relaxed shadow-sm transition-all duration-500", memory.type === 'voice' ? "bg-amber-50/40 border border-amber-100/50" : memory.type === 'photo' ? "bg-stone-50/50 border border-stone-100" : "bg-white border border-stone-100 group-hover:shadow-md")}>
+                          {memory.type === 'voice' && <Button size="icon" variant="ghost" className="mb-6 h-14 w-14 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 shadow-sm"><Play className="w-6 h-6 fill-current" /></Button>}
+                          {memory.type === 'photo' && memory.imageUrl && <div className="mb-6 rounded-2xl overflow-hidden border-4 border-white shadow-sm"><img src={memory.imageUrl} alt="Memory" className="w-full h-auto max-h-[400px] object-cover" /></div>}
+                          <p className="text-stone-700 italic">"{memory.content}"</p>
+                          
+                          <CommentSection memoryId={memory.id} comments={memory.comments || []} />
+                        </div>
                       </div>
-                      <div className={cn("p-8 rounded-[2.5rem] text-xl font-serif leading-relaxed shadow-sm transition-all duration-500", memory.type === 'voice' ? "bg-amber-50/40 border border-amber-100/50" : memory.type === 'photo' ? "bg-stone-50/50 border border-stone-100" : "bg-white border border-stone-100 group-hover:shadow-md")}>
-                        {memory.type === 'voice' && <Button size="icon" variant="ghost" className="mb-6 h-14 w-14 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 shadow-sm"><Play className="w-6 h-6 fill-current" /></Button>}
-                        {memory.type === 'photo' && memory.imageUrl && <div className="mb-6 rounded-2xl overflow-hidden border-4 border-white shadow-sm"><img src={memory.imageUrl} alt="Memory" className="w-full h-auto max-h-[400px] object-cover" /></div>}
-                        <p className="text-stone-700 italic">"{memory.content}"</p>
-                        
-                        <CommentSection memoryId={memory.id} comments={memory.comments || []} />
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })
-            )}
+                    </motion.div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="lg:col-span-1 space-y-8">
+              <div className="sticky top-32">
+                <StoryStarter />
+              </div>
+            </div>
           </div>
         </section>
       </main>
