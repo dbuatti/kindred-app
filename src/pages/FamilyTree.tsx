@@ -49,11 +49,11 @@ const FamilyTree = () => {
     if (loading || people.length === 0) return null;
 
     try {
-      const g = new dagre.graphlib.Graph({ compound: true });
+      const g = new dagre.graphlib.Graph();
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 150, // Increased significantly to prevent mixing
-        ranksep: 150, // Increased for clearer vertical separation
+        nodesep: 80, // Reduced to keep siblings and spouses closer
+        ranksep: 120, // Balanced vertical spacing
         marginx: 100, 
         marginy: 100,
         ranker: 'network-simplex'
@@ -156,46 +156,25 @@ const FamilyTree = () => {
         }
       });
 
-      // 4. Add Union Nodes and Clusters
-      // Track which nodes are already in a cluster to avoid dagre errors (nodes can only have one parent)
-      const nodeToCluster = new Map<string, string>();
-
+      // 4. Add Union Nodes
       Object.values(unions).forEach(u => {
-        const clusterId = `cluster_${u.id}`;
-        g.setNode(clusterId, { label: '', style: 'fill: none; stroke: none;' });
-        
-        // Add union node to cluster
+        // Add union node (the heart)
         g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
-        g.setParent(u.id, clusterId);
 
-        // Try to add parents to the cluster to keep them together
-        // Only add if they aren't already in another cluster (e.g. from a different marriage)
-        if (!nodeToCluster.has(u.p1)) {
-          g.setParent(u.p1, clusterId);
-          nodeToCluster.set(u.p1, clusterId);
-        }
-        if (!nodeToCluster.has(u.p2)) {
-          g.setParent(u.p2, clusterId);
-          nodeToCluster.set(u.p2, clusterId);
-        }
+        // Connect parents to union with EXTREMELY high weight to force them together
+        // This prevents other family branches from pulling spouses apart
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 1000 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 1000 });
 
-        // Connect parents to union with VERY high weight to force proximity
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 100 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 100 });
-
-        // Connect union to children and put children in the same cluster if possible
+        // Connect union to children
         u.children.forEach((childId) => {
-          if (!nodeToCluster.has(childId)) {
-            g.setParent(childId, clusterId);
-            nodeToCluster.set(childId, clusterId);
-          }
-          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 50 });
+          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 10 });
         });
       });
 
       dagre.layout(g);
       
-      const nodes = g.nodes().map(v => ({ id: v, ...g.node(v) })).filter(n => !n.id.startsWith('cluster_'));
+      const nodes = g.nodes().map(v => ({ id: v, ...g.node(v) }));
       const edges = g.edges().map(e => ({ 
         from: g.node(e.v), 
         to: g.node(e.w),
