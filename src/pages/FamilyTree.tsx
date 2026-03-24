@@ -49,10 +49,10 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph();
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 250, 
-        ranksep: 300, 
-        marginx: 150, 
-        marginy: 150,
+        nodesep: 80,   // Much tighter horizontal spacing
+        ranksep: 120,  // Much tighter vertical spacing
+        marginx: 100, 
+        marginy: 100,
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -66,8 +66,8 @@ const FamilyTree = () => {
         }
 
         g.setNode(p.id, { 
-          width: 260, 
-          height: 120, 
+          width: 240, 
+          height: 100, 
           person: { ...p, displayYear: displayYear || 'Year Unknown' } 
         });
       });
@@ -122,12 +122,12 @@ const FamilyTree = () => {
       });
 
       Object.values(unions).forEach(u => {
-        g.setNode(u.id, { width: 60, height: 60, isUnion: true, color: u.color });
+        g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
         g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color });
         g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color });
         
-        u.children.forEach((childId, idx) => {
-          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, index: idx });
+        u.children.forEach((childId) => {
+          g.setEdge(u.id, childId, { type: 'lineage', color: u.color });
         });
       });
 
@@ -140,18 +140,18 @@ const FamilyTree = () => {
         ...g.edge(e)
       }));
 
-      const minX = Math.min(...nodes.map(n => n.x - 200));
-      const maxX = Math.max(...nodes.map(n => n.x + 200));
-      const minY = Math.min(...nodes.map(n => n.y - 150));
-      const maxY = Math.max(...nodes.map(n => n.y + 150));
+      const minX = Math.min(...nodes.map(n => n.x - 150));
+      const maxX = Math.max(...nodes.map(n => n.x + 150));
+      const minY = Math.min(...nodes.map(n => n.y - 100));
+      const maxY = Math.max(...nodes.map(n => n.y + 100));
 
       return {
         nodes,
         edges,
-        width: maxX - minX + 400,
-        height: maxY - minY + 400,
-        offsetX: -minX + 200,
-        offsetY: -minY + 200
+        width: maxX - minX + 300,
+        height: maxY - minY + 300,
+        offsetX: -minX + 150,
+        offsetY: -minY + 100
       };
     } catch (err) {
       console.error("[FamilyTree] Layout error:", err);
@@ -218,7 +218,7 @@ const FamilyTree = () => {
         </div>
       </header>
 
-      <main className="flex-1 relative overflow-auto p-10 cursor-grab active:cursor-grabbing bg-[radial-gradient(#e5e7eb_1.5px,transparent_1.5px)] [background-size:60px_60px]">
+      <main className="flex-1 relative overflow-auto p-10 cursor-grab active:cursor-grabbing bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:40px_40px]">
         <motion.div 
           style={{ 
             scale: zoom, 
@@ -235,7 +235,7 @@ const FamilyTree = () => {
           >
             <defs>
               <filter id="line-glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feGaussianBlur stdDeviation="3" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
             </defs>
@@ -246,24 +246,20 @@ const FamilyTree = () => {
               const isMarriage = edge.type === 'marriage';
               
               const startX = edge.from.x;
-              const startY = edge.from.y + (edge.from.isUnion ? 0 : 60); 
+              const startY = edge.from.y + (edge.from.isUnion ? 0 : 50); 
               const endX = edge.to.x;
-              const endY = edge.to.y - (edge.to.isUnion ? 30 : 60); 
+              const endY = edge.to.y - (edge.to.isUnion ? 20 : 50); 
 
               let path = "";
               if (isMarriage) {
-                const midY = startY + (endY - startY) * 0.5;
-                path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
+                // Straight lines for marriage meeting at the heart
+                path = `M ${startX} ${startY} L ${endX} ${endY}`;
               } else {
-                const radius = 40;
-                const midY = startY + 80 + (edge.index || 0) * 20;
-                const direction = endX > startX ? 1 : -1;
-                
+                // "Family Bus" style: Vertical down, Horizontal across, Vertical down to child
+                const midY = startY + (endY - startY) * 0.5;
                 path = `M ${startX} ${startY} 
-                        L ${startX} ${midY - radius}
-                        Q ${startX} ${midY}, ${startX + (radius * direction)} ${midY}
-                        L ${endX - (radius * direction)} ${midY}
-                        Q ${endX} ${midY}, ${endX} ${midY + radius}
+                        L ${startX} ${midY} 
+                        L ${endX} ${midY} 
                         L ${endX} ${endY}`;
               }
               
@@ -272,18 +268,18 @@ const FamilyTree = () => {
                   <path
                     d={path}
                     stroke="white"
-                    strokeWidth={isMarriage ? "10" : "8"}
+                    strokeWidth={isMarriage ? "8" : "6"}
                     fill="none"
                     strokeLinecap="round"
-                    opacity="0.6"
+                    opacity="0.4"
                   />
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 1.5, ease: "easeInOut", delay: i * 0.01 }}
+                    transition={{ duration: 1, ease: "easeInOut", delay: i * 0.01 }}
                     d={path}
                     stroke={edge.color}
-                    strokeWidth={isMarriage ? "5" : "3.5"}
+                    strokeWidth={isMarriage ? "4" : "2.5"}
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -303,15 +299,15 @@ const FamilyTree = () => {
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', damping: 12, delay: 0.5 }}
                   style={{ 
-                    left: node.x - 30, 
-                    top: node.y - 30,
+                    left: node.x - 20, 
+                    top: node.y - 20,
                     backgroundColor: 'white',
                     borderColor: node.color
                   }}
-                  className="absolute w-15 h-15 rounded-full border-4 flex items-center justify-center shadow-xl z-10 group"
+                  className="absolute w-10 h-10 rounded-full border-2 flex items-center justify-center shadow-lg z-10 group"
                 >
-                  <div className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ backgroundColor: node.color }} />
-                  <Heart className="w-8 h-8 fill-current transition-transform group-hover:scale-125" style={{ color: node.color }} />
+                  <div className="absolute inset-0 rounded-full animate-ping opacity-10" style={{ backgroundColor: node.color }} />
+                  <Heart className="w-5 h-5 fill-current transition-transform group-hover:scale-125" style={{ color: node.color }} />
                 </motion.div>
               );
             }
@@ -325,41 +321,44 @@ const FamilyTree = () => {
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ scale: 1.05, y: -5 }}
                 style={{ 
-                  left: node.x - 130, 
-                  top: node.y - 60,
-                  width: 260,
-                  height: 120
+                  left: node.x - 120, 
+                  top: node.y - 50,
+                  width: 240,
+                  height: 100
                 }}
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
-                className="absolute bg-white rounded-[2rem] border-2 border-stone-100 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.15)] hover:border-amber-200 transition-all p-5 flex items-center gap-5 cursor-pointer group z-20"
+                className="absolute bg-white rounded-2xl border border-stone-200 shadow-[0_4px_20px_-5px_rgba(0,0,0,0.1)] hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.15)] hover:border-amber-300 transition-all p-4 flex items-center gap-4 cursor-pointer group z-20 overflow-hidden"
               >
+                {/* Subtle texture overlay */}
+                <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/stone.png')]" />
+                
                 <SmartSuggestionHover personId={node.id} />
                 
-                <div className="h-16 w-16 rounded-full overflow-hidden bg-stone-50 shrink-0 border-2 border-white shadow-md ring-1 ring-stone-100 group-hover:ring-amber-200 transition-all">
+                <div className="h-14 w-14 rounded-full overflow-hidden bg-stone-50 shrink-0 border-2 border-white shadow-sm ring-1 ring-stone-100 group-hover:ring-amber-200 transition-all relative z-10">
                   {hasRealPhoto ? (
-                    <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" />
+                    <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-200">
-                      <UserCircle className="w-10 h-10" />
+                      <UserCircle className="w-8 h-8" />
                     </div>
                   )}
                 </div>
-                <div className="min-w-0 flex-1 space-y-1">
-                  <p className="text-base font-serif font-bold text-stone-800 truncate group-hover:text-amber-900 transition-colors">{node.person.name}</p>
+                <div className="min-w-0 flex-1 space-y-0.5 relative z-10">
+                  <p className="text-sm font-serif font-bold text-stone-800 truncate group-hover:text-amber-900 transition-colors">{node.person.name}</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                    <span className="text-[9px] font-bold text-stone-400 uppercase tracking-widest">
                       {node.person.displayYear}
                     </span>
                     {!node.person.isLiving && (
-                      <Badge variant="secondary" className="bg-stone-100 text-stone-400 border-none text-[8px] px-2 py-0">
+                      <Badge variant="secondary" className="bg-stone-100 text-stone-400 border-none text-[7px] px-1.5 py-0 leading-none h-3">
                         In Memory
                       </Badge>
                     )}
                   </div>
                   {node.person.memories.length > 0 && (
-                    <div className="flex items-center gap-1 text-amber-600/60">
-                      <Sparkles className="w-3 h-3" />
-                      <span className="text-[9px] font-bold uppercase tracking-tighter">{node.person.memories.length} Stories</span>
+                    <div className="flex items-center gap-1 text-amber-600/70">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      <span className="text-[8px] font-bold uppercase tracking-tighter">{node.person.memories.length} Stories</span>
                     </div>
                   )}
                 </div>
@@ -370,15 +369,15 @@ const FamilyTree = () => {
       </main>
 
       <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-30">
-        <div className="bg-stone-900/90 backdrop-blur-xl text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-8 border border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="h-2.5 w-2.5 rounded-full bg-stone-400 shadow-[0_0_8px_rgba(168,162,158,0.5)]" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-300">Lineage</span>
+        <div className="bg-stone-900/90 backdrop-blur-xl text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-6 border border-white/10">
+          <div className="flex items-center gap-2.5">
+            <div className="h-2 w-2 rounded-full bg-stone-400" />
+            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-300">Lineage</span>
           </div>
-          <div className="h-4 w-px bg-white/10" />
-          <div className="flex items-center gap-3">
-            <Heart className="w-4 h-4 text-amber-400 fill-current drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-300">Marriage Branch</span>
+          <div className="h-3 w-px bg-white/10" />
+          <div className="flex items-center gap-2.5">
+            <Heart className="w-3.5 h-3.5 text-amber-400 fill-current" />
+            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-300">Marriage</span>
           </div>
         </div>
       </div>
