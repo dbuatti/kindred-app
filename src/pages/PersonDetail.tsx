@@ -117,7 +117,7 @@ const PersonDetail = () => {
   if (loading) return (
     <div className="min-h-screen bg-[#FDFCF9]">
       <nav className="sticky top-0 z-30 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full text-stone-500 h-12 w-12"><ArrowLeft className="w-6 h-6" /></Button>
         </div>
       </nav>
@@ -170,7 +170,7 @@ const PersonDetail = () => {
       )}
 
       <nav className="sticky top-0 z-30 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-full text-stone-500 h-12 w-12 hover:bg-stone-100"><ArrowLeft className="w-6 h-6" /></Button>
             <div className="hidden md:flex items-center gap-2 text-[10px] font-bold text-stone-400 uppercase tracking-[0.2em]">
@@ -191,7 +191,7 @@ const PersonDetail = () => {
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-6 py-12 space-y-16">
+      <main className="max-w-7xl mx-auto px-6 py-12 space-y-16">
         <PersonHero 
           person={person}
           isOwnProfile={isOwnProfile}

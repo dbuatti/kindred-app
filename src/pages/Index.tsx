@@ -114,7 +114,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-stone-900 pb-32">
       <header className="bg-white/80 backdrop-blur-md border-b-4 border-stone-100 px-6 py-8 sticky top-0 z-30">
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="max-w-7xl mx-auto space-y-8">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-3">
@@ -158,14 +158,14 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-12 space-y-12">
+      <main className="max-w-7xl mx-auto px-6 py-12 space-y-12">
         {!searchQuery && !loading && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="space-y-12"
           >
-            <div className="space-y-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <RecentPeople people={recentPeopleList} />
               <UpcomingMilestones />
             </div>
@@ -254,7 +254,7 @@ const Index = () => {
                 layout
                 className={cn(
                   "gap-8",
-                  viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "flex flex-col"
+                  viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "flex flex-col"
                 )}
               >
                 <AnimatePresence mode="popLayout">

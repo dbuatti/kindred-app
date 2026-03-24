@@ -167,7 +167,7 @@ const EditProfile = () => {
   return (
     <div className="min-h-screen bg-[#FDFCF9] pb-20">
       <header className="bg-white border-b-8 border-stone-100 px-8 py-8 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-8 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-8 flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate('/profile')} className="rounded-full h-14 px-6 text-stone-500 gap-2">
             <ArrowLeft className="w-6 h-6" /> Back
           </Button>
@@ -176,7 +176,7 @@ const EditProfile = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-8 py-12 space-y-12">
+      <main className="max-w-7xl mx-auto px-8 py-12 space-y-12">
         <div className="bg-white p-10 rounded-[3rem] shadow-sm border-4 border-stone-100 space-y-10">
           <div className="flex justify-center">
             <div className="h-32 w-32 rounded-full bg-stone-100 flex items-center justify-center text-stone-300 border-4 border-stone-50">

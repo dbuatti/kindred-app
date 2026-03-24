@@ -64,7 +64,7 @@ const CompleteArchive = () => {
   return (
     <div className="min-h-screen bg-[#FDFCF9] pb-32">
       <header className="bg-white border-b-8 border-stone-100 px-8 py-10 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto flex items-center gap-6">
+        <div className="max-w-7xl mx-auto flex items-center gap-6">
           <Button 
             variant="ghost" 
             onClick={() => navigate('/')} 
@@ -79,7 +79,7 @@ const CompleteArchive = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-8 py-12 space-y-12">
+      <main className="max-w-7xl mx-auto px-8 py-12 space-y-12">
         <MissionProgress 
           totalPeople={people.length} 
           averageCompletion={stats.avg} 
@@ -138,7 +138,7 @@ const CompleteArchive = () => {
             <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Sorted by need</span>
           </div>
 
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {peopleWithScores.map((person, idx) => (
               <motion.div 
                 key={person.id}

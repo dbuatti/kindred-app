@@ -105,7 +105,7 @@ const Profile = () => {
       )}
 
       <header className="bg-white border-b-4 border-stone-100 px-6 py-6 sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button 
               variant="ghost" 
@@ -140,7 +140,7 @@ const Profile = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-12 space-y-12">
+      <main className="max-w-7xl mx-auto px-6 py-12 space-y-12">
         {/* Profile Header Section */}
         <section className="flex flex-col md:flex-row gap-10 items-start">
           <div 

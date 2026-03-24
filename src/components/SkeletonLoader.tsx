@@ -31,7 +31,7 @@ export const MemorySkeleton = () => (
 );
 
 export const PersonDetailSkeleton = () => (
-  <div className="max-w-4xl mx-auto px-6 py-12 space-y-16 animate-pulse">
+  <div className="max-w-7xl mx-auto px-6 py-12 space-y-16 animate-pulse">
     <div className="flex flex-col md:flex-row gap-12 items-start">
       <Skeleton className="w-48 h-48 md:w-64 md:h-64 rounded-[3rem]" />
       <div className="flex-1 space-y-6">

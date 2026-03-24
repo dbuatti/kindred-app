@@ -68,7 +68,7 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans pb-20">
       <header className="sticky top-0 z-10 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
-        <div className="max-w-4xl mx-auto px-6 py-6 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button 
               variant="ghost" 
@@ -90,7 +90,7 @@ const AdminDashboard = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-12 space-y-10">
+      <main className="max-w-7xl mx-auto px-6 py-12 space-y-10">
         <Tabs defaultValue="overview" className="space-y-8">
           <TabsList className="bg-stone-100 p-1 rounded-2xl h-14 w-full md:w-auto">
             <TabsTrigger value="overview" className="rounded-xl px-6 data-[state=active]:bg-white">Overview</TabsTrigger>
@@ -175,7 +175,7 @@ const AdminDashboard = () => {
               </h2>
               <AddPersonDialog />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {people.map((person) => (
                 <Card key={person.id} className="p-6 bg-white border-stone-100 shadow-sm rounded-3xl flex items-center justify-between group hover:border-amber-200 transition-colors">
                   <div className="flex items-center gap-4">
