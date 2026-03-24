@@ -14,7 +14,10 @@ import {
   Quote,
   AlertCircle,
   CheckCircle2,
-  Users
+  Users,
+  Tag,
+  Heart,
+  Skull
 } from 'lucide-react';
 import SuggestionDialog from './SuggestionDialog';
 import { useFamily } from '../context/FamilyContext';
@@ -28,28 +31,33 @@ const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
   const { relationships } = useFamily();
 
   const stats = useMemo(() => {
-    const personRels = relationships.filter(r => r.person_id === person.id || r.related_person_id === person.id);
-    
-    const hasParents = personRels.some(r => {
-      const type = r.relationship_type.toLowerCase();
-      return type === 'mother' || type === 'father' || type === 'parent';
-    });
-
     const items = [
-      { id: 'birth_year', label: 'Birth Year', value: person.birthYear, icon: Calendar },
+      { id: 'birth_date', label: 'Birth Date', value: person.birthDate || person.birthYear, icon: Calendar },
       { id: 'birth_place', label: 'Birth Place', value: person.birthPlace, icon: MapPin },
       { id: 'occupation', label: 'Occupation', value: person.occupation, icon: Briefcase },
       { id: 'gender', label: 'Gender', value: person.gender, icon: User },
+      { id: 'nickname', label: 'Nickname', value: person.nickname, icon: Tag },
       { id: 'photo_url', label: 'Photo', value: person.photoUrl, icon: Camera },
       { id: 'vibe_sentence', label: 'Detailed Bio', value: person.vibeSentence && person.vibeSentence.length > 30, icon: Quote },
     ];
+
+    // Add Maiden Name for females
+    if (person.gender?.toLowerCase() === 'female') {
+      items.push({ id: 'maiden_name', label: 'Maiden Name', value: person.maidenName, icon: Heart });
+    }
+
+    // Add Passing info for those no longer with us
+    if (person.isLiving === false) {
+      items.push({ id: 'death_date', label: 'Date of Passing', value: person.deathDate || person.deathYear, icon: Skull });
+      items.push({ id: 'death_place', label: 'Place of Passing', value: person.deathPlace, icon: MapPin });
+    }
 
     const completedCount = items.filter(item => item.value).length;
     const percentage = Math.round((completedCount / items.length) * 100);
     const missing = items.filter(item => !item.value);
 
     return { percentage, missing, completedCount, total: items.length, allItems: items };
-  }, [person, relationships]);
+  }, [person]);
 
   if (stats.percentage === 100) return null;
 
@@ -100,7 +108,7 @@ const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-10">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 relative z-10">
         {stats.allItems.map((item) => (
           <SuggestionDialog 
             key={item.id}
