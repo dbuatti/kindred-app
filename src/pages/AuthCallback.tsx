@@ -33,25 +33,36 @@ const AuthCallback = () => {
           console.log("[AuthCallback] OTP verified successfully.");
         }
 
-        // 2. Double check we have a session now
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
+        // 2. Wait a moment for the session to be fully established in local storage
+        // This prevents the "redirect loop" where the next page thinks you aren't logged in yet
+        let session = null;
+        let retryCount = 0;
+        const maxRetries = 5;
+
+        while (!session && retryCount < maxRetries) {
+          const { data } = await supabase.auth.getSession();
+          session = data.session;
+          if (!session) {
+            console.log(`[AuthCallback] Session not found yet, retry ${retryCount + 1}...`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            retryCount++;
+          }
+        }
 
         if (session) {
           console.log("[AuthCallback] Session established for:", session.user.email);
-          toast.success("Welcome back to the archive!");
+          toast.success("Welcome to the archive!");
           
-          // Small delay to ensure Supabase internal state and Context sync up
+          // Final small delay to ensure the AuthGuard on the next page sees the session
           setTimeout(() => {
             navigate(next, { replace: true });
-          }, 800);
+          }, 500);
         } else {
-          // If no session and no token, we might have landed here by mistake
+          console.warn("[AuthCallback] No session found after retries.");
           if (!tokenHash) {
-            console.warn("[AuthCallback] No session or token found. Redirecting to login.");
             navigate('/login', { replace: true });
           } else {
-            throw new Error("Verification succeeded but no session was created.");
+            throw new Error("Verification succeeded but no session was created. Please try again.");
           }
         }
       } catch (error: any) {
