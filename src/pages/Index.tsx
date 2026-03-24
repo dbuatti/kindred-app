@@ -87,6 +87,7 @@ const Index = () => {
     if (sortBy === 'name') {
       result.sort((a, b) => a.name.localeCompare(b.name));
     } else {
+      // Sort by ID as a proxy for "recently added" if createdAt is missing
       result.sort((a, b) => b.id.localeCompare(a.id));
     }
 
@@ -103,6 +104,8 @@ const Index = () => {
         const relative = people.find(p => p.id === relativeId);
         if (!relative) return null;
 
+        // For the summary, we want to describe the CURRENT person's role to the relative
+        // e.g. "Father of John"
         const type = isPrimary 
           ? r.relationship_type
           : getInverseRelationship(r.relationship_type, person?.gender);

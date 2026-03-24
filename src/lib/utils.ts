@@ -17,15 +17,27 @@ export function formatDisplayName(name: string) {
 
 /**
  * Formats a date string into the genealogical standard.
+ * Handles ISO strings and common DD/MM/YYYY formats.
  */
 export function formatFamilyDate(dateStr: string | undefined | null) {
   if (!dateStr) return "";
+  
+  // If it's just a year
   if (/^\d{4}$/.test(dateStr)) return dateStr;
   
   try {
+    // Try ISO first
     const date = parseISO(dateStr);
-    if (!isValid(date)) return dateStr;
-    return format(date, "d MMM yyyy");
+    if (isValid(date)) return format(date, "d MMM yyyy");
+    
+    // Try common slash format
+    if (dateStr.includes('/')) {
+      const [d, m, y] = dateStr.split('/').map(Number);
+      const manualDate = new Date(y, m - 1, d);
+      if (isValid(manualDate)) return format(manualDate, "d MMM yyyy");
+    }
+    
+    return dateStr;
   } catch (e) {
     return dateStr;
   }
