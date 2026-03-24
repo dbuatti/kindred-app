@@ -49,7 +49,7 @@ const Index = () => {
     return recentlyViewed
       .map(id => people.find(p => p.id === id))
       .filter((p): p is any => !!p)
-      .slice(0, 4);
+      .slice(0, 6);
   }, [recentlyViewed, people]);
 
   const hasMemories = useMemo(() => {
@@ -76,7 +76,6 @@ const Index = () => {
     if (sortBy === 'name') {
       result.sort((a, b) => a.name.localeCompare(b.name));
     } else {
-      // Sort by ID as a proxy for creation time if no created_at is available on the object
       result.sort((a, b) => b.id.localeCompare(a.id));
     }
 
@@ -166,7 +165,7 @@ const Index = () => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-12"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-12">
               <RecentPeople people={recentPeopleList} />
               <UpcomingMilestones />
             </div>
