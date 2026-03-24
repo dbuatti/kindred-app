@@ -50,16 +50,19 @@ const FamilyTree = () => {
   
   // Navigator State
   const [scrollPos, setScrollPos] = useState({ x: 0, y: 0 });
-  const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
+  const [viewRatio, setViewRatio] = useState({ w: 0.3, h: 0.3 });
 
   const handleScroll = useCallback(() => {
     if (treeContainerRef.current) {
       const { scrollLeft, scrollTop, scrollWidth, scrollHeight, clientWidth, clientHeight } = treeContainerRef.current;
       setScrollPos({
-        x: (scrollLeft / (scrollWidth - clientWidth)) || 0,
-        y: (scrollTop / (scrollHeight - clientHeight)) || 0
+        x: scrollLeft / scrollWidth,
+        y: scrollTop / scrollHeight
       });
-      setContainerSize({ w: clientWidth, h: clientHeight });
+      setViewRatio({
+        w: clientWidth / scrollWidth,
+        h: clientHeight / scrollHeight
+      });
     }
   }, []);
 
@@ -67,11 +70,10 @@ const FamilyTree = () => {
     const container = treeContainerRef.current;
     if (container) {
       container.addEventListener('scroll', handleScroll);
-      // Initial size
-      setContainerSize({ w: container.clientWidth, h: container.clientHeight });
+      handleScroll(); // Initial calculation
       return () => container.removeEventListener('scroll', handleScroll);
     }
-  }, [handleScroll, loading]);
+  }, [handleScroll, loading, zoom]);
 
   const treeData = useMemo(() => {
     if (loading || people.length === 0) return null;
@@ -80,11 +82,11 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 180, 
-        ranksep: 140, 
-        marginx: 200, 
-        marginy: 200,
-        ranker: 'network-simplex' 
+        nodesep: 200, 
+        ranksep: 150, 
+        marginx: 300, 
+        marginy: 300,
+        ranker: 'longest-path' // Better for keeping generations aligned
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -104,47 +106,48 @@ const FamilyTree = () => {
         });
       });
 
-      // 1. Identify Unions (Marriages)
       const unions: Record<string, { id: string, p1: string, p2: string, children: string[], color: string }> = {};
       let colorIdx = 0;
 
+      // 1. Identify Spouses/Unions with robust keyword matching
       relationships.forEach(r => {
-        if (r.relationship_type.toLowerCase() === 'spouse') {
-          if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
-            const pairId = [r.person_id, r.related_person_id].sort().join('_');
-            if (!unions[pairId]) {
-              unions[pairId] = { 
-                id: `union_${pairId}`, 
-                p1: r.person_id, 
-                p2: r.related_person_id, 
-                children: [],
-                color: BRANCH_COLORS[colorIdx % BRANCH_COLORS.length]
-              };
-              colorIdx++;
-            }
+        const type = r.relationship_type.toLowerCase();
+        const isSpouse = type.includes('spouse') || type.includes('wife') || type.includes('husband') || type.includes('married') || type.includes('partner');
+        
+        if (isSpouse && validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
+          const pairId = [r.person_id, r.related_person_id].sort().join('_');
+          if (!unions[pairId]) {
+            unions[pairId] = { 
+              id: `union_${pairId}`, 
+              p1: r.person_id, 
+              p2: r.related_person_id, 
+              children: [],
+              color: BRANCH_COLORS[colorIdx % BRANCH_COLORS.length]
+            };
+            colorIdx++;
           }
         }
       });
 
-      // 2. Map Children to Unions or Parents
+      // 2. Map Children to Unions or Parents with robust keyword matching
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
-        // Skip non-lineage types for edge creation, but we'll use them for ranking later
-        if (['cousin', 'aunt', 'uncle', 'nephew', 'niece', 'sister', 'brother', 'sibling'].includes(type)) return;
+        const isParental = type.includes('parent') || type.includes('father') || type.includes('mother') || type.includes('papa') || type.includes('mama');
+        const isChild = type.includes('child') || type.includes('son') || type.includes('daughter');
 
         let parentId = '';
         let childId = '';
 
-        // Handle all directions of parent-child relationships
-        if (['mother', 'father', 'parent'].includes(type)) {
+        if (isParental) {
           parentId = r.person_id;
           childId = r.related_person_id;
-        } else if (['son', 'daughter', 'child'].includes(type)) {
+        } else if (isChild) {
           childId = r.person_id;
           parentId = r.related_person_id;
         }
 
         if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
+          // Find if this parent belongs to a union
           const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
           if (union) {
             if (!union.children.includes(childId)) union.children.push(childId);
@@ -154,29 +157,21 @@ const FamilyTree = () => {
         }
       });
 
-      // 3. Force Siblings onto the same rank
-      const processedSiblings = new Set<string>();
+      // 3. Sibling Constraints
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
-        if (['sister', 'brother', 'sibling'].includes(type)) {
-          const p1 = r.person_id;
-          const p2 = r.related_person_id;
-          const pairKey = [p1, p2].sort().join('-');
-          
-          if (validIds.has(p1) && validIds.has(p2) && !processedSiblings.has(pairKey)) {
-            processedSiblings.add(pairKey);
-            // minlen: 0 forces them to the same rank in Dagre
-            g.setEdge(p1, p2, { type: 'sibling-constraint', weight: 10, minlen: 0 });
+        if (type.includes('sister') || type.includes('brother') || type.includes('sibling')) {
+          if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
+            g.setEdge(r.person_id, r.related_person_id, { type: 'sibling-constraint', weight: 0, minlen: 0 });
           }
         }
       });
 
-      // 4. Finalize Union Nodes and Edges
+      // 4. Finalize Union Nodes
       Object.values(unions).forEach(u => {
         g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
-        // High weight keeps the union node centered between spouses
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 50, minlen: 1 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 50, minlen: 1 });
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10, minlen: 1 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10, minlen: 1 });
         u.children.forEach((childId) => {
           g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 5, minlen: 1 });
         });
@@ -193,8 +188,8 @@ const FamilyTree = () => {
 
       const minX = Math.min(...nodes.map(n => n.x - 200));
       const maxX = Math.max(...nodes.map(n => n.x + 200));
-      const minY = Math.min(...nodes.map(n => n.y - 150));
-      const maxY = Math.max(...nodes.map(n => n.y + 150));
+      const minY = Math.min(...nodes.map(n => n.y - 200));
+      const maxY = Math.max(...nodes.map(n => n.y + 200));
 
       return {
         nodes,
@@ -514,10 +509,10 @@ const FamilyTree = () => {
             <div 
               className="absolute bg-amber-500/20 border border-amber-500/40 rounded-sm transition-all duration-100"
               style={{
-                width: '30%',
-                height: '30%',
-                left: `${scrollPos.x * 70}%`,
-                top: `${scrollPos.y * 70}%`
+                width: `${viewRatio.w * 100}%`,
+                height: `${viewRatio.h * 100}%`,
+                left: `${scrollPos.x * 100}%`,
+                top: `${scrollPos.y * 100}%`
               }}
             />
           </div>
