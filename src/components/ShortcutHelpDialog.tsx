@@ -41,7 +41,7 @@ const ShortcutHelpDialog = () => {
           {SHORTCUTS.map((s) => (
             <div key={s.key} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 group hover:bg-white/10 transition-colors">
               <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center text-stone-400 group-hover:text-amber-500 transition-colors">
+                <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center text-stone-400 group-hover:text-amber-50 transition-colors">
                   <s.icon className="w-5 h-5" />
                 </div>
                 <span className="text-lg font-medium text-stone-200">{s.label}</span>
