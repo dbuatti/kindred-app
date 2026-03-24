@@ -9,7 +9,8 @@ import {
   ZoomIn, 
   ZoomOut, 
   UserCircle,
-  Heart
+  Heart,
+  AlertCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
@@ -24,106 +25,127 @@ const FamilyTree = () => {
   const treeData = useMemo(() => {
     if (loading || people.length === 0) return null;
 
-    const g = new dagre.graphlib.Graph();
-    g.setGraph({ 
-      rankdir: 'TB', 
-      nodesep: 80, 
-      ranksep: 100, 
-      marginx: 50, 
-      marginy: 50,
-    });
-    g.setDefaultEdgeLabel(() => ({}));
-
-    // 1. Identify Spouse Pairs to create "Union" nodes
-    const unions: Record<string, { id: string, p1: string, p2: string, children: string[] }> = {};
-    
-    relationships.forEach(r => {
-      if (r.relationship_type.toLowerCase() === 'spouse') {
-        const pairId = [r.person_id, r.related_person_id].sort().join('_');
-        if (!unions[pairId]) {
-          unions[pairId] = { id: `union_${pairId}`, p1: r.person_id, p2: r.related_person_id, children: [] };
-        }
-      }
-    });
-
-    // 2. Assign children to unions with direction-agnostic logic
-    relationships.forEach(r => {
-      const type = r.relationship_type.toLowerCase();
-      let parentId = '';
-      let childId = '';
-
-      if (['mother', 'father', 'parent'].includes(type)) {
-        parentId = r.related_person_id;
-        childId = r.person_id;
-      } else if (['son', 'daughter', 'child'].includes(type)) {
-        parentId = r.person_id;
-        childId = r.related_person_id;
-      }
-
-      if (parentId && childId) {
-        const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
-        if (union && !union.children.includes(childId)) {
-          union.children.push(childId);
-        }
-      }
-    });
-
-    // 3. Add People Nodes
-    people.forEach(p => {
-      let displayYear = p.birthYear;
-      if (!displayYear && p.birthDate) {
-        const match = p.birthDate.match(/\d{4}/);
-        if (match) displayYear = match[0];
-      }
-
-      g.setNode(p.id, { 
-        width: 220, 
-        height: 80, 
-        person: { ...p, displayYear: displayYear || 'Year Unknown' } 
+    try {
+      const g = new dagre.graphlib.Graph();
+      g.setGraph({ 
+        rankdir: 'TB', 
+        nodesep: 100, 
+        ranksep: 120, 
+        marginx: 50, 
+        marginy: 50,
       });
-    });
+      g.setDefaultEdgeLabel(() => ({}));
 
-    // 4. Add Union Nodes (Invisible anchors)
-    Object.values(unions).forEach(u => {
-      g.setNode(u.id, { width: 10, height: 10, isUnion: true });
-      
-      // Connect parents to union (Horizontal-ish)
-      g.setEdge(u.p1, u.id, { type: 'marriage', weight: 10 });
-      g.setEdge(u.p2, u.id, { type: 'marriage', weight: 10 });
-      
-      // Connect union to children (Vertical)
-      u.children.forEach(childId => {
-        g.setEdge(u.id, childId, { type: 'lineage', weight: 1 });
-      });
-    });
+      // Create a set of valid IDs for quick lookup
+      const validIds = new Set(people.map(p => p.id));
 
-    // 5. Add Sibling links (Explicit ones from DB)
-    relationships.forEach(r => {
-      const type = r.relationship_type.toLowerCase();
-      if (['brother', 'sister', 'sibling'].includes(type)) {
-        // Only add if they don't already share a parent union to avoid layout loops
-        const shareUnion = Object.values(unions).some(u => 
-          u.children.includes(r.person_id) && u.children.includes(r.related_person_id)
-        );
-        if (!shareUnion) {
-          g.setEdge(r.person_id, r.related_person_id, { type: 'sibling', weight: 0.1 });
+      // 1. Add People Nodes first
+      people.forEach(p => {
+        let displayYear = p.birthYear;
+        if (!displayYear && p.birthDate) {
+          const match = p.birthDate.match(/\d{4}/);
+          if (match) displayYear = match[0];
         }
-      }
-    });
 
-    dagre.layout(g);
-    
-    return {
-      nodes: g.nodes().map(v => ({ id: v, ...g.node(v) })),
-      edges: g.edges().map(e => ({ 
-        from: g.node(e.v), 
-        to: g.node(e.w),
-        type: g.edge(e).type
-      }))
-    };
+        g.setNode(p.id, { 
+          width: 220, 
+          height: 80, 
+          person: { ...p, displayYear: displayYear || 'Year Unknown' } 
+        });
+      });
+
+      // 2. Identify Spouse Pairs to create "Union" nodes
+      const unions: Record<string, { id: string, p1: string, p2: string, children: string[] }> = {};
+      
+      relationships.forEach(r => {
+        if (r.relationship_type.toLowerCase() === 'spouse') {
+          // Only process if both people exist in the current archive
+          if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
+            const pairId = [r.person_id, r.related_person_id].sort().join('_');
+            if (!unions[pairId]) {
+              unions[pairId] = { id: `union_${pairId}`, p1: r.person_id, p2: r.related_person_id, children: [] };
+            }
+          }
+        }
+      });
+
+      // 3. Assign children to unions
+      relationships.forEach(r => {
+        const type = r.relationship_type.toLowerCase();
+        let parentId = '';
+        let childId = '';
+
+        if (['mother', 'father', 'parent'].includes(type)) {
+          parentId = r.related_person_id;
+          childId = r.person_id;
+        } else if (['son', 'daughter', 'child'].includes(type)) {
+          parentId = r.person_id;
+          childId = r.related_person_id;
+        }
+
+        if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
+          // Find a union that contains this parent
+          const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
+          if (union && !union.children.includes(childId)) {
+            union.children.push(childId);
+          } else if (!union) {
+            // If no union exists (single parent), we could create a "pseudo-union" or link directly
+            // For now, let's just link directly to the parent to keep it simple
+            g.setEdge(parentId, childId, { type: 'lineage', weight: 1 });
+          }
+        }
+      });
+
+      // 4. Add Union Nodes and their edges
+      Object.values(unions).forEach(u => {
+        g.setNode(u.id, { width: 10, height: 10, isUnion: true });
+        
+        // Connect parents to union
+        g.setEdge(u.p1, u.id, { type: 'marriage', weight: 10 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', weight: 10 });
+        
+        // Connect union to children
+        u.children.forEach(childId => {
+          g.setEdge(u.id, childId, { type: 'lineage', weight: 1 });
+        });
+      });
+
+      dagre.layout(g);
+      
+      return {
+        nodes: g.nodes().map(v => ({ id: v, ...g.node(v) })),
+        edges: g.edges().map(e => ({ 
+          from: g.node(e.v), 
+          to: g.node(e.w),
+          type: g.edge(e).type
+        }))
+      };
+    } catch (err) {
+      console.error("[FamilyTree] Layout error:", err);
+      return { error: true };
+    }
   }, [people, relationships, loading]);
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the lineage...</div>;
+
+  if (!treeData || (treeData as any).error) {
+    return (
+      <div className="min-h-screen bg-[#FDFCF9] flex items-center justify-center p-10">
+        <div className="max-w-md text-center space-y-6">
+          <div className="h-20 w-20 bg-red-50 rounded-full flex items-center justify-center mx-auto text-red-500">
+            <AlertCircle className="w-10 h-10" />
+          </div>
+          <h2 className="text-3xl font-serif text-stone-800">Tree Layout Error</h2>
+          <p className="text-stone-500 leading-relaxed">
+            We encountered a conflict in the family relationships that prevents the tree from drawing correctly. This usually happens if there are circular links (e.g., someone marked as their own parent).
+          </p>
+          <Button onClick={() => navigate('/')} className="rounded-full bg-stone-800">Return Home</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const data = treeData as { nodes: any[], edges: any[] };
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] overflow-hidden flex flex-col">
@@ -151,91 +173,83 @@ const FamilyTree = () => {
           style={{ scale: zoom, transformOrigin: 'center top' }}
           className="relative min-w-max min-h-max mx-auto"
         >
-          {treeData && (
-            <>
-              <svg className="absolute inset-0 pointer-events-none overflow-visible">
-                {treeData.edges.map((edge, i) => {
-                  const isMarriage = edge.type === 'marriage';
-                  const isSibling = edge.type === 'sibling';
-                  
-                  const startX = edge.from.x;
-                  const startY = edge.from.y;
-                  const endX = edge.to.x;
-                  const endY = edge.to.y;
+          <svg className="absolute inset-0 pointer-events-none overflow-visible">
+            {data.edges.map((edge, i) => {
+              const isMarriage = edge.type === 'marriage';
+              
+              const startX = edge.from.x;
+              const startY = edge.from.y;
+              const endX = edge.to.x;
+              const endY = edge.to.y;
 
-                  let path = "";
+              let path = "";
 
-                  if (isMarriage) {
-                    path = `M ${startX} ${startY} L ${endX} ${endY}`;
-                  } else if (isSibling) {
-                    path = `M ${startX} ${startY} L ${endX} ${endY}`;
-                  } else {
-                    const midY = startY + (endY - startY) / 2;
-                    path = `M ${startX} ${startY} 
-                            L ${startX} ${midY} 
-                            L ${endX} ${midY} 
-                            L ${endX} ${endY}`;
-                  }
-                  
-                  return (
-                    <path
-                      key={i}
-                      d={path}
-                      stroke={isMarriage ? '#f87171' : isSibling ? '#cbd5e1' : '#e7e5e4'}
-                      strokeWidth={isMarriage ? "3" : "2"}
-                      strokeDasharray={isSibling ? "5,5" : "0"}
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="transition-all duration-1000"
-                    />
-                  );
-                })}
-              </svg>
+              if (isMarriage) {
+                path = `M ${startX} ${startY} L ${endX} ${endY}`;
+              } else {
+                const midY = startY + (endY - startY) / 2;
+                path = `M ${startX} ${startY} 
+                        L ${startX} ${midY} 
+                        L ${endX} ${midY} 
+                        L ${endX} ${endY}`;
+              }
+              
+              return (
+                <path
+                  key={i}
+                  d={path}
+                  stroke={isMarriage ? '#f87171' : '#e7e5e4'}
+                  strokeWidth={isMarriage ? "3" : "2"}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="transition-all duration-1000"
+                />
+              );
+            })}
+          </svg>
 
-              {treeData.nodes.map((node: any) => {
-                if (node.isUnion) return null;
+          {data.nodes.map((node: any) => {
+            if (node.isUnion) return null;
 
-                return (
-                  <motion.div
-                    key={node.id}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    style={{ 
-                      left: node.x - 110, 
-                      top: node.y - 40,
-                      width: 220,
-                      height: 80
-                    }}
-                    onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
-                    className="absolute bg-white rounded-xl border-2 border-stone-100 shadow-sm hover:shadow-md hover:border-amber-200 transition-all p-3 flex items-center gap-3 cursor-pointer group"
-                  >
-                    <div className="h-12 w-12 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 shadow-inner">
-                      {node.person.photoUrl ? (
-                        <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-stone-200">
-                          <UserCircle className="w-6 h-6" />
-                        </div>
-                      )}
+            return (
+              <motion.div
+                key={node.id}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                style={{ 
+                  left: node.x - 110, 
+                  top: node.y - 40,
+                  width: 220,
+                  height: 80
+                }}
+                onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
+                className="absolute bg-white rounded-xl border-2 border-stone-100 shadow-sm hover:shadow-md hover:border-amber-200 transition-all p-3 flex items-center gap-3 cursor-pointer group"
+              >
+                <div className="h-12 w-12 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 shadow-inner">
+                  {node.person.photoUrl ? (
+                    <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-stone-200">
+                      <UserCircle className="w-6 h-6" />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-stone-800 truncate">{node.person.name}</p>
-                      <p className="text-[9px] text-stone-400 uppercase tracking-widest truncate">
-                        {node.person.displayYear}
-                      </p>
-                      {!node.person.isLiving && (
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <Heart className="w-2.5 h-2.5 text-red-200 fill-current" />
-                          <span className="text-[7px] text-stone-300 uppercase font-bold">In Memory</span>
-                        </div>
-                      )}
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-stone-800 truncate">{node.person.name}</p>
+                  <p className="text-[9px] text-stone-400 uppercase tracking-widest truncate">
+                    {node.person.displayYear}
+                  </p>
+                  {!node.person.isLiving && (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <Heart className="w-2.5 h-2.5 text-red-200 fill-current" />
+                      <span className="text-[7px] text-stone-300 uppercase font-bold">In Memory</span>
                     </div>
-                  </motion.div>
-                );
-              })}
-            </>
-          )}
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
         </motion.div>
       </main>
 
@@ -248,10 +262,6 @@ const FamilyTree = () => {
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-red-400" />
             <span className="text-[10px] font-bold uppercase tracking-widest">Marriage</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-slate-400" />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Siblings</span>
           </div>
         </div>
       </div>
