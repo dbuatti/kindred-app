@@ -268,13 +268,18 @@ const FamilyTree = () => {
           
           <div className="flex items-center gap-4 shrink-0">
             <TreeSmartInbox />
-            <AddPersonDialog 
-              trigger={
-                <Button variant="outline" className="hidden lg:flex rounded-full border-stone-200 text-stone-600 gap-2 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition-all h-11 px-6">
-                  <UserPlus className="w-4 h-4" /> Add to Family
-                </Button>
-              }
-            />
+            
+            <div className="hidden lg:flex flex-col items-center gap-1">
+              <AddPersonDialog 
+                trigger={
+                  <Button className="rounded-full bg-stone-800 hover:bg-stone-900 text-white gap-2 h-11 px-6 shadow-md transition-all hover:scale-105">
+                    <UserPlus className="w-4 h-4" /> Add to Family
+                  </Button>
+                }
+              />
+              <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest">Grow the tree</p>
+            </div>
+
             <div className="flex items-center gap-2 bg-stone-100/50 p-1.5 rounded-full border border-stone-200/50">
               <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="h-8 w-8 rounded-full hover:bg-white shadow-sm"><ZoomOut className="w-4 h-4" /></Button>
               <span className="text-[10px] font-bold w-12 text-center text-stone-600">{Math.round(zoom * 100)}%</span>
