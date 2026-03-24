@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,9 @@ import {
   Maximize,
   Sparkles,
   Search,
-  X
+  X,
+  Focus,
+  Ghost
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
@@ -40,7 +42,7 @@ const LINEAGE_COLOR = '#e2e8f0';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
-  const { people, relationships, loading, refreshData } = useFamily();
+  const { people, relationships, loading, refreshData, user } = useFamily();
   const [zoom, setZoom] = useState(0.75);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
@@ -53,11 +55,11 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 80, // Increased slightly for clarity
-        ranksep: 120, 
-        marginx: 50, 
-        marginy: 50,
-        ranker: 'tight-tree' // Better for keeping related nodes together
+        nodesep: 70, 
+        ranksep: 100, 
+        marginx: 100, 
+        marginy: 100,
+        ranker: 'network-simplex' // Better for horizontal alignment of siblings
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -71,8 +73,8 @@ const FamilyTree = () => {
         }
 
         g.setNode(p.id, { 
-          width: 200, 
-          height: 60, 
+          width: 220, 
+          height: 70, 
           person: { ...p, displayYear: displayYear || 'Year Unknown' } 
         });
       });
@@ -116,7 +118,6 @@ const FamilyTree = () => {
         }
 
         if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
-          // Find if this parent belongs to a union
           const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
           if (union) {
             if (!union.children.includes(childId)) union.children.push(childId);
@@ -126,7 +127,7 @@ const FamilyTree = () => {
         }
       });
 
-      // 3. Add Sibling Constraints (Invisible edges to keep them together)
+      // 3. Add Sibling Constraints (Force same rank)
       const processedSiblings = new Set<string>();
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
@@ -137,19 +138,19 @@ const FamilyTree = () => {
           
           if (validIds.has(p1) && validIds.has(p2) && !processedSiblings.has(pairKey)) {
             processedSiblings.add(pairKey);
-            // We add a very high weight edge to keep them on the same rank and close
-            g.setEdge(p1, p2, { type: 'sibling-constraint', weight: 10, minlen: 1 });
+            // minlen: 0 encourages nodes to be on the same rank
+            g.setEdge(p1, p2, { type: 'sibling-constraint', weight: 10, minlen: 0 });
           }
         }
       });
 
       // 4. Finalize Union Nodes and Edges
       Object.values(unions).forEach(u => {
-        g.setNode(u.id, { width: 30, height: 30, isUnion: true, color: u.color });
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10 });
+        g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10, minlen: 1 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10, minlen: 1 });
         u.children.forEach((childId) => {
-          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 5 });
+          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 5, minlen: 1 });
         });
       });
 
@@ -162,18 +163,18 @@ const FamilyTree = () => {
         ...g.edge(e)
       }));
 
-      const minX = Math.min(...nodes.map(n => n.x - 100));
-      const maxX = Math.max(...nodes.map(n => n.x + 100));
-      const minY = Math.min(...nodes.map(n => n.y - 50));
-      const maxY = Math.max(...nodes.map(n => n.y + 50));
+      const minX = Math.min(...nodes.map(n => n.x - 150));
+      const maxX = Math.max(...nodes.map(n => n.x + 150));
+      const minY = Math.min(...nodes.map(n => n.y - 100));
+      const maxY = Math.max(...nodes.map(n => n.y + 100));
 
       return {
         nodes,
         edges,
-        width: maxX - minX + 200,
-        height: maxY - minY + 100,
-        offsetX: -minX + 100,
-        offsetY: -minY + 50
+        width: maxX - minX,
+        height: maxY - minY,
+        offsetX: -minX,
+        offsetY: -minY
       };
     } catch (err) {
       console.error("[FamilyTree] Layout error:", err);
@@ -192,7 +193,6 @@ const FamilyTree = () => {
       setHighlightedId(id);
       setZoom(1);
       
-      // Calculate scroll position
       const container = treeContainerRef.current;
       const scrollX = (node.x * 1) - (container.clientWidth / 2);
       const scrollY = (node.y * 1) - (container.clientHeight / 2);
@@ -206,6 +206,11 @@ const FamilyTree = () => {
       setSearchQuery('');
       setTimeout(() => setHighlightedId(null), 3000);
     }
+  };
+
+  const centerOnMe = () => {
+    const myPerson = people.find(p => p.userId === user?.id);
+    if (myPerson) jumpToPerson(myPerson.id);
   };
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the lineage...</div>;
@@ -290,6 +295,15 @@ const FamilyTree = () => {
           <div className="flex items-center gap-4 shrink-0">
             <TreeSmartInbox />
             
+            <Button 
+              variant="outline" 
+              onClick={centerOnMe}
+              className="rounded-full border-stone-200 text-stone-600 gap-2 hover:bg-stone-50 hidden md:flex"
+            >
+              <Focus className="w-4 h-4" />
+              Find Me
+            </Button>
+
             <div className="hidden lg:flex flex-col items-center gap-1">
               <AddPersonDialog 
                 trigger={
@@ -298,7 +312,6 @@ const FamilyTree = () => {
                   </Button>
                 }
               />
-              <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest">Grow the tree</p>
             </div>
 
             <div className="flex items-center gap-2 bg-stone-100/50 p-1.5 rounded-full border border-stone-200/50">
@@ -333,22 +346,22 @@ const FamilyTree = () => {
               if (!edge.from || !edge.to || edge.type === 'sibling-constraint') return null;
               const isMarriage = edge.type === 'marriage';
               const startX = edge.from.x;
-              const startY = edge.from.y + (edge.from.isUnion ? 0 : 30); 
+              const startY = edge.from.y + (edge.from.isUnion ? 0 : 35); 
               const endX = edge.to.x;
-              const endY = edge.to.y - (edge.to.isUnion ? 15 : 30); 
+              const endY = edge.to.y - (edge.to.isUnion ? 20 : 35); 
               const midY = startY + (endY - startY) * 0.5;
               const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               
               return (
                 <g key={i}>
-                  <path d={path} stroke="white" strokeWidth={isMarriage ? "6" : "4"} fill="none" strokeLinecap="round" opacity="0.4" />
+                  <path d={path} stroke="white" strokeWidth={isMarriage ? "8" : "6"} fill="none" strokeLinecap="round" opacity="0.4" />
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
                     transition={{ duration: 1, ease: "easeInOut", delay: i * 0.01 }}
                     d={path}
                     stroke={edge.color || LINEAGE_COLOR}
-                    strokeWidth={isMarriage ? "2.5" : "1.5"}
+                    strokeWidth={isMarriage ? "3" : "2"}
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -366,15 +379,16 @@ const FamilyTree = () => {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', damping: 12, delay: 0.3 }}
-                  style={{ left: node.x - 15, top: node.y - 15, backgroundColor: 'white', borderColor: node.color }}
-                  className="absolute w-8 h-8 rounded-full border-2 flex items-center justify-center shadow-md z-10 group"
+                  style={{ left: node.x - 20, top: node.y - 20, backgroundColor: 'white', borderColor: node.color }}
+                  className="absolute w-10 h-10 rounded-full border-2 flex items-center justify-center shadow-lg z-10 group"
                 >
-                  <Heart className="w-4 h-4 fill-current transition-transform group-hover:scale-125" style={{ color: node.color }} />
+                  <Heart className="w-5 h-5 fill-current transition-transform group-hover:scale-125" style={{ color: node.color }} />
                 </motion.div>
               );
             }
 
             const isHighlighted = highlightedId === node.id;
+            const isMe = node.person.userId === user?.id;
 
             return (
               <motion.div
@@ -382,36 +396,44 @@ const FamilyTree = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ scale: 1.05, y: -2 }}
-                style={{ left: node.x - 100, top: node.y - 30, width: 200, height: 60 }}
+                style={{ left: node.x - 110, top: node.y - 35, width: 220, height: 70 }}
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
                 className={cn(
-                  "absolute bg-white rounded-xl border transition-all p-2 flex items-center gap-3 cursor-pointer group z-20",
+                  "absolute bg-white rounded-2xl border transition-all p-3 flex items-center gap-3 cursor-pointer group z-20",
                   isHighlighted 
                     ? "ring-4 ring-amber-500 border-amber-500 shadow-2xl scale-110 z-50" 
-                    : "border-stone-100 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] hover:border-amber-200"
+                    : isMe
+                    ? "border-amber-200 shadow-md bg-amber-50/30"
+                    : "border-stone-100 shadow-[0_4px_15px_-3px_rgba(0,0,0,0.07)] hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] hover:border-amber-200"
                 )}
               >
                 <SmartSuggestionHover personId={node.id} />
                 
-                <div className="h-10 w-10 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 group-hover:border-amber-200 transition-all">
+                <div className="h-12 w-12 rounded-full overflow-hidden bg-stone-50 shrink-0 border-2 border-white shadow-sm group-hover:border-amber-200 transition-all">
                   {node.person.photoUrl ? (
                     <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-200">
-                      <UserCircle className="w-6 h-6" />
+                      <UserCircle className="w-8 h-8" />
                     </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="text-xs font-serif font-bold text-stone-800 truncate group-hover:text-amber-900 transition-colors">{node.person.name}</p>
+                  <p className="text-sm font-serif font-bold text-stone-800 truncate group-hover:text-amber-900 transition-colors">
+                    {node.person.name}
+                  </p>
                   <div className="flex items-center gap-2">
-                    <span className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">
+                    <span className="text-[9px] font-bold text-stone-400 uppercase tracking-widest">
                       {node.person.displayYear}
                     </span>
                     {!node.person.isLiving && (
-                      <Badge variant="secondary" className="bg-stone-50 text-stone-400 border-none text-[6px] px-1 py-0">
-                        In Memory
-                      </Badge>
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-stone-100 rounded-full">
+                        <Ghost className="w-2 h-2 text-stone-400" />
+                        <span className="text-[7px] font-bold text-stone-500 uppercase tracking-tighter">In Memory</span>
+                      </div>
+                    )}
+                    {isMe && (
+                      <Badge className="bg-amber-500 text-white border-none text-[7px] px-1.5 py-0 rounded-full">You</Badge>
                     )}
                   </div>
                 </div>
