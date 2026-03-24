@@ -34,7 +34,7 @@ import { PersonDetailSkeleton } from '../components/SkeletonLoader';
 import { cn, formatFamilyDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { parsePersonIdFromSlug } from '@/lib/slugify';
-import { motion } from 'framer-motion';
+import { motion, useScroll, useSpring } from 'framer-motion';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { usePersonRelatives } from '@/hooks/use-person-relatives';
 
@@ -44,6 +44,8 @@ const PersonDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { people, user, reactions, toggleReaction, relationships, updatePerson, loading } = useFamily();
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   
   const [memorySearch, setMemorySearch] = useState('');
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
@@ -158,6 +160,8 @@ const PersonDetail = () => {
       onDragLeave={onDragLeavePage}
       onDrop={onDropPage}
     >
+      <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-amber-500 origin-left z-[100]" style={{ scaleX }} />
+
       {isDraggingOverPage && !isDraggingOverProfile && (
         <div className="fixed inset-0 z-50 bg-amber-600/20 backdrop-blur-sm flex items-center justify-center pointer-events-none animate-in fade-in duration-300">
           <div className="bg-white p-8 rounded-[3rem] shadow-2xl border-4 border-amber-500 flex flex-col items-center gap-4 scale-105 transition-transform">
