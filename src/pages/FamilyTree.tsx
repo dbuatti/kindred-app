@@ -55,11 +55,11 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 120, // More horizontal space for siblings
-        ranksep: 100, // Tighter vertical space
+        nodesep: 150, // Increased separation to prevent overlap crashes
+        ranksep: 120, 
         marginx: 100, 
         marginy: 100,
-        ranker: 'tight-tree' // Better for keeping families together
+        ranker: 'network-simplex' // More robust algorithm for complex constraints
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -138,8 +138,8 @@ const FamilyTree = () => {
           
           if (validIds.has(p1) && validIds.has(p2) && !processedSiblings.has(pairKey)) {
             processedSiblings.add(pairKey);
-            // minlen: 0 is the key to forcing horizontal alignment in Dagre
-            g.setEdge(p1, p2, { type: 'sibling-constraint', weight: 50, minlen: 0 });
+            // minlen: 1 ensures they don't overlap, weight: 10 keeps them close
+            g.setEdge(p1, p2, { type: 'sibling-constraint', weight: 10, minlen: 1 });
           }
         }
       });
