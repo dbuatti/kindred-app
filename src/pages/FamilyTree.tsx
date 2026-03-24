@@ -6,15 +6,13 @@ import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { 
   ArrowLeft, 
-  Users, 
   ZoomIn, 
   ZoomOut, 
-  Maximize2,
   UserCircle,
   Heart,
-  History
+  Share2
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
 import { cn } from '@/lib/utils';
 import dagre from 'dagre';
@@ -22,18 +20,17 @@ import dagre from 'dagre';
 const FamilyTree = () => {
   const navigate = useNavigate();
   const { people, relationships, loading } = useFamily();
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(0.8);
 
   const treeData = useMemo(() => {
     if (loading || people.length === 0) return null;
 
     const g = new dagre.graphlib.Graph();
-    // Increased separation for better clarity
-    g.setGraph({ rankdir: 'TB', nodesep: 120, ranksep: 180 });
+    // TB = Top to Bottom. Increased spacing for clarity.
+    g.setGraph({ rankdir: 'TB', nodesep: 100, ranksep: 150, marginx: 50, marginy: 50 });
     g.setDefaultEdgeLabel(() => ({}));
 
     people.forEach(p => {
-      // Extract year from birthDate if birthYear is missing
       let displayYear = p.birthYear;
       if (!displayYear && p.birthDate) {
         const match = p.birthDate.match(/\d{4}/);
@@ -42,30 +39,30 @@ const FamilyTree = () => {
 
       g.setNode(p.id, { 
         label: p.name, 
-        width: 220, 
-        height: 110, 
-        person: { ...p, displayYear: displayYear || 'Unknown' } 
+        width: 240, 
+        height: 120, 
+        person: { ...p, displayYear: displayYear || 'Year Unknown' } 
       });
     });
 
     relationships.forEach(r => {
       const type = r.relationship_type.toLowerCase();
       
-      // Correcting the logic: 
-      // In our DB, person_id is the NEW person added, related_person_id is the EXISTING person.
-      
+      // Parental links (The backbone of the tree)
       if (['mother', 'father', 'parent'].includes(type)) {
-        // New person (person_id) is the PARENT of existing person (related_person_id)
         g.setEdge(r.person_id, r.related_person_id, { type: 'parental' });
       } else if (['son', 'daughter', 'child'].includes(type)) {
-        // New person (person_id) is the CHILD of existing person (related_person_id)
         g.setEdge(r.related_person_id, r.person_id, { type: 'parental' });
-      } else if (['spouse', 'wife', 'husband'].includes(type)) {
-        // Link spouses to keep them on the same rank
-        g.setEdge(r.person_id, r.related_person_id, { type: 'spouse' });
+      } 
+      // Horizontal links (Spouses and Siblings)
+      else if (['spouse', 'wife', 'husband'].includes(type)) {
+        g.setEdge(r.person_id, r.related_person_id, { type: 'spouse', weight: 2 });
       } else if (['brother', 'sister', 'sibling'].includes(type)) {
-        // Link siblings to keep them together
-        g.setEdge(r.person_id, r.related_person_id, { type: 'sibling' });
+        g.setEdge(r.person_id, r.related_person_id, { type: 'sibling', weight: 1 });
+      }
+      // Extended links (To keep the graph connected)
+      else {
+        g.setEdge(r.person_id, r.related_person_id, { type: 'extended', weight: 0 });
       }
     });
 
@@ -78,7 +75,6 @@ const FamilyTree = () => {
         return { 
           from: g.node(e.v), 
           to: g.node(e.w),
-          points: edgeData.points,
           type: edgeData.type || 'parental'
         };
       })
@@ -97,65 +93,69 @@ const FamilyTree = () => {
             </Button>
             <div>
               <h1 className="text-2xl font-serif font-bold text-stone-800">Family Tree</h1>
-              <p className="text-stone-400 text-[10px] font-bold uppercase tracking-widest">Our Living History</p>
+              <p className="text-stone-400 text-[10px] font-bold uppercase tracking-widest">Visual Archive</p>
             </div>
           </div>
           <div className="flex items-center gap-2 bg-stone-100 p-1 rounded-full">
-            <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(0.3, z - 0.1))} className="h-8 w-8 rounded-full"><ZoomOut className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="h-8 w-8 rounded-full"><ZoomOut className="w-4 h-4" /></Button>
             <span className="text-[10px] font-bold w-12 text-center">{Math.round(zoom * 100)}%</span>
             <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="h-8 w-8 rounded-full"><ZoomIn className="w-4 h-4" /></Button>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 relative overflow-auto p-20 cursor-grab active:cursor-grabbing">
+      <main className="flex-1 relative overflow-auto p-20 cursor-grab active:cursor-grabbing bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:40px_40px]">
         <motion.div 
           style={{ scale: zoom, transformOrigin: 'center top' }}
           className="relative min-w-max min-h-max mx-auto"
         >
           {treeData && (
             <>
-              {/* Render Edges */}
               <svg className="absolute inset-0 pointer-events-none overflow-visible">
-                {treeData.edges.map((edge, i) => (
-                  <path
-                    key={i}
-                    d={`M ${edge.from.x} ${edge.from.y + 55} L ${edge.to.x} ${edge.to.y - 55}`}
-                    stroke={edge.type === 'spouse' ? '#f87171' : edge.type === 'sibling' ? '#94a3b8' : '#e7e5e4'}
-                    strokeWidth={edge.type === 'spouse' ? "3" : "2"}
-                    strokeDasharray={edge.type === 'sibling' ? "5,5" : "0"}
-                    fill="none"
-                    className="transition-all duration-1000"
-                  />
-                ))}
+                {treeData.edges.map((edge, i) => {
+                  const isSpouse = edge.type === 'spouse';
+                  const isSibling = edge.type === 'sibling';
+                  const isExtended = edge.type === 'extended';
+                  
+                  return (
+                    <path
+                      key={i}
+                      d={`M ${edge.from.x} ${edge.from.y + 60} L ${edge.to.x} ${edge.to.y - 60}`}
+                      stroke={isSpouse ? '#f87171' : isSibling ? '#94a3b8' : isExtended ? '#cbd5e1' : '#e7e5e4'}
+                      strokeWidth={isSpouse ? "3" : "2"}
+                      strokeDasharray={isSibling || isExtended ? "5,5" : "0"}
+                      fill="none"
+                      className="transition-all duration-1000"
+                    />
+                  );
+                })}
               </svg>
 
-              {/* Render Nodes */}
               {treeData.nodes.map((node: any) => (
                 <motion.div
                   key={node.id}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   style={{ 
-                    left: node.x - 110, 
-                    top: node.y - 55,
-                    width: 220,
-                    height: 110
+                    left: node.x - 120, 
+                    top: node.y - 60,
+                    width: 240,
+                    height: 120
                   }}
                   onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
                   className="absolute bg-white rounded-2xl border-2 border-stone-100 shadow-sm hover:shadow-xl hover:border-amber-200 transition-all p-4 flex items-center gap-4 cursor-pointer group"
                 >
-                  <div className="h-14 w-14 rounded-full overflow-hidden bg-stone-50 shrink-0 border-2 border-white shadow-inner">
+                  <div className="h-16 w-16 rounded-full overflow-hidden bg-stone-50 shrink-0 border-2 border-white shadow-inner">
                     {node.person.photoUrl ? (
                       <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-stone-200">
-                        <UserCircle className="w-8 h-8" />
+                        <UserCircle className="w-10 h-10" />
                       </div>
                     )}
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-stone-800 truncate">{node.person.name.split(' ')[0]}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-stone-800 truncate">{node.person.name}</p>
                     <p className="text-[10px] text-stone-400 uppercase tracking-widest truncate">
                       {node.person.displayYear}
                     </p>
