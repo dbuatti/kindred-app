@@ -55,11 +55,11 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 150, // Increased separation to prevent overlap crashes
-        ranksep: 120, 
-        marginx: 100, 
-        marginy: 100,
-        ranker: 'network-simplex' // More robust algorithm for complex constraints
+        nodesep: 200, // Significant horizontal space to reduce tangling
+        ranksep: 160, // More vertical space for clearer generational steps
+        marginx: 150, 
+        marginy: 150,
+        ranker: 'network-simplex' 
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -138,8 +138,8 @@ const FamilyTree = () => {
           
           if (validIds.has(p1) && validIds.has(p2) && !processedSiblings.has(pairKey)) {
             processedSiblings.add(pairKey);
-            // minlen: 1 ensures they don't overlap, weight: 10 keeps them close
-            g.setEdge(p1, p2, { type: 'sibling-constraint', weight: 10, minlen: 1 });
+            // minlen: 1 ensures they don't overlap, weight: 20 keeps them close
+            g.setEdge(p1, p2, { type: 'sibling-constraint', weight: 20, minlen: 1 });
           }
         }
       });
@@ -147,8 +147,9 @@ const FamilyTree = () => {
       // 4. Finalize Union Nodes and Edges
       Object.values(unions).forEach(u => {
         g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10, minlen: 1 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10, minlen: 1 });
+        // High weight on marriage edges keeps the union node centered between spouses
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 50, minlen: 1 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 50, minlen: 1 });
         u.children.forEach((childId) => {
           g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 5, minlen: 1 });
         });
@@ -163,10 +164,10 @@ const FamilyTree = () => {
         ...g.edge(e)
       }));
 
-      const minX = Math.min(...nodes.map(n => n.x - 150));
-      const maxX = Math.max(...nodes.map(n => n.x + 150));
-      const minY = Math.min(...nodes.map(n => n.y - 100));
-      const maxY = Math.max(...nodes.map(n => n.y + 100));
+      const minX = Math.min(...nodes.map(n => n.x - 200));
+      const maxX = Math.max(...nodes.map(n => n.x + 200));
+      const minY = Math.min(...nodes.map(n => n.y - 150));
+      const maxY = Math.max(...nodes.map(n => n.y + 150));
 
       return {
         nodes,
@@ -342,23 +343,43 @@ const FamilyTree = () => {
             height={data.height} 
             className="absolute inset-0 pointer-events-none overflow-visible z-0"
           >
+            <defs>
+              <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+                <feOffset dx="0" dy="1" result="offsetblur" />
+                <feComponentTransfer>
+                  <feFuncA type="linear" slope="0.2" />
+                </feComponentTransfer>
+                <feMerge>
+                  <feMergeNode />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
             {data.edges.map((edge, i) => {
               if (!edge.from || !edge.to || edge.type === 'sibling-constraint') return null;
               const isMarriage = edge.type === 'marriage';
+              
+              // Structured Step-Bezier Path Calculation
               const startX = edge.from.x;
               const startY = edge.from.y + (edge.from.isUnion ? 0 : 35); 
               const endX = edge.to.x;
               const endY = edge.to.y - (edge.to.isUnion ? 20 : 35); 
+              
+              // Midpoint for the "step"
               const midY = startY + (endY - startY) * 0.5;
-              const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
+              
+              // Create a path that stays vertical longer (Step-Bezier)
+              const path = `M ${startX} ${startY} 
+                            C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               
               return (
-                <g key={i}>
-                  <path d={path} stroke="white" strokeWidth={isMarriage ? "10" : "8"} fill="none" strokeLinecap="round" opacity="0.5" />
+                <g key={i} filter="url(#shadow)">
+                  <path d={path} stroke="white" strokeWidth={isMarriage ? "10" : "8"} fill="none" strokeLinecap="round" opacity="0.4" />
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 1.2, ease: "easeInOut", delay: i * 0.01 }}
+                    transition={{ duration: 1.5, ease: "easeInOut", delay: i * 0.01 }}
                     d={path}
                     stroke={edge.color || LINEAGE_COLOR}
                     strokeWidth={isMarriage ? "4" : "2.5"}
