@@ -31,17 +31,36 @@ const CompleteArchive = () => {
 
   const peopleWithScores = useMemo(() => {
     return people.map(person => {
-      let score = 0;
-      const missing = [];
+      const items = [
+        { label: 'Birth Date', value: person.birthDate || person.birthYear },
+        { label: 'Birth Place', value: person.birthPlace },
+        { label: 'Occupation', value: person.occupation },
+        { label: 'Gender', value: person.gender },
+        { label: 'Nickname', value: person.nickname },
+        { label: 'Photo', value: person.photoUrl },
+        { label: 'Detailed Bio', value: person.vibeSentence && person.vibeSentence.length > 30 },
+        { label: 'Education', value: person.education },
+        { label: 'Military Service', value: person.militaryService },
+        { label: 'Physical Traits', value: person.physicalTraits },
+        { label: 'Favorite Things', value: person.favoriteThings },
+      ];
 
-      if (person.birthYear) score += 1; else missing.push('Birth Year');
-      if (person.birthPlace) score += 1; else missing.push('Birth Place');
-      if (person.occupation) score += 1; else missing.push('Occupation');
-      if (person.photoUrl) score += 1; else missing.push('Photo');
-      if (person.personalityTags && person.personalityTags.length > 0) score += 1; else missing.push('Personality');
-      if (person.vibeSentence && person.vibeSentence.length > 30) score += 1; else missing.push('Detailed Bio');
+      // Add Maiden Name for females
+      if (person.gender?.toLowerCase() === 'female') {
+        items.push({ label: 'Maiden Name', value: person.maidenName });
+      }
 
-      const percentage = Math.round((score / 6) * 100);
+      // Add Passing info for those no longer with us
+      if (person.isLiving === false) {
+        items.push({ label: 'Date of Passing', value: person.deathDate || person.deathYear });
+        items.push({ label: 'Place of Passing', value: person.deathPlace });
+        items.push({ label: 'Resting Place', value: person.burialPlace });
+      }
+
+      const missing = items.filter(i => !i.value).map(i => i.label);
+      const score = items.filter(i => i.value).length;
+      const percentage = Math.round((score / items.length) * 100);
+
       return { ...person, percentage, missing };
     }).sort((a, b) => a.percentage - b.percentage);
   }, [people]);
@@ -185,7 +204,7 @@ const CompleteArchive = () => {
                   </div>
                   
                   <div className="flex flex-wrap gap-3">
-                    {person.missing.map(item => (
+                    {person.missing.slice(0, 4).map(item => (
                       <span 
                         key={item} 
                         className="flex items-center gap-2 px-4 py-2 bg-stone-50 text-stone-500 rounded-full text-[10px] font-bold uppercase tracking-widest border border-stone-100"
@@ -194,6 +213,11 @@ const CompleteArchive = () => {
                         {item}
                       </span>
                     ))}
+                    {person.missing.length > 4 && (
+                      <span className="flex items-center gap-2 px-4 py-2 bg-stone-50 text-stone-400 rounded-full text-[10px] font-bold uppercase tracking-widest border border-stone-100">
+                        +{person.missing.length - 4} more
+                      </span>
+                    )}
                     {person.percentage === 100 && (
                       <span className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-full text-[10px] font-bold uppercase tracking-widest border border-green-100">
                         <Trophy className="w-3 h-3" />
