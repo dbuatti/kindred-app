@@ -21,6 +21,7 @@ import Help from "./pages/Help";
 import Profile from "./pages/Profile";
 import CompleteArchive from "./pages/CompleteArchive";
 import FamilyTree from "./pages/FamilyTree";
+import FamilyTreeELK from "./pages/FamilyTreeELK";
 import DataExportButton from "./components/DataExportButton";
 import ShortcutHelpDialog from "./components/ShortcutHelpDialog";
 
@@ -30,10 +31,6 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, profiles } = useFamily();
   const location = useLocation();
 
-  console.log("[AuthGuard] State:", { loading, hasUser: !!user, path: location.pathname });
-
-  // While the app is determining if we are logged in, show nothing (or a loader)
-  // to prevent flickering or premature redirects
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FDFCF9] flex items-center justify-center">
@@ -45,16 +42,12 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  // If not logged in, send to login
   if (!user) {
-    console.log("[AuthGuard] No user, redirecting to login.");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If logged in but onboarding isn't done, send to onboarding
   const profile = profiles[user.id];
   if (profile && !profile.onboarding_completed && location.pathname !== '/onboarding') {
-    console.log("[AuthGuard] Onboarding incomplete, redirecting.");
     return <Navigate to="/onboarding" replace />;
   }
 
@@ -63,7 +56,6 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
 
 const PageWrapper = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  // Disable shortcuts on onboarding and auth pages
   const shortcutsDisabled = ['/onboarding', '/login', '/join'].includes(location.pathname);
   
   useKeyboardShortcuts([], shortcutsDisabled);
@@ -85,17 +77,16 @@ const AnimatedRoutes = () => {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        {/* Public Routes */}
         <Route path="/login" element={<PageWrapper><Login /></PageWrapper>} />
         <Route path="/join" element={<PageWrapper><JoinFamily /></PageWrapper>} />
         <Route path="/auth/confirm" element={<PageWrapper><AuthCallback /></PageWrapper>} />
         
-        {/* Protected Routes */}
         <Route path="/onboarding" element={<AuthGuard><PageWrapper><Onboarding /></PageWrapper></AuthGuard>} />
         <Route path="/edit-profile" element={<AuthGuard><PageWrapper><EditProfile /></PageWrapper></AuthGuard>} />
         <Route path="/profile" element={<AuthGuard><PageWrapper><Profile /></PageWrapper></AuthGuard>} />
         <Route path="/help" element={<AuthGuard><PageWrapper><Help /></PageWrapper></AuthGuard>} />
         <Route path="/tree" element={<AuthGuard><PageWrapper><FamilyTree /></PageWrapper></AuthGuard>} />
+        <Route path="/tree-v2" element={<AuthGuard><PageWrapper><FamilyTreeELK /></PageWrapper></AuthGuard>} />
         <Route path="/complete" element={<AuthGuard><PageWrapper><CompleteArchive /></PageWrapper></AuthGuard>} />
         <Route path="/" element={<AuthGuard><PageWrapper><Index /></PageWrapper></AuthGuard>} />
         <Route path="/person/:slug" element={<AuthGuard><PageWrapper><PersonDetail /></PageWrapper></AuthGuard>} />
