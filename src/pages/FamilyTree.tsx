@@ -49,13 +49,14 @@ const FamilyTree = () => {
     if (loading || people.length === 0) return null;
 
     try {
-      const g = new dagre.graphlib.Graph();
+      // Initialize Dagre with Compound support
+      const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 100, // Increased horizontal spacing to separate cousin groups
-        ranksep: 150, // Increased vertical spacing between generations
-        marginx: 100, 
-        marginy: 100,
+        nodesep: 180, // Wide horizontal gap between unrelated nodes
+        ranksep: 220, // Deep vertical gap between generations
+        marginx: 150, 
+        marginy: 150,
         ranker: 'network-simplex'
       });
       g.setDefaultEdgeLabel(() => ({}));
@@ -71,8 +72,8 @@ const FamilyTree = () => {
         }
 
         g.setNode(p.id, { 
-          width: 220, 
-          height: 70, 
+          width: 240, 
+          height: 80, 
           person: { ...p, displayYear: displayYear || 'Year Unknown' } 
         });
       });
@@ -123,7 +124,7 @@ const FamilyTree = () => {
         }
       });
 
-      // Assign children to the correct union
+      // Assign children to the correct union and create Family Groups (Compound Nodes)
       Object.entries(parentChildMap).forEach(([childId, parentIds]) => {
         const parents = Array.from(parentIds);
         let assigned = false;
@@ -149,6 +150,7 @@ const FamilyTree = () => {
           }
         }
 
+        // Fallback for single parents or unmapped unions
         if (!assigned) {
           parents.forEach(parentId => {
             g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR, weight: 10 });
@@ -156,29 +158,44 @@ const FamilyTree = () => {
         }
       });
 
-      // 4. Add Union Nodes and Marriage Edges
+      // 4. Add Union Nodes and Marriage Edges with Compound Grouping
       Object.values(unions).forEach(u => {
+        const familyGroupId = `group_${u.id}`;
+        g.setNode(familyGroupId, { label: 'Family Group' }); // Compound node
+        
         g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
+        g.setParent(u.id, familyGroupId);
+        g.setParent(u.p1, familyGroupId);
+        g.setParent(u.p2, familyGroupId);
 
-        // Marriage edges have extremely high weight to keep spouses together
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 2000 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 2000 });
+        // Marriage edges have massive weight to keep spouses together
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10000 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10000 });
 
         // Lineage edges have high weight to keep siblings grouped under the union
         u.children.forEach((childId, idx) => {
-          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 500 });
+          g.setParent(childId, familyGroupId);
+          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 5000 });
           
-          // Sibling grouping trick: add invisible edges between siblings to force them to stay contiguous
+          // Sibling grouping: add invisible edges between siblings to force them to stay contiguous
           if (idx > 0) {
             const prevChildId = u.children[idx - 1];
-            g.setEdge(prevChildId, childId, { type: 'sibling-spacer', weight: 1, style: { display: 'none' } });
+            g.setEdge(prevChildId, childId, { 
+              type: 'sibling-spacer', 
+              weight: 1000, 
+              minlen: 1,
+              style: { display: 'none' } 
+            });
           }
         });
       });
 
       dagre.layout(g);
       
-      const nodes = g.nodes().map(v => ({ id: v, ...g.node(v) }));
+      const nodes = g.nodes()
+        .filter(v => !v.startsWith('group_')) // Don't render the compound containers themselves
+        .map(v => ({ id: v, ...g.node(v) }));
+        
       const edges = g.edges().map(e => ({ 
         from: g.node(e.v), 
         to: g.node(e.w),
@@ -193,10 +210,10 @@ const FamilyTree = () => {
       return {
         nodes,
         edges,
-        width: maxX - minX + 240,
-        height: maxY - minY + 120,
-        offsetX: -minX + 120,
-        offsetY: -minY + 60
+        width: maxX - minX + 300,
+        height: maxY - minY + 200,
+        offsetX: -minX + 150,
+        offsetY: -minY + 100
       };
     } catch (err) {
       console.error("[FamilyTree] Layout error:", err);
@@ -355,9 +372,9 @@ const FamilyTree = () => {
               if (!edge.from || !edge.to) return null;
               const isMarriage = edge.type === 'marriage';
               const startX = edge.from.x;
-              const startY = edge.from.y + (edge.from.isUnion ? 0 : 35); 
+              const startY = edge.from.y + (edge.from.isUnion ? 0 : 40); 
               const endX = edge.to.x;
-              const endY = edge.to.y - (edge.to.isUnion ? 20 : 35); 
+              const endY = edge.to.y - (edge.to.isUnion ? 20 : 40); 
               const midY = startY + (endY - startY) * 0.5;
               const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               
@@ -397,6 +414,7 @@ const FamilyTree = () => {
             }
 
             const isHighlighted = highlightedId === node.id;
+            const isDeceased = node.person.isLiving === false;
 
             return (
               <motion.div
@@ -404,34 +422,43 @@ const FamilyTree = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ scale: 1.05, y: -2 }}
-                style={{ left: node.x - 110, top: node.y - 35, width: 220, height: 70 }}
+                style={{ left: node.x - 120, top: node.y - 40, width: 240, height: 80 }}
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
                 className={cn(
                   "absolute bg-white rounded-2xl border transition-all p-3 flex items-center gap-3 cursor-pointer group z-20",
                   isHighlighted 
                     ? "ring-4 ring-amber-500 border-amber-500 shadow-2xl scale-110 z-50" 
-                    : "border-stone-100 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] hover:border-amber-200"
+                    : "border-stone-100 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] hover:border-amber-200",
+                  isDeceased && "bg-stone-50/80"
                 )}
               >
                 <SmartSuggestionHover personId={node.id} />
                 
-                <div className="h-12 w-12 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 group-hover:border-amber-200 transition-all">
+                <div className={cn(
+                  "h-14 w-14 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 group-hover:border-amber-200 transition-all",
+                  isDeceased && "grayscale opacity-70"
+                )}>
                   {node.person.photoUrl ? (
-                    <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500" />
+                    <img src={node.person.photoUrl} className="w-full h-full object-cover transition-all duration-500 group-hover:grayscale-0 group-hover:opacity-100" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-200">
-                      <UserCircle className="w-8 h-8" />
+                      <UserCircle className="w-10 h-10" />
                     </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="text-sm font-serif font-bold text-stone-800 truncate group-hover:text-amber-900 transition-colors">{node.person.name}</p>
+                  <p className={cn(
+                    "text-sm font-serif font-bold text-stone-800 truncate group-hover:text-amber-900 transition-colors",
+                    isDeceased && "text-stone-500"
+                  )}>
+                    {node.person.name} {isDeceased && "†"}
+                  </p>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
                       {node.person.displayYear}
                     </span>
-                    {!node.person.isLiving && (
-                      <Badge variant="secondary" className="bg-stone-50 text-stone-400 border-none text-[8px] px-1.5 py-0">
+                    {isDeceased && (
+                      <Badge variant="secondary" className="bg-stone-200/50 text-stone-500 border-none text-[8px] px-1.5 py-0 font-bold uppercase tracking-tighter">
                         In Memory
                       </Badge>
                     )}
