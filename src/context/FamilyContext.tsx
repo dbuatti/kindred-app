@@ -62,6 +62,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   const isFetching = useRef(false);
   const lastFetchTime = useRef(0);
+  const hasLoggedLogin = useRef(false);
 
   const setTheme = (newTheme: 'default' | 'heritage') => {
     setThemeState(newTheme);
@@ -93,6 +94,16 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.error("[FamilyContext] Failed to log activity:", err);
     }
   }, [user]);
+
+  // Log login event when user is first detected
+  useEffect(() => {
+    if (user && !hasLoggedLogin.current) {
+      logActivity('login');
+      hasLoggedLogin.current = true;
+    } else if (!user) {
+      hasLoggedLogin.current = false;
+    }
+  }, [user, logActivity]);
 
   const fetchData = useCallback(async (silent = false) => {
     const now = Date.now();
@@ -167,7 +178,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .from('activity_logs')
           .select('*')
           .order('created_at', { ascending: false })
-          .limit(100);
+          .limit(200);
         setActivityLogs(logs || []);
       }
 

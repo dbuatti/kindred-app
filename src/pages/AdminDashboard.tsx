@@ -20,7 +20,8 @@ import {
   Edit3,
   Heart,
   GitMerge,
-  Brain
+  Brain,
+  History
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -40,6 +41,7 @@ import EditPersonDialog from '../components/EditPersonDialog';
 import AddPersonDialog from '../components/AddPersonDialog';
 import AdminStats from '../components/admin/AdminStats';
 import MergeProfilesDialog from '../components/admin/MergeProfilesDialog';
+import AuditLog from '../components/admin/AuditLog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -121,6 +123,7 @@ const AdminDashboard = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <TabsList className="bg-stone-100 p-1 rounded-2xl h-14 w-full md:w-auto">
               <TabsTrigger value="overview" className="rounded-xl px-6 data-[state=active]:bg-white">Overview</TabsTrigger>
+              <TabsTrigger value="audit" className="rounded-xl px-6 data-[state=active]:bg-white">Audit Log</TabsTrigger>
               <TabsTrigger value="engagement" className="rounded-xl px-6 data-[state=active]:bg-white">Engagement</TabsTrigger>
               <TabsTrigger value="people" className="rounded-xl px-6 data-[state=active]:bg-white">People</TabsTrigger>
             </TabsList>
@@ -208,6 +211,17 @@ const AdminDashboard = () => {
             </div>
           </TabsContent>
 
+          <TabsContent value="audit" className="space-y-6">
+            <div className="flex items-center justify-between border-b-4 border-stone-100 pb-4">
+              <h2 className="text-2xl font-serif font-bold text-stone-800 flex items-center gap-3">
+                <History className="w-6 h-6 text-stone-400" />
+                Archive Audit Log
+              </h2>
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Real-time updates</span>
+            </div>
+            <AuditLog />
+          </TabsContent>
+
           <TabsContent value="engagement" className="space-y-10">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <Card className="lg:col-span-2 p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
@@ -237,7 +251,7 @@ const AdminDashboard = () => {
                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                   {activityLogs.map((log) => {
                     const profile = profiles[log.user_id];
-                    const name = profile ? `${profile.first_name} ${profile.last_name}` : log.user_email.split('@')[0];
+                    const name = profile ? `${profile.first_name} ${profile.last_name}` : log.user_email?.split('@')[0] || 'Someone';
                     
                     return (
                       <div key={log.id} className="flex items-start gap-3 p-3 rounded-2xl bg-stone-50/50 border border-stone-100">
