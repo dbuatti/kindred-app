@@ -226,6 +226,12 @@ const FamilyTree = () => {
             height={data.height} 
             className="absolute inset-0 pointer-events-none overflow-visible"
           >
+            <defs>
+              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
             {data.edges.map((edge, i) => {
               if (!edge.from || !edge.to) return null;
 
@@ -236,47 +242,33 @@ const FamilyTree = () => {
               const endX = edge.to.x;
               const endY = edge.to.y - (edge.to.isUnion ? 20 : 50); 
 
-              let path = "";
-
-              if (isMarriage) {
-                // Smooth "V" curve for marriage
-                const midY = startY + (endY - startY) * 0.5;
-                path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
-              } else {
-                // Structured "Step" path with rounded corners and staggering
-                const staggerOffset = (edge.index || 0) * 15; 
-                const midY = startY + 60 + staggerOffset; 
-                const radius = 20;
-                const direction = endX > startX ? 1 : -1;
-                
-                path = `M ${startX} ${startY} 
-                        L ${startX} ${midY - radius}
-                        Q ${startX} ${midY}, ${startX + (radius * direction)} ${midY}
-                        L ${endX - (radius * direction)} ${midY}
-                        Q ${endX} ${midY}, ${endX} ${midY + radius}
-                        L ${endX} ${endY}`;
-              }
+              // Cubic Bezier curve for a smooth, luminous flow
+              const midY = startY + (endY - startY) * 0.5;
+              const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               
               return (
                 <g key={i}>
+                  {/* Thick white background for contrast */}
                   <path
                     d={path}
                     stroke="white"
-                    strokeWidth={isMarriage ? "6" : "5"}
+                    strokeWidth={isMarriage ? "8" : "6"}
                     fill="none"
                     strokeLinecap="round"
-                    opacity="0.6"
+                    opacity="0.4"
                   />
+                  {/* The glowing colored path */}
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 1.2, ease: "easeInOut" }}
+                    transition={{ duration: 1.5, ease: "easeInOut" }}
                     d={path}
                     stroke={edge.color}
-                    strokeWidth={isMarriage ? "4" : "2.5"}
+                    strokeWidth={isMarriage ? "4" : "3"}
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    style={{ filter: 'url(#glow)' }}
                   />
                 </g>
               );
