@@ -9,10 +9,12 @@ import { Person } from '@/types';
 import { cn, formatDisplayName, formatFamilyDate } from '@/lib/utils';
 import SuggestionDialog from '../SuggestionDialog';
 import ConnectionSuggestionDialog from '../ConnectionSuggestionDialog';
+import EditPersonDialog from '../EditPersonDialog';
 
 interface PersonHeroProps {
   person: Person;
   isOwnProfile: boolean;
+  isAdmin?: boolean;
   isDraggingOverProfile: boolean;
   onEditProfile: () => void;
   onProfileDrop: (e: React.DragEvent) => void;
@@ -23,6 +25,7 @@ interface PersonHeroProps {
 const PersonHero = ({ 
   person, 
   isOwnProfile, 
+  isAdmin,
   isDraggingOverProfile, 
   onEditProfile,
   onProfileDrop,
@@ -30,6 +33,7 @@ const PersonHero = ({
   onProfileDragLeave
 }: PersonHeroProps) => {
   const birthDisplay = person.birthDate ? formatFamilyDate(person.birthDate) : (person.birthYear || 'Unknown');
+  const canEditDirectly = isOwnProfile || isAdmin;
 
   return (
     <section className="flex flex-col md:flex-row gap-12 items-start">
@@ -63,7 +67,8 @@ const PersonHero = ({
             <h1 className="text-5xl font-serif font-bold text-stone-800 leading-tight">
               {formatDisplayName(person.name)}
             </h1>
-            {isOwnProfile && (
+            
+            {isOwnProfile ? (
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -72,7 +77,20 @@ const PersonHero = ({
               >
                 <Edit3 className="w-5 h-5" />
               </Button>
-            )}
+            ) : isAdmin ? (
+              <EditPersonDialog 
+                person={person}
+                trigger={
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="rounded-full text-amber-600 hover:bg-amber-50 h-10 w-10 bg-stone-50"
+                  >
+                    <Edit3 className="w-5 h-5" />
+                  </Button>
+                }
+              />
+            ) : null}
           </div>
           
           <div className="flex flex-wrap gap-6 text-stone-500">

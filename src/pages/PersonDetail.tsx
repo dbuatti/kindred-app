@@ -194,6 +194,7 @@ const PersonDetail = () => {
         <PersonHero 
           person={person}
           isOwnProfile={isOwnProfile}
+          isAdmin={isAdmin}
           isDraggingOverProfile={isDraggingOverProfile}
           onEditProfile={() => navigate('/edit-profile')}
           onProfileDrop={onProfileDrop}
@@ -257,12 +258,16 @@ const PersonDetail = () => {
                         <button 
                           onClick={() => handleWarm(memory.id)}
                           className={cn(
-                            "flex items-center gap-2 px-3 py-1 rounded-full transition-all text-[10px] font-bold uppercase tracking-widest",
-                            isWarmed ? "bg-red-50 text-red-500" : "text-stone-300 hover:text-red-500"
+                            "flex items-center gap-2 px-3 py-1 rounded-full transition-all duration-300 group/heart",
+                            isWarmed 
+                              ? "bg-red-50 text-red-500" 
+                              : "bg-stone-50 text-stone-400 hover:bg-red-50 hover:text-red-500"
                           )}
                         >
-                          <Heart className={cn("w-3 h-3", isWarmed && "fill-current")} />
-                          {memoryReactions.length > 0 ? memoryReactions.length : ''}
+                          <Heart className={cn("w-3 h-3 transition-transform group-active:scale-125", isWarmed && "fill-current")} />
+                          <span className="text-[10px] font-bold uppercase tracking-widest">
+                            {memoryReactions.length > 0 ? memoryReactions.length : ''} {isWarmed ? 'Warmed' : 'Warm this'}
+                          </span>
                         </button>
                       </div>
                       <div className={cn("p-8 rounded-[2.5rem] text-xl font-serif leading-relaxed shadow-sm transition-all duration-500", memory.type === 'voice' ? "bg-amber-50/40 border border-amber-100/50" : memory.type === 'photo' ? "bg-stone-50/50 border border-stone-100" : "bg-white border border-stone-100 group-hover:shadow-md")}>
