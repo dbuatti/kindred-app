@@ -53,11 +53,11 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 60, 
-        ranksep: 100, 
+        nodesep: 80, // Increased slightly for clarity
+        ranksep: 120, 
         marginx: 50, 
         marginy: 50,
-        ranker: 'network-simplex'
+        ranker: 'tight-tree' // Better for keeping related nodes together
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -77,6 +77,7 @@ const FamilyTree = () => {
         });
       });
 
+      // 1. Identify Unions (Marriages)
       const unions: Record<string, { id: string, p1: string, p2: string, children: string[], color: string }> = {};
       let colorIdx = 0;
 
@@ -98,9 +99,10 @@ const FamilyTree = () => {
         }
       });
 
+      // 2. Map Children to Unions or Parents
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
-        if (['cousin', 'aunt', 'uncle', 'nephew', 'niece'].includes(type)) return;
+        if (['cousin', 'aunt', 'uncle', 'nephew', 'niece', 'sister', 'brother', 'sibling'].includes(type)) return;
 
         let parentId = '';
         let childId = '';
@@ -114,6 +116,7 @@ const FamilyTree = () => {
         }
 
         if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
+          // Find if this parent belongs to a union
           const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
           if (union) {
             if (!union.children.includes(childId)) union.children.push(childId);
@@ -123,6 +126,24 @@ const FamilyTree = () => {
         }
       });
 
+      // 3. Add Sibling Constraints (Invisible edges to keep them together)
+      const processedSiblings = new Set<string>();
+      relationships.forEach(r => {
+        const type = r.relationship_type.toLowerCase();
+        if (['sister', 'brother', 'sibling'].includes(type)) {
+          const p1 = r.person_id;
+          const p2 = r.related_person_id;
+          const pairKey = [p1, p2].sort().join('-');
+          
+          if (validIds.has(p1) && validIds.has(p2) && !processedSiblings.has(pairKey)) {
+            processedSiblings.add(pairKey);
+            // We add a very high weight edge to keep them on the same rank and close
+            g.setEdge(p1, p2, { type: 'sibling-constraint', weight: 10, minlen: 1 });
+          }
+        }
+      });
+
+      // 4. Finalize Union Nodes and Edges
       Object.values(unions).forEach(u => {
         g.setNode(u.id, { width: 30, height: 30, isUnion: true, color: u.color });
         g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10 });
@@ -309,7 +330,7 @@ const FamilyTree = () => {
             className="absolute inset-0 pointer-events-none overflow-visible z-0"
           >
             {data.edges.map((edge, i) => {
-              if (!edge.from || !edge.to) return null;
+              if (!edge.from || !edge.to || edge.type === 'sibling-constraint') return null;
               const isMarriage = edge.type === 'marriage';
               const startX = edge.from.x;
               const startY = edge.from.y + (edge.from.isUnion ? 0 : 30); 
