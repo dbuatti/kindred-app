@@ -79,14 +79,14 @@ const FamilyTree = () => {
     if (loading || people.length === 0) return null;
 
     try {
-      const g = new dagre.graphlib.Graph({ compound: true });
+      const g = new dagre.graphlib.Graph();
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 80, // More compact horizontal spacing
-        ranksep: 100, // More compact vertical spacing
-        marginx: 100, 
-        marginy: 100,
-        ranker: 'tight-tree' // Better for family hierarchies
+        nodesep: 40, // Tightened horizontal spacing
+        ranksep: 80, // Tightened vertical spacing
+        marginx: 50, 
+        marginy: 50,
+        ranker: 'network-simplex' // More balanced layout
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -153,18 +153,18 @@ const FamilyTree = () => {
           if (union) {
             if (!union.children.includes(childId)) union.children.push(childId);
           } else {
-            g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR, weight: 1 });
+            g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR, weight: 2 });
           }
         }
       });
 
-      // 3. Sibling Constraints
+      // 3. Sibling Constraints (Keep siblings close)
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         if (type.includes('sister') || type.includes('brother') || type.includes('sibling')) {
           if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
             if (r.person_id === r.related_person_id) return;
-            g.setEdge(r.person_id, r.related_person_id, { type: 'sibling-constraint', weight: 0, minlen: 1 });
+            g.setEdge(r.person_id, r.related_person_id, { type: 'sibling-constraint', weight: 1, minlen: 1 });
           }
         }
       });
@@ -188,10 +188,10 @@ const FamilyTree = () => {
         ...g.edge(e)
       }));
 
-      const minX = Math.min(...nodes.map(n => n.x - 200));
-      const maxX = Math.max(...nodes.map(n => n.x + 200));
-      const minY = Math.min(...nodes.map(n => n.y - 200));
-      const maxY = Math.max(...nodes.map(n => n.y + 200));
+      const minX = Math.min(...nodes.map(n => n.x - 150));
+      const maxX = Math.max(...nodes.map(n => n.x + 150));
+      const minY = Math.min(...nodes.map(n => n.y - 100));
+      const maxY = Math.max(...nodes.map(n => n.y + 100));
 
       return {
         nodes,
@@ -214,13 +214,14 @@ const FamilyTree = () => {
 
   const jumpToPerson = (id: string) => {
     const node = treeData?.nodes.find(n => n.id === id);
-    if (node && treeContainerRef.current) {
+    if (node && treeContainerRef.current && !('error' in treeData)) {
+      const data = treeData as any;
       setHighlightedId(id);
       setZoom(1);
       
       const container = treeContainerRef.current;
-      const scrollX = (node.x * 1) - (container.clientWidth / 2);
-      const scrollY = (node.y * 1) - (container.clientHeight / 2);
+      const scrollX = ((node.x + data.offsetX) * 1) - (container.clientWidth / 2);
+      const scrollY = ((node.y + data.offsetY) * 1) - (container.clientHeight / 2);
       
       container.scrollTo({
         left: scrollX,
@@ -234,7 +235,7 @@ const FamilyTree = () => {
   };
 
   const handleNavClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!treeContainerRef.current || !treeData) return;
+    if (!treeContainerRef.current || !treeData || 'error' in treeData) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
@@ -254,7 +255,7 @@ const FamilyTree = () => {
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Mapping the lineage...</div>;
 
-  if (!treeData || (treeData as any).error) {
+  if (!treeData || 'error' in treeData) {
     return (
       <div className="min-h-screen bg-[#FDFCF9] flex items-center justify-center p-10">
         <div className="max-w-md text-center space-y-6">
@@ -398,15 +399,13 @@ const FamilyTree = () => {
               if (!edge.from || !edge.to || edge.type === 'sibling-constraint') return null;
               const isMarriage = edge.type === 'marriage';
               
-              // Smooth Bezier Path Logic
-              const startX = edge.from.x;
-              const startY = edge.from.y + (edge.from.isUnion ? 0 : 35); 
-              const endX = edge.to.x;
-              const endY = edge.to.y - (edge.to.isUnion ? 20 : 35); 
+              // Apply offsets to coordinates
+              const startX = edge.from.x + data.offsetX;
+              const startY = edge.from.y + data.offsetY + (edge.from.isUnion ? 0 : 35); 
+              const endX = edge.to.x + data.offsetX;
+              const endY = edge.to.y + data.offsetY - (edge.to.isUnion ? 20 : 35); 
               
               const midY = startY + (endY - startY) * 0.5;
-              
-              // Create a smooth "S" curve path
               const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               
               return (
@@ -429,6 +428,9 @@ const FamilyTree = () => {
           </svg>
 
           {data.nodes.map((node: any) => {
+            const posX = node.x + data.offsetX;
+            const posY = node.y + data.offsetY;
+
             if (node.isUnion) {
               return (
                 <motion.div 
@@ -436,7 +438,7 @@ const FamilyTree = () => {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', damping: 12, delay: 0.3 }}
-                  style={{ left: node.x - 20, top: node.y - 20, backgroundColor: 'white', borderColor: node.color }}
+                  style={{ left: posX - 20, top: posY - 20, backgroundColor: 'white', borderColor: node.color }}
                   className="absolute w-10 h-10 rounded-full border-4 flex items-center justify-center shadow-xl z-10 group"
                 >
                   <Heart className="w-5 h-5 fill-current transition-transform group-hover:scale-125" style={{ color: node.color }} />
@@ -453,7 +455,7 @@ const FamilyTree = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ scale: 1.05, y: -2 }}
-                style={{ left: node.x - 110, top: node.y - 35, width: 220, height: 70 }}
+                style={{ left: posX - 110, top: posY - 35, width: 220, height: 70 }}
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
                 className={cn(
                   "absolute bg-white rounded-2xl border transition-all p-3 flex items-center gap-4 cursor-pointer group z-20",
