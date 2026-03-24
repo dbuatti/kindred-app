@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,8 @@ import {
   Search,
   Globe,
   MapPin,
-  ChevronsUpDown
+  ChevronsUpDown,
+  X
 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
@@ -63,6 +64,9 @@ const Onboarding = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [placePopoverOpen, setPlacePopoverOpen] = useState(false);
   const [placeSuggestions, setPlaceSuggestions] = useState<string[]>(INITIAL_SUGGESTIONS);
+
+  // Self-Search State
+  const [selfSearchQuery, setSelfSearchQuery] = useState('');
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -127,6 +131,21 @@ const Onboarding = () => {
     }));
     setRelativeName('');
     toast.success(`Added ${relativeName} to your list.`);
+  };
+
+  const handleClaimPerson = (person: any) => {
+    updateField('claimedPersonId', person.id);
+    const names = person.name.split(' ');
+    updateField('firstName', names[0]);
+    updateField('lastName', names.slice(1).join(' '));
+    updateField('gender', person.gender || '');
+    
+    if (person.birthDate) updateField('birthDate', person.birthDate);
+    if (person.birthPlace) updateField('birthPlace', person.birthPlace);
+    if (person.vibeSentence) updateField('bio', person.vibeSentence);
+    
+    setSelfSearchQuery('');
+    toast.success(`Linked to ${person.name}!`);
   };
 
   const handleComplete = async () => {
@@ -221,9 +240,16 @@ const Onboarding = () => {
     }
   };
 
-  if (contextLoading) return null;
+  const unclaimedPeople = useMemo(() => people.filter(p => !p.userId), [people]);
+  
+  const selfSearchResults = useMemo(() => {
+    if (!selfSearchQuery || selfSearchQuery.length < 2) return [];
+    return unclaimedPeople.filter(p => 
+      p.name.toLowerCase().includes(selfSearchQuery.toLowerCase())
+    ).slice(0, 5);
+  }, [selfSearchQuery, unclaimedPeople]);
 
-  const unclaimedPeople = people.filter(p => !p.userId);
+  if (contextLoading) return null;
 
   return (
     <div className="min-h-screen bg-[#FDFCF9] flex flex-col items-center justify-center p-6">
@@ -250,24 +276,57 @@ const Onboarding = () => {
                   <Input 
                     placeholder="Has someone already added you?" 
                     className="h-14 pl-12 bg-stone-50 border-none rounded-2xl text-lg"
-                    onChange={(e) => {
-                      const found = unclaimedPeople.find(p => p.name.toLowerCase().includes(e.target.value.toLowerCase()));
-                      if (found && e.target.value.length > 2) {
-                        updateField('claimedPersonId', found.id);
-                        const names = found.name.split(' ');
-                        updateField('firstName', names[0]);
-                        updateField('lastName', names.slice(1).join(' '));
-                        updateField('gender', found.gender || '');
-                        // Prepopulate birth info if available
-                        if (found.birthDate) updateField('birthDate', found.birthDate);
-                        if (found.birthPlace) updateField('birthPlace', found.birthPlace);
-                        if (found.vibeSentence) updateField('bio', found.vibeSentence);
-                        
-                        toast.success(`Found you! We've linked your profile to ${found.name}.`);
-                      }
-                    }}
+                    value={selfSearchQuery}
+                    onChange={(e) => setSelfSearchQuery(e.target.value)}
                   />
+                  {selfSearchQuery && (
+                    <button 
+                      onClick={() => setSelfSearchQuery('')}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
+
+                {/* Search Results Dropdown */}
+                {selfSearchResults.length > 0 && (
+                  <div className="bg-stone-50 rounded-2xl border border-stone-100 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                    {selfSearchResults.map(person => (
+                      <button
+                        key={person.id}
+                        onClick={() => handleClaimPerson(person)}
+                        className="w-full px-6 py-4 text-left hover:bg-amber-50 transition-colors flex items-center justify-between group border-b border-stone-100 last:border-none"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-stone-300 border border-stone-100">
+                            <User className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-stone-800 group-hover:text-amber-900">{person.name}</p>
+                            <p className="text-xs text-stone-400 uppercase tracking-widest">Added by {person.createdByEmail.split('@')[0]}</p>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-stone-300 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {formData.claimedPersonId && !selfSearchQuery && (
+                  <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Check className="w-5 h-5 text-green-600" />
+                      <p className="text-sm font-medium text-amber-900">Linked to existing profile</p>
+                    </div>
+                    <button 
+                      onClick={() => updateField('claimedPersonId', null)}
+                      className="text-xs font-bold text-amber-700 uppercase tracking-widest hover:underline"
+                    >
+                      Undo
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-6">
