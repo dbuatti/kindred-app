@@ -55,10 +55,12 @@ const FamilyTree = () => {
   const handleScroll = useCallback(() => {
     if (treeContainerRef.current) {
       const { scrollLeft, scrollTop, scrollWidth, scrollHeight, clientWidth, clientHeight } = treeContainerRef.current;
+      // Calculate position as a percentage of the scrollable area
       setScrollPos({
         x: scrollLeft / scrollWidth,
         y: scrollTop / scrollHeight
       });
+      // Calculate how much of the total tree is visible
       setViewRatio({
         w: clientWidth / scrollWidth,
         h: clientHeight / scrollHeight
@@ -70,7 +72,7 @@ const FamilyTree = () => {
     const container = treeContainerRef.current;
     if (container) {
       container.addEventListener('scroll', handleScroll);
-      handleScroll(); // Initial calculation
+      handleScroll(); 
       return () => container.removeEventListener('scroll', handleScroll);
     }
   }, [handleScroll, loading, zoom]);
@@ -86,7 +88,7 @@ const FamilyTree = () => {
         ranksep: 150, 
         marginx: 300, 
         marginy: 300,
-        ranker: 'longest-path' // Better for keeping generations aligned
+        ranker: 'network-simplex' // More stable for complex trees
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -109,10 +111,10 @@ const FamilyTree = () => {
       const unions: Record<string, { id: string, p1: string, p2: string, children: string[], color: string }> = {};
       let colorIdx = 0;
 
-      // 1. Identify Spouses/Unions with robust keyword matching
+      // 1. Identify Spouses/Unions
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
-        const isSpouse = type.includes('spouse') || type.includes('wife') || type.includes('husband') || type.includes('married') || type.includes('partner');
+        const isSpouse = type.includes('spouse') || type.includes('wife') || type.includes('husband') || type.includes('married');
         
         if (isSpouse && validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
           const pairId = [r.person_id, r.related_person_id].sort().join('_');
@@ -129,7 +131,7 @@ const FamilyTree = () => {
         }
       });
 
-      // 2. Map Children to Unions or Parents with robust keyword matching
+      // 2. Map Children to Unions or Parents
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         const isParental = type.includes('parent') || type.includes('father') || type.includes('mother') || type.includes('papa') || type.includes('mama');
@@ -147,7 +149,8 @@ const FamilyTree = () => {
         }
 
         if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
-          // Find if this parent belongs to a union
+          if (parentId === childId) return; // Prevent self-loops
+
           const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
           if (union) {
             if (!union.children.includes(childId)) union.children.push(childId);
@@ -157,12 +160,14 @@ const FamilyTree = () => {
         }
       });
 
-      // 3. Sibling Constraints
+      // 3. Sibling Constraints (Ensures they stay on the same level)
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         if (type.includes('sister') || type.includes('brother') || type.includes('sibling')) {
           if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
-            g.setEdge(r.person_id, r.related_person_id, { type: 'sibling-constraint', weight: 0, minlen: 0 });
+            if (r.person_id === r.related_person_id) return;
+            // minlen: 1 is CRITICAL to prevent the "intersectRect" error
+            g.setEdge(r.person_id, r.related_person_id, { type: 'sibling-constraint', weight: 0, minlen: 1 });
           }
         }
       });
