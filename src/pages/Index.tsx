@@ -19,7 +19,7 @@ import AddPersonDialog from '../components/AddPersonDialog';
 import MissionBanner from '../components/MissionBanner';
 import { PersonCardSkeleton } from '../components/SkeletonLoader';
 import { Button } from '@/components/ui/button';
-import { Share2, ScrollText, HelpCircle, UserCircle, Users, ShieldCheck, Sparkles, History, ArrowRight, Search, GitBranch, UserPlus } from 'lucide-react';
+import { Share2, ScrollText, HelpCircle, UserCircle, Users, ShieldCheck, Sparkles, History, ArrowRight, Search, GitBranch, UserPlus, Brain } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
@@ -148,10 +148,20 @@ const Index = () => {
                 <span className="text-[10px] font-bold uppercase tracking-widest">Mission</span>
               </button>
               {isAdmin && (
-                <button onClick={() => navigate('/admin')} className="flex flex-col items-center gap-1 text-stone-500 hover:text-stone-800 transition-colors">
-                  <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center"><ShieldCheck className="w-6 h-6" /></div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Admin</span>
-                </button>
+                <>
+                  <button onClick={() => navigate('/admin')} className="flex flex-col items-center gap-1 text-stone-500 hover:text-stone-800 transition-colors">
+                    <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center"><ShieldCheck className="w-6 h-6" /></div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Admin</span>
+                  </button>
+                  <button 
+                    onClick={() => window.open('https://grok.com/c/9e022c38-65a8-4b46-8ea0-704425917767?rid=926a95ed-96e6-45f6-8f55-a0216d1452c1', '_blank')} 
+                    className="flex flex-col items-center gap-1 text-stone-400 hover:text-indigo-500 transition-colors"
+                    title="Open Grok Research"
+                  >
+                    <div className="h-12 w-12 rounded-full bg-stone-50 flex items-center justify-center border border-stone-100"><Brain className="w-5 h-5" /></div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Grok</span>
+                  </button>
+                </>
               )}
               <button onClick={handleInvite} className="flex flex-col items-center gap-1 text-stone-500 hover:text-amber-600 transition-colors">
                 <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center"><Share2 className="w-6 h-6" /></div>

@@ -19,7 +19,8 @@ import {
   UserPlus,
   Edit3,
   Heart,
-  GitMerge
+  GitMerge,
+  Brain
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -124,6 +125,14 @@ const AdminDashboard = () => {
               <TabsTrigger value="people" className="rounded-xl px-6 data-[state=active]:bg-white">People</TabsTrigger>
             </TabsList>
             <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => window.open('https://grok.com/c/9e022c38-65a8-4b46-8ea0-704425917767?rid=926a95ed-96e6-45f6-8f55-a0216d1452c1', '_blank')}
+                className="rounded-full border-indigo-100 text-indigo-600 hover:bg-indigo-50 gap-2 h-10 px-4"
+              >
+                <Brain className="w-4 h-4" /> Grok Research
+              </Button>
               <MergeProfilesDialog />
               <AddPersonDialog />
             </div>
