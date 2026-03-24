@@ -345,10 +345,10 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addRelationship = useCallback(async (personId: string, relatedId: string, type: string) => {
     if (!user) return;
     
-    // Check if relationship already exists
+    // Check if relationship already exists in this specific direction
     const exists = relationships.some(r => 
-      ((r.person_id === personId && r.related_person_id === relatedId) || 
-       (r.person_id === relatedId && r.related_person_id === personId)) &&
+      r.person_id === personId && 
+      r.related_person_id === relatedId &&
       r.relationship_type.toLowerCase() === type.toLowerCase()
     );
 

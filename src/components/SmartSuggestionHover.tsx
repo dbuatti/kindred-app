@@ -23,6 +23,8 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     if (!person) return [];
 
     // Helper to get specific relationship IDs for any person
+    // Direction 'to' means the person is the OBJECT (e.g. A is the father of ID)
+    // Direction 'from' means the person is the SUBJECT (e.g. ID is the father of B)
     const getRelIds = (id: string, types: string[], direction: 'to' | 'from' | 'both') => {
       return relationships
         .filter(r => {
@@ -38,11 +40,13 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     };
 
     // Define clear sets for the current person
+    // Parents of ID: (X is parent of ID) OR (ID is child of X)
     const myParentIds = [
       ...getRelIds(personId, ['mother', 'father', 'parent'], 'to'),
       ...getRelIds(personId, ['son', 'daughter', 'child'], 'from')
     ];
     
+    // Children of ID: (ID is parent of X) OR (X is child of ID)
     const myChildIds = [
       ...getRelIds(personId, ['mother', 'father', 'parent'], 'from'),
       ...getRelIds(personId, ['son', 'daughter', 'child'], 'to')
@@ -105,7 +109,10 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
             text: `Is ${parent.name} also the ${role} of ${person.name.split(' ')[0]}?`,
             action: async () => {
               if (isAdmin) {
-                await addRelationship(personId, pId, role);
+                // Correct direction: Parent is the related_person_id, Connie is the person_id
+                // Wait, the standard is: person_id (Subject) is the [Role] of related_person_id (Object)
+                // So: Unknown Emmi (Subject) is the Father of Connie (Object)
+                await addRelationship(pId, personId, role);
               } else {
                 await addSuggestion({
                   personId: personId,
@@ -123,7 +130,6 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     // 3. Spouse Inference: Share a child but not marked as spouses
     if (myChildIds.length > 0) {
       const potentialSpouses = people.filter(p => {
-        // Don't suggest spouses if they are already siblings or spouses
         if (p.id === personId || mySpouseIds.includes(p.id) || mySiblingIds.includes(p.id)) return false;
         
         const theirChildIds = [
@@ -134,7 +140,6 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
         const sharesChild = theirChildIds.some(id => myChildIds.includes(id));
         if (!sharesChild) return false;
 
-        // CRITICAL: Don't suggest spouses if they share a parent (likely backwards data entry)
         const theirParentIds = [
           ...getRelIds(p.id, ['mother', 'father', 'parent'], 'to'),
           ...getRelIds(p.id, ['son', 'daughter', 'child'], 'from')
