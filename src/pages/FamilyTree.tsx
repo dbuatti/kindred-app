@@ -49,14 +49,13 @@ const FamilyTree = () => {
     if (loading || people.length === 0) return null;
 
     try {
-      // Initialize Dagre with Compound support
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 180, // Wide horizontal gap between unrelated nodes
-        ranksep: 220, // Deep vertical gap between generations
-        marginx: 150, 
-        marginy: 150,
+        nodesep: 120, // Increased horizontal gap
+        ranksep: 180, // Increased vertical gap
+        marginx: 100, 
+        marginy: 100,
         ranker: 'network-simplex'
       });
       g.setDefaultEdgeLabel(() => ({}));
@@ -124,7 +123,7 @@ const FamilyTree = () => {
         }
       });
 
-      // Assign children to the correct union and create Family Groups (Compound Nodes)
+      // Assign children to the correct union
       Object.entries(parentChildMap).forEach(([childId, parentIds]) => {
         const parents = Array.from(parentIds);
         let assigned = false;
@@ -150,57 +149,58 @@ const FamilyTree = () => {
           }
         }
 
-        // Fallback for single parents or unmapped unions
+        // Fallback for single parents
         if (!assigned) {
           parents.forEach(parentId => {
-            g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR, weight: 10 });
+            g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR, weight: 1 });
           });
         }
       });
 
-      // 4. Add Union Nodes and Marriage Edges with Compound Grouping
+      // 4. Layout with Compound Sibling Groups
       Object.values(unions).forEach(u => {
-        const familyGroupId = `group_${u.id}`;
-        g.setNode(familyGroupId, { label: 'Family Group' }); // Compound node
-        
+        // Union node (the heart)
         g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
-        g.setParent(u.id, familyGroupId);
-        g.setParent(u.p1, familyGroupId);
-        g.setParent(u.p2, familyGroupId);
 
-        // Marriage edges have massive weight to keep spouses together
+        // Marriage edges - very high weight to keep spouses together
         g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10000 });
         g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10000 });
 
-        // Lineage edges have high weight to keep siblings grouped under the union
-        u.children.forEach((childId, idx) => {
-          g.setParent(childId, familyGroupId);
-          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 5000 });
-          
-          // Sibling grouping: add invisible edges between siblings to force them to stay contiguous
-          if (idx > 0) {
-            const prevChildId = u.children[idx - 1];
-            g.setEdge(prevChildId, childId, { 
-              type: 'sibling-spacer', 
-              weight: 1000, 
-              minlen: 1,
-              style: { display: 'none' } 
-            });
-          }
-        });
+        if (u.children.length > 0) {
+          // Create a compound node for this specific sibling group
+          const siblingGroupId = `siblings_${u.id}`;
+          g.setNode(siblingGroupId, { label: 'Siblings' });
+
+          u.children.forEach((childId, idx) => {
+            // Put child in the sibling group
+            g.setParent(childId, siblingGroupId);
+            
+            // Lineage edge from union to child
+            g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 5000 });
+            
+            // Sibling-to-sibling invisible edges to force horizontal order and proximity
+            if (idx > 0) {
+              const prevChildId = u.children[idx - 1];
+              g.setEdge(prevChildId, childId, { 
+                weight: 2000, 
+                style: { display: 'none' } 
+              });
+            }
+          });
+        }
       });
 
       dagre.layout(g);
       
       const nodes = g.nodes()
-        .filter(v => !v.startsWith('group_')) // Don't render the compound containers themselves
+        .filter(v => !v.startsWith('siblings_')) // Don't render the sibling containers
         .map(v => ({ id: v, ...g.node(v) }));
         
       const edges = g.edges().map(e => ({ 
         from: g.node(e.v), 
         to: g.node(e.w),
         ...g.edge(e)
-      })).filter(e => e.from && e.to && e.type !== 'sibling-spacer');
+      })).filter(e => e.from && e.to && e.style?.display !== 'none');
 
       const minX = Math.min(...nodes.map(n => n.x - 120));
       const maxX = Math.max(...nodes.map(n => n.x + 120));
@@ -449,7 +449,7 @@ const FamilyTree = () => {
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <p className={cn(
                     "text-sm font-serif font-bold text-stone-800 truncate group-hover:text-amber-900 transition-colors",
-                    isDeceased && "text-stone-500"
+                    isDeceased && "text-stone-50"
                   )}>
                     {node.person.name} {isDeceased && "†"}
                   </p>
