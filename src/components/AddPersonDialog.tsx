@@ -76,7 +76,7 @@ const AddPersonDialog = ({
       relationshipType: relationship,
       vibeSentence: "", 
       personalityTags: [relationship],
-      photoUrl: "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&q=80&w=400"
+      photoUrl: null // Removed the hardcoded placeholder URL
     }, relatedToId, relationship);
 
     toast.success(`${name} added to the family!`);

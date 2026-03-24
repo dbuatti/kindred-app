@@ -35,6 +35,9 @@ const BRANCH_COLORS = [
   '#06b6d4', // Cyan
 ];
 
+// The specific placeholder URL we want to ignore
+const PLACEHOLDER_URL = "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&q=80&w=400";
+
 const FamilyTree = () => {
   const navigate = useNavigate();
   const { people, relationships, loading, refreshData } = useFamily();
@@ -318,6 +321,9 @@ const FamilyTree = () => {
               );
             }
 
+            // Check if the photoUrl is the placeholder we want to remove
+            const hasRealPhoto = node.person.photoUrl && node.person.photoUrl !== PLACEHOLDER_URL;
+
             return (
               <motion.div
                 key={node.id}
@@ -336,7 +342,7 @@ const FamilyTree = () => {
                 <SmartSuggestionHover personId={node.id} />
                 
                 <div className="h-18 w-18 rounded-full overflow-hidden bg-stone-50 shrink-0 border-2 border-white shadow-md ring-1 ring-stone-100 group-hover:ring-amber-200 transition-all">
-                  {node.person.photoUrl ? (
+                  {hasRealPhoto ? (
                     <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-200">
