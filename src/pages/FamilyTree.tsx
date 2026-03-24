@@ -43,7 +43,7 @@ const LINEAGE_COLOR = '#e2e8f0';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
-  const { people, relationships, loading, refreshData } = useFamily();
+  const { people, relationships, loading, user } = useFamily();
   const [zoom, setZoom] = useState(0.75);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
@@ -133,15 +133,15 @@ const FamilyTree = () => {
         layoutOptions: {
           'elk.algorithm': 'layered',
           'elk.direction': 'DOWN',
-          'elk.spacing.nodeNode': '100',
-          'elk.layered.spacing.nodeNodeBetweenLayers': '160',
+          'elk.spacing.nodeNode': '105', // Tuned for tighter grouping
+          'elk.layered.spacing.nodeNodeBetweenLayers': '165', // Tuned for hierarchy clarity
           'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
           'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
           'elk.edgeRouting': 'ORTHOGONAL',
           'elk.layered.mergeEdges': 'true',
           'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
-          'elk.layered.spacing.edgeEdgeBetweenLayers': '20',
-          'elk.layered.spacing.edgeNodeBetweenLayers': '40',
+          'elk.layered.spacing.edgeEdgeBetweenLayers': '15',
+          'elk.layered.spacing.edgeNodeBetweenLayers': '35',
           'elk.padding': '[top=150,left=150,bottom=150,right=150]'
         },
         children: elkNodes,
@@ -181,7 +181,7 @@ const FamilyTree = () => {
     if (layoutData && treeContainerRef.current) {
       const container = treeContainerRef.current;
       const scrollX = (layoutData.width * zoom) / 2 - container.clientWidth / 2;
-      const scrollY = 100; // Start near the top
+      const scrollY = 100; 
       
       container.scrollTo({
         left: scrollX,
@@ -224,6 +224,11 @@ const FamilyTree = () => {
     }
   };
 
+  const focusMe = () => {
+    const myPerson = people.find(p => p.userId === user?.id);
+    if (myPerson) jumpToPerson(myPerson.id);
+  };
+
   const drawElkEdge = (edge: any) => {
     if (!edge.sections || edge.sections.length === 0) return "";
     const section = edge.sections[0];
@@ -249,7 +254,7 @@ const FamilyTree = () => {
       </div>
       <div className="text-center space-y-2">
         <h2 className="text-2xl font-serif font-bold text-stone-800">Optimizing the Tree</h2>
-        <p className="text-stone-400 italic">Using ELK.js for a cleaner layout...</p>
+        <p className="text-stone-400 italic">Refining layout for clarity...</p>
       </div>
     </div>
   );
@@ -325,7 +330,7 @@ const FamilyTree = () => {
               <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="h-8 w-8 rounded-full hover:bg-white shadow-sm"><ZoomOut className="w-4 h-4" /></Button>
               <span className="text-[10px] font-bold w-12 text-center text-stone-600">{Math.round(zoom * 100)}%</span>
               <Button variant="ghost" size="icon" onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="h-8 w-8 rounded-full hover:bg-white shadow-sm"><ZoomIn className="w-4 h-4" /></Button>
-              <Button variant="ghost" size="icon" onClick={centerTree} className="h-8 w-8 rounded-full hover:bg-white shadow-sm" title="Center Tree"><Focus className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={focusMe} className="h-8 w-8 rounded-full hover:bg-white shadow-sm" title="Find Me"><Focus className="w-4 h-4" /></Button>
               <Button variant="ghost" size="icon" onClick={() => setZoom(0.75)} className="h-8 w-8 rounded-full hover:bg-white shadow-sm" title="Reset Zoom"><Maximize className="w-4 h-4" /></Button>
             </div>
           </div>
@@ -394,6 +399,7 @@ const FamilyTree = () => {
 
             const isHighlighted = highlightedId === node.id;
             const isDeceased = node.person.isLiving === false;
+            const isMe = node.person.userId === user?.id;
 
             return (
               <motion.div
@@ -407,15 +413,17 @@ const FamilyTree = () => {
                   "absolute bg-white rounded-2xl border transition-all p-3 flex items-center gap-3 cursor-pointer group z-20",
                   isHighlighted 
                     ? "ring-4 ring-amber-500 border-amber-500 shadow-2xl scale-110 z-50" 
-                    : "border-stone-100 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] hover:border-amber-200",
-                  isDeceased && "bg-stone-50/80"
+                    : isMe 
+                      ? "border-amber-400 shadow-lg ring-2 ring-amber-50"
+                      : "border-stone-100 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] hover:border-amber-200",
+                  isDeceased && "bg-stone-50/80 border-stone-200"
                 )}
               >
                 <SmartSuggestionHover personId={node.id} />
                 
                 <div className={cn(
                   "h-14 w-14 rounded-full overflow-hidden bg-stone-100 shrink-0 border border-stone-100 group-hover:border-amber-200 transition-all",
-                  isDeceased && "grayscale opacity-70"
+                  isDeceased && "grayscale opacity-60 border-stone-200"
                 )}>
                   {node.person.photoUrl ? (
                     <img src={node.person.photoUrl} className="w-full h-full object-cover transition-all duration-500 group-hover:grayscale-0 group-hover:opacity-100" />
@@ -428,7 +436,7 @@ const FamilyTree = () => {
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <p className={cn(
                     "text-sm font-serif font-bold text-stone-800 truncate group-hover:text-amber-900 transition-colors",
-                    isDeceased && "text-stone-500"
+                    isDeceased && "text-stone-500 font-medium"
                   )}>
                     {node.person.name} {isDeceased && "†"}
                   </p>
@@ -441,6 +449,11 @@ const FamilyTree = () => {
                         In Memory
                       </Badge>
                     )}
+                    {isMe && (
+                      <Badge className="bg-amber-500 text-white border-none text-[8px] px-1.5 py-0 font-bold uppercase tracking-tighter">
+                        You
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -450,15 +463,20 @@ const FamilyTree = () => {
       </main>
 
       <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-30">
-        <div className="bg-stone-900/90 backdrop-blur-xl text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-6 border border-white/10">
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-stone-400" />
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-300">Lineage</span>
+        <div className="bg-stone-900/90 backdrop-blur-xl text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-8 border border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full bg-stone-400" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-300">Lineage</span>
           </div>
-          <div className="h-3 w-px bg-white/10" />
-          <div className="flex items-center gap-2">
-            <Heart className="w-3 h-3 text-amber-400 fill-current" />
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-300">Marriage</span>
+          <div className="h-4 w-px bg-white/10" />
+          <div className="flex items-center gap-3">
+            <Heart className="w-4 h-4 text-amber-400 fill-current" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-300">Marriage</span>
+          </div>
+          <div className="h-4 w-px bg-white/10" />
+          <div className="flex items-center gap-3">
+            <div className="h-3 w-3 rounded-full border-2 border-amber-500 bg-white" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-300">You</span>
           </div>
         </div>
       </div>
