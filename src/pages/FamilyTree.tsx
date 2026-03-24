@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,31 @@ const FamilyTree = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const treeContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Navigator State
+  const [scrollPos, setScrollPos] = useState({ x: 0, y: 0 });
+  const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
+
+  const handleScroll = useCallback(() => {
+    if (treeContainerRef.current) {
+      const { scrollLeft, scrollTop, scrollWidth, scrollHeight, clientWidth, clientHeight } = treeContainerRef.current;
+      setScrollPos({
+        x: (scrollLeft / (scrollWidth - clientWidth)) || 0,
+        y: (scrollTop / (scrollHeight - clientHeight)) || 0
+      });
+      setContainerSize({ w: clientWidth, h: clientHeight });
+    }
+  }, []);
+
+  useEffect(() => {
+    const container = treeContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      // Initial size
+      setContainerSize({ w: container.clientWidth, h: container.clientHeight });
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll, loading]);
 
   const treeData = useMemo(() => {
     if (loading || people.length === 0) return null;
@@ -55,10 +80,10 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 200, // Significant horizontal space to reduce tangling
-        ranksep: 160, // More vertical space for clearer generational steps
-        marginx: 150, 
-        marginy: 150,
+        nodesep: 180, 
+        ranksep: 140, 
+        marginx: 200, 
+        marginy: 200,
         ranker: 'network-simplex' 
       });
       g.setDefaultEdgeLabel(() => ({}));
@@ -104,11 +129,13 @@ const FamilyTree = () => {
       // 2. Map Children to Unions or Parents
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
+        // Skip non-lineage types for edge creation, but we'll use them for ranking later
         if (['cousin', 'aunt', 'uncle', 'nephew', 'niece', 'sister', 'brother', 'sibling'].includes(type)) return;
 
         let parentId = '';
         let childId = '';
 
+        // Handle all directions of parent-child relationships
         if (['mother', 'father', 'parent'].includes(type)) {
           parentId = r.person_id;
           childId = r.related_person_id;
@@ -127,7 +154,7 @@ const FamilyTree = () => {
         }
       });
 
-      // 3. Add Sibling Constraints (Force same rank)
+      // 3. Force Siblings onto the same rank
       const processedSiblings = new Set<string>();
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
@@ -138,8 +165,8 @@ const FamilyTree = () => {
           
           if (validIds.has(p1) && validIds.has(p2) && !processedSiblings.has(pairKey)) {
             processedSiblings.add(pairKey);
-            // minlen: 1 ensures they don't overlap, weight: 20 keeps them close
-            g.setEdge(p1, p2, { type: 'sibling-constraint', weight: 20, minlen: 1 });
+            // minlen: 0 forces them to the same rank in Dagre
+            g.setEdge(p1, p2, { type: 'sibling-constraint', weight: 10, minlen: 0 });
           }
         }
       });
@@ -147,7 +174,7 @@ const FamilyTree = () => {
       // 4. Finalize Union Nodes and Edges
       Object.values(unions).forEach(u => {
         g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
-        // High weight on marriage edges keeps the union node centered between spouses
+        // High weight keeps the union node centered between spouses
         g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 50, minlen: 1 });
         g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 50, minlen: 1 });
         u.children.forEach((childId) => {
@@ -207,6 +234,20 @@ const FamilyTree = () => {
       setSearchQuery('');
       setTimeout(() => setHighlightedId(null), 3000);
     }
+  };
+
+  const handleNavClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!treeContainerRef.current || !treeData) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    
+    const container = treeContainerRef.current;
+    container.scrollTo({
+      left: x * container.scrollWidth - container.clientWidth / 2,
+      top: y * container.scrollHeight - container.clientHeight / 2,
+      behavior: 'smooth'
+    });
   };
 
   const centerOnMe = () => {
@@ -360,18 +401,13 @@ const FamilyTree = () => {
               if (!edge.from || !edge.to || edge.type === 'sibling-constraint') return null;
               const isMarriage = edge.type === 'marriage';
               
-              // Structured Step-Bezier Path Calculation
               const startX = edge.from.x;
               const startY = edge.from.y + (edge.from.isUnion ? 0 : 35); 
               const endX = edge.to.x;
               const endY = edge.to.y - (edge.to.isUnion ? 20 : 35); 
               
-              // Midpoint for the "step"
               const midY = startY + (endY - startY) * 0.5;
-              
-              // Create a path that stays vertical longer (Step-Bezier)
-              const path = `M ${startX} ${startY} 
-                            C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
+              const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               
               return (
                 <g key={i} filter="url(#shadow)">
@@ -471,14 +507,17 @@ const FamilyTree = () => {
             <Compass className="w-4 h-4" />
             <span className="text-[10px] font-bold uppercase tracking-widest">Navigator</span>
           </div>
-          <div className="h-24 w-32 bg-stone-50 rounded-xl border border-stone-100 relative overflow-hidden">
+          <div 
+            onClick={handleNavClick}
+            className="h-24 w-32 bg-stone-50 rounded-xl border border-stone-100 relative overflow-hidden cursor-crosshair"
+          >
             <div 
-              className="absolute bg-amber-500/20 border border-amber-500/40 rounded-sm transition-all duration-300"
+              className="absolute bg-amber-500/20 border border-amber-500/40 rounded-sm transition-all duration-100"
               style={{
-                width: '40%',
-                height: '40%',
-                left: '30%',
-                top: '30%'
+                width: '30%',
+                height: '30%',
+                left: `${scrollPos.x * 70}%`,
+                top: `${scrollPos.y * 70}%`
               }}
             />
           </div>
