@@ -75,14 +75,17 @@ const AuditLog = () => {
     }
   };
 
+  // Limit to 50 entries as requested
+  const displayLogs = activityLogs.slice(0, 50);
+
   return (
     <div className="space-y-3">
-      {activityLogs.length === 0 ? (
+      {displayLogs.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-[3rem] border-4 border-dashed border-stone-100">
           <p className="text-stone-400 font-serif italic text-xl">No activity recorded yet...</p>
         </div>
       ) : (
-        activityLogs.map((log) => (
+        displayLogs.map((log) => (
           <div key={log.id} className="flex items-center gap-4 p-5 bg-white rounded-3xl border border-stone-100 shadow-sm hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-2">
             <div className="h-12 w-12 rounded-2xl bg-stone-50 flex items-center justify-center shrink-0 border border-stone-100">
               {getIcon(log.event_type)}

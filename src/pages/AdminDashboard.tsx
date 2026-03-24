@@ -156,8 +156,8 @@ const AdminDashboard = () => {
               pendingSuggestions={pendingSuggestions} 
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Card className="p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <Card className="lg:col-span-2 p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-amber-600" />
@@ -192,72 +192,10 @@ const AdminDashboard = () => {
               <Card className="p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
                 <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
                   <Clock className="w-5 h-5 text-stone-400" />
-                  Recent Stories
-                </h2>
-                <div className="space-y-4">
-                  {recentMemories.map((memory) => (
-                    <div 
-                      key={memory.id} 
-                      className="flex items-start gap-4 p-3 rounded-2xl hover:bg-stone-50 transition-colors cursor-pointer" 
-                      onClick={() => navigate(getPersonUrl(memory.personId, memory.personName))}
-                    >
-                      <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
-                        <MessageSquare className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-stone-800 truncate">About {memory.personName}</p>
-                        <p className="text-xs text-stone-500 line-clamp-1 italic">"{memory.content}"</p>
-                        <p className="text-[10px] text-stone-400 mt-1">
-                          {formatDistanceToNow(new Date(memory.createdAt), { addSuffix: true })}
-                        </p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-stone-300 self-center" />
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="audit" className="space-y-6">
-            <div className="flex items-center justify-between border-b-4 border-stone-100 pb-4">
-              <h2 className="text-2xl font-serif font-bold text-stone-800 flex items-center gap-3">
-                <History className="w-6 h-6 text-stone-400" />
-                Archive Audit Log
-              </h2>
-              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Real-time updates</span>
-            </div>
-            <AuditLog />
-          </TabsContent>
-
-          <TabsContent value="engagement" className="space-y-10">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <Card className="lg:col-span-2 p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
-                <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-blue-500" />
-                  Activity Trends (Last 7 Days)
-                </h2>
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={engagementStats}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#a8a29e', fontSize: 12 }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#a8a29e', fontSize: 12 }} />
-                      <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
-                      <Line type="monotone" dataKey="logins" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} name="Logins" />
-                      <Line type="monotone" dataKey="edits" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} name="Edits" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              <Card className="p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
-                <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-stone-400" />
                   Live Feed
                 </h2>
                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                  {activityLogs.map((log) => {
+                  {activityLogs.slice(0, 20).map((log) => {
                     const profile = profiles[log.user_id];
                     const name = profile ? `${profile.first_name} ${profile.last_name}` : log.user_email?.split('@')[0] || 'Someone';
                     
@@ -287,6 +225,68 @@ const AdminDashboard = () => {
                       </div>
                     );
                   })}
+                </div>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="audit" className="space-y-6">
+            <div className="flex items-center justify-between border-b-4 border-stone-100 pb-4">
+              <h2 className="text-2xl font-serif font-bold text-stone-800 flex items-center gap-3">
+                <History className="w-6 h-6 text-stone-400" />
+                Archive Audit Log
+              </h2>
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Showing last 50 updates</span>
+            </div>
+            <AuditLog />
+          </TabsContent>
+
+          <TabsContent value="engagement" className="space-y-10">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <Card className="lg:col-span-2 p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
+                <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-blue-500" />
+                  Activity Trends (Last 7 Days)
+                </h2>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={engagementStats}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
+                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#a8a29e', fontSize: 12 }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#a8a29e', fontSize: 12 }} />
+                      <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
+                      <Line type="monotone" dataKey="logins" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} name="Logins" />
+                      <Line type="monotone" dataKey="edits" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} name="Edits" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              <Card className="p-8 bg-white border-stone-100 shadow-sm rounded-[3rem] space-y-6">
+                <h2 className="font-serif text-xl text-stone-800 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-stone-400" />
+                  Recent Stories
+                </h2>
+                <div className="space-y-4">
+                  {recentMemories.map((memory) => (
+                    <div 
+                      key={memory.id} 
+                      className="flex items-start gap-4 p-3 rounded-2xl hover:bg-stone-50 transition-colors cursor-pointer" 
+                      onClick={() => navigate(getPersonUrl(memory.personId, memory.personName))}
+                    >
+                      <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-800 truncate">About {memory.personName}</p>
+                        <p className="text-xs text-stone-500 line-clamp-1 italic">"{memory.content}"</p>
+                        <p className="text-[10px] text-stone-400 mt-1">
+                          {formatDistanceToNow(new Date(memory.createdAt), { addSuffix: true })}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-stone-300 self-center" />
+                    </div>
+                  ))}
                 </div>
               </Card>
             </div>

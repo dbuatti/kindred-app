@@ -189,7 +189,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .from('activity_logs')
           .select('*')
           .order('created_at', { ascending: false })
-          .limit(500); // Increased limit to see more history
+          .limit(100); // Reduced limit to 100 for better performance
         setActivityLogs(logs || []);
       }
 
