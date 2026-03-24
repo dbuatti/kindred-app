@@ -194,6 +194,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           familyId: p.family_id,
           name: p.name,
           nickname: p.nickname,
+          middleName: p.middle_name,
           maidenName: p.maiden_name,
           gender: p.gender,
           isLiving: p.is_living,
@@ -287,6 +288,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .insert([{
           name: newPerson.name,
           nickname: newPerson.nickname,
+          middle_name: newPerson.middleName,
           gender: newPerson.gender,
           maiden_name: newPerson.maidenName,
           is_living: newPerson.isLiving !== false,
@@ -327,7 +329,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const dbUpdates: Record<string, any> = {};
       const directKeys = [
-        'name', 'nickname', 'birth_year', 'birth_date', 'birth_place', 
+        'name', 'nickname', 'middle_name', 'birth_year', 'birth_date', 'birth_place', 
         'death_year', 'death_date', 'death_place', 'occupation', 
         'vibe_sentence', 'personality_tags', 'photo_url', 'is_living', 
         'gender', 'maiden_name', 'education', 'military_service',
@@ -340,6 +342,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if ('name' in updates) dbUpdates.name = updates.name;
       if ('nickname' in updates) dbUpdates.nickname = updates.nickname;
+      if ('middleName' in updates) dbUpdates.middle_name = (updates as any).middleName;
       if ('birthYear' in updates) dbUpdates.birth_year = (updates as any).birthYear;
       if ('birthDate' in updates) dbUpdates.birth_date = (updates as any).birthDate || null;
       if ('birthPlace' in updates) dbUpdates.birth_place = (updates as any).birthPlace;

@@ -17,6 +17,7 @@ interface SuggestionDialogProps {
 
 // Map database column names to Person interface keys
 const FIELD_TO_KEY_MAP: Record<string, keyof Person> = {
+  middle_name: 'middleName',
   birth_year: 'birthYear',
   birth_date: 'birthDate',
   birth_place: 'birthPlace',
@@ -36,6 +37,7 @@ const FIELD_TO_KEY_MAP: Record<string, keyof Person> = {
 };
 
 const FIELD_CONFIG: Record<string, { label: string, icon: any, placeholder: string, type: 'input' | 'textarea' | 'select' }> = {
+  middle_name: { label: 'Middle Name', icon: User, placeholder: 'e.g. Maria or "No middle name"', type: 'input' },
   birth_year: { label: 'Birth Year', icon: Calendar, placeholder: 'e.g. 1945', type: 'input' },
   birth_date: { label: 'Birth Date', icon: Calendar, placeholder: 'e.g. 15/05/1945', type: 'input' },
   birth_place: { label: 'Birth Place', icon: MapPin, placeholder: 'e.g. Brooklyn, NY', type: 'input' },

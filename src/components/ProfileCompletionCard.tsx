@@ -36,6 +36,7 @@ const ProfileCompletionCard = ({ person }: ProfileCompletionCardProps) => {
 
   const stats = useMemo(() => {
     const items = [
+      { id: 'middle_name', label: 'Middle Name', value: person.middleName, icon: User },
       { id: 'birth_date', label: 'Birth Date', value: person.birthDate || person.birthYear, icon: Calendar },
       { id: 'birth_place', label: 'Birth Place', value: person.birthPlace, icon: MapPin },
       { id: 'occupation', label: 'Occupation', value: person.occupation, icon: Briefcase },

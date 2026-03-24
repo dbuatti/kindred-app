@@ -72,6 +72,7 @@ const Onboarding = () => {
 
   const [formData, setFormData] = useState({
     firstName: '',
+    middleName: '',
     lastName: '',
     gender: '',
     birthDate: '',
@@ -94,6 +95,7 @@ const Onboarding = () => {
         setFormData(prev => ({
           ...prev,
           firstName: profile.first_name || '',
+          middleName: profile.middle_name || '',
           lastName: profile.last_name || '',
           gender: profile.gender || '',
           birthDate: profile.birth_date || '',
@@ -168,6 +170,7 @@ const Onboarding = () => {
     updateField('claimedPersonId', person.id);
     const names = person.name.split(' ');
     updateField('firstName', names[0]);
+    updateField('middleName', person.middleName || '');
     updateField('lastName', names.slice(1).join(' '));
     updateField('gender', person.gender || '');
     
@@ -188,6 +191,7 @@ const Onboarding = () => {
         .upsert({
           id: user.id,
           first_name: formData.firstName,
+          middle_name: formData.middleName,
           last_name: formData.lastName,
           gender: formData.gender,
           birth_date: formData.birthDate || null,
@@ -204,6 +208,7 @@ const Onboarding = () => {
           .update({
             user_id: user.id,
             name: fullName,
+            middle_name: formData.middleName,
             gender: formData.gender,
             birth_date: formData.birthDate || null,
             birth_place: formData.birthPlace,
@@ -234,6 +239,7 @@ const Onboarding = () => {
         .upsert({
           id: user.id,
           first_name: formData.firstName,
+          middle_name: formData.middleName,
           last_name: formData.lastName,
           gender: formData.gender,
           birth_date: formData.birthDate || null,
@@ -252,6 +258,7 @@ const Onboarding = () => {
       const personData = {
         user_id: user.id,
         name: fullName,
+        middle_name: formData.middleName,
         gender: formData.gender,
         birth_year: birthYear,
         birth_date: formData.birthDate || null,
@@ -376,7 +383,7 @@ const Onboarding = () => {
                   {selfSearchQuery && (
                     <button 
                       onClick={() => setSelfSearchQuery('')}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-50"
                     >
                       <X className="w-5 h-5" />
                     </button>
@@ -431,6 +438,15 @@ const Onboarding = () => {
                       value={formData.firstName} 
                       onChange={(e) => updateField('firstName', e.target.value)} 
                       placeholder="e.g. Mary"
+                      className="h-14 bg-stone-50 border-none rounded-2xl text-lg" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-stone-400 uppercase">Middle Name</label>
+                    <Input 
+                      value={formData.middleName} 
+                      onChange={(e) => updateField('middleName', e.target.value)} 
+                      placeholder="Optional"
                       className="h-14 bg-stone-50 border-none rounded-2xl text-lg" 
                     />
                   </div>
