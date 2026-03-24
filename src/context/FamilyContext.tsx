@@ -60,8 +60,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [user, setUser] = useState<any>(null);
   const [theme, setThemeState] = useState<'default' | 'heritage'>('default');
   
-  // Use a ref to track if we are currently fetching to prevent overlapping requests
   const isFetching = useRef(false);
+  const lastFetchTime = useRef(0);
 
   const setTheme = (newTheme: 'default' | 'heritage') => {
     setThemeState(newTheme);
@@ -95,15 +95,20 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [user]);
 
   const fetchData = useCallback(async (silent = false) => {
-    if (isFetching.current) return;
+    // Throttle: Don't fetch more than once every 2 seconds unless it's the initial load
+    const now = Date.now();
+    if (isFetching.current || (silent && now - lastFetchTime.current < 2000)) {
+      return;
+    }
+    
     isFetching.current = true;
+    lastFetchTime.current = now;
     
     if (!silent) setLoading(true);
     
     try {
       console.log("[FamilyContext] Fetching family data...");
       
-      // Use Promise.all to fetch data in parallel for better performance
       const [
         { data: peopleData, error: peopleError },
         { data: suggestionsData },
@@ -150,7 +155,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       setRelationships(relData || []);
 
-      // Fetch activity logs separately if admin
       if (user?.email === ADMIN_EMAIL) {
         const { data: logs } = await supabase
           .from('activity_logs')
@@ -216,7 +220,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
     } catch (error: any) {
       console.error("[FamilyContext] Error fetching data:", error.message);
-      // Only show toast if it's not a resource error which might be transient
       if (!error.message.includes('fetch')) {
         toast.error("Failed to load family archive.");
       }
@@ -224,38 +227,18 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       isFetching.current = false;
       if (!silent) setLoading(false);
     }
-  }, [user?.email]); // Only depend on user email to avoid unnecessary recreations
+  }, [user?.email]);
 
-  // Effect for Auth Listener - Runs once on mount
   useEffect(() => {
     const initAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        const lastLog = localStorage.getItem('kindred_last_login');
-        const now = new Date().toDateString();
-        if (lastLog !== now) {
-          supabase.from('activity_logs').insert({
-            user_id: session.user.id,
-            user_email: session.user.email,
-            event_type: 'login'
-          }).then(() => localStorage.setItem('kindred_last_login', now));
-        }
-      }
     };
 
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
-      if (event === 'SIGNED_IN' && session?.user) {
-        supabase.from('activity_logs').insert({
-          user_id: session.user.id,
-          user_email: session.user.email,
-          event_type: 'login'
-        });
-      }
     });
 
     return () => {
@@ -263,10 +246,9 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, []);
 
-  // Effect for Data Fetching - Runs when user changes or fetchData is updated
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (user) fetchData();
+  }, [user, fetchData]);
 
   const addPerson = useCallback(async (newPerson: Partial<Person>, relativeId?: string, relType?: string) => {
     if (!user) return;
@@ -489,15 +471,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       r.relationship_type.toLowerCase() === type.toLowerCase()
     );
     if (exists) return;
-    const reverseExists = relationships.some(r => 
-      r.person_id === relatedId && 
-      r.related_person_id === personId &&
-      r.relationship_type.toLowerCase() === type.toLowerCase()
-    );
-    if (reverseExists) {
-      toast.error("A conflicting relationship already exists.");
-      return;
-    }
     try {
       const { error } = await supabase
         .from('relationships')

@@ -99,7 +99,7 @@ const EditProfile = () => {
       } finally {
         setIsSearching(false);
       }
-    }, 600);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [formData.birthPlace]);
@@ -143,7 +143,7 @@ const EditProfile = () => {
         vibe_sentence: formData.bio || "",
         personality_tags: ["✨ Family Member"],
         created_by_email: user.email,
-        is_living: true // Users are always living
+        is_living: true
       }, { onConflict: 'user_id' });
 
       toast.success("Profile saved successfully!");
