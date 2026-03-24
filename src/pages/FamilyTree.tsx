@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
-import { cn } from '@/lib/utils';
+import { cn, extractYear } from '@/lib/utils';
 import dagre from 'dagre';
 import AddPersonDialog from '../components/AddPersonDialog';
 import SmartSuggestionHover from '../components/SmartSuggestionHover';
@@ -53,16 +53,17 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 120, 
-        ranksep: 180, 
+        nodesep: 110,      // Increased from 80
+        ranksep: 160,      // Increased from 120
         marginx: 100, 
         marginy: 100,
-        ranker: 'network-simplex'
+        ranker: 'network-simplex' // Best for tree-like structures
       });
       g.setDefaultEdgeLabel(() => ({}));
 
       const validIds = new Set(people.map(p => p.id));
 
+      // 1. Add Nodes
       people.forEach(p => {
         let displayYear = p.birthYear;
         if (!displayYear && p.birthDate) {
@@ -77,6 +78,7 @@ const FamilyTree = () => {
         });
       });
 
+      // 2. Identify Unions (Marriages)
       const unions: Record<string, { id: string, p1: string, p2: string, children: string[], color: string }> = {};
       let colorIdx = 0;
 
@@ -98,6 +100,7 @@ const FamilyTree = () => {
         }
       });
 
+      // 3. Map Children to Unions or Parents
       const parentChildMap: Record<string, Set<string>> = {}; 
       
       relationships.forEach(r => {
@@ -121,6 +124,7 @@ const FamilyTree = () => {
         }
       });
 
+      // Assign children to unions where possible
       Object.entries(parentChildMap).forEach(([childId, parentIds]) => {
         const parents = Array.from(parentIds);
         let assigned = false;
@@ -153,22 +157,40 @@ const FamilyTree = () => {
         }
       });
 
+      // 4. Process Unions and Sibling Groups
       Object.values(unions).forEach(u => {
+        // Add the union heart node
         g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10000 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10000 });
+        
+        // High weight on marriage edges keeps spouses close to the heart
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 100 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 100 });
 
         if (u.children.length > 0) {
+          // Sort siblings by birth year to keep them in a consistent order
+          const sortedChildren = [...u.children].sort((a, b) => {
+            const pA = people.find(p => p.id === a);
+            const pB = people.find(p => p.id === b);
+            const yearA = parseInt(extractYear(pA?.birthDate || pA?.birthYear) || '9999');
+            const yearB = parseInt(extractYear(pB?.birthDate || pB?.birthYear) || '9999');
+            return yearA - yearB;
+          });
+
           const siblingGroupId = `siblings_${u.id}`;
           g.setNode(siblingGroupId, { label: 'Siblings' });
 
-          u.children.forEach((childId, idx) => {
+          sortedChildren.forEach((childId, idx) => {
+            // Force siblings into a cluster
             g.setParent(childId, siblingGroupId);
-            g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 5000 });
+            
+            // Connect union to each child
+            g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 50 });
+            
+            // Invisible edges between siblings to force horizontal grouping and order
             if (idx > 0) {
-              const prevChildId = u.children[idx - 1];
+              const prevChildId = sortedChildren[idx - 1];
               g.setEdge(prevChildId, childId, { 
-                weight: 2000, 
+                weight: 10, 
                 style: { display: 'none' } 
               });
             }
