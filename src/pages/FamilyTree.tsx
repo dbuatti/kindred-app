@@ -34,7 +34,6 @@ const BRANCH_COLORS = [
 ];
 
 const LINEAGE_COLOR = '#e2e8f0'; 
-const PLACEHOLDER_URL = "https://images.unsplash.com/photo-1511367461989-f85a21fda167?auto=format&fit=crop&q=80&w=400";
 
 const FamilyTree = () => {
   const navigate = useNavigate();
@@ -297,8 +296,6 @@ const FamilyTree = () => {
               );
             }
 
-            const hasRealPhoto = node.person.photoUrl && node.person.photoUrl !== PLACEHOLDER_URL;
-
             return (
               <motion.div
                 key={node.id}
@@ -317,7 +314,7 @@ const FamilyTree = () => {
                 <SmartSuggestionHover personId={node.id} />
                 
                 <div className="h-10 w-10 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 group-hover:border-amber-200 transition-all">
-                  {hasRealPhoto ? (
+                  {node.person.photoUrl ? (
                     <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-200">
