@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import dagre from 'dagre';
 import AddPersonDialog from '../components/AddPersonDialog';
 import SmartSuggestionHover from '../components/SmartSuggestionHover';
+import TreeSmartInbox from '../components/TreeSmartInbox';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
@@ -185,6 +186,7 @@ const FamilyTree = () => {
           </div>
           
           <div className="flex items-center gap-4">
+            <TreeSmartInbox />
             <AddPersonDialog 
               trigger={
                 <Button variant="outline" className="hidden md:flex rounded-full border-stone-200 text-stone-600 gap-2 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition-all">
