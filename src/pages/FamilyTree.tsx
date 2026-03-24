@@ -55,15 +55,13 @@ const FamilyTree = () => {
   const handleScroll = useCallback(() => {
     if (treeContainerRef.current) {
       const { scrollLeft, scrollTop, scrollWidth, scrollHeight, clientWidth, clientHeight } = treeContainerRef.current;
-      // Calculate position as a percentage of the scrollable area
       setScrollPos({
-        x: scrollLeft / scrollWidth,
-        y: scrollTop / scrollHeight
+        x: scrollLeft / (scrollWidth || 1),
+        y: scrollTop / (scrollHeight || 1)
       });
-      // Calculate how much of the total tree is visible
       setViewRatio({
-        w: clientWidth / scrollWidth,
-        h: clientHeight / scrollHeight
+        w: clientWidth / (scrollWidth || 1),
+        h: clientHeight / (scrollHeight || 1)
       });
     }
   }, []);
@@ -84,11 +82,11 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 200, 
-        ranksep: 150, 
-        marginx: 300, 
-        marginy: 300,
-        ranker: 'network-simplex' // More stable for complex trees
+        nodesep: 150, 
+        ranksep: 120, 
+        marginx: 200, 
+        marginy: 200,
+        ranker: 'network-simplex' 
       });
       g.setDefaultEdgeLabel(() => ({}));
 
@@ -149,7 +147,7 @@ const FamilyTree = () => {
         }
 
         if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
-          if (parentId === childId) return; // Prevent self-loops
+          if (parentId === childId) return;
 
           const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
           if (union) {
@@ -160,13 +158,12 @@ const FamilyTree = () => {
         }
       });
 
-      // 3. Sibling Constraints (Ensures they stay on the same level)
+      // 3. Sibling Constraints (Forces them to same level)
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         if (type.includes('sister') || type.includes('brother') || type.includes('sibling')) {
           if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
             if (r.person_id === r.related_person_id) return;
-            // minlen: 1 is CRITICAL to prevent the "intersectRect" error
             g.setEdge(r.person_id, r.related_person_id, { type: 'sibling-constraint', weight: 0, minlen: 1 });
           }
         }
@@ -401,13 +398,16 @@ const FamilyTree = () => {
               if (!edge.from || !edge.to || edge.type === 'sibling-constraint') return null;
               const isMarriage = edge.type === 'marriage';
               
+              // Orthogonal "Step" Path Logic
               const startX = edge.from.x;
               const startY = edge.from.y + (edge.from.isUnion ? 0 : 35); 
               const endX = edge.to.x;
               const endY = edge.to.y - (edge.to.isUnion ? 20 : 35); 
               
               const midY = startY + (endY - startY) * 0.5;
-              const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
+              
+              // Create a clean "Step" path (Vertical -> Horizontal -> Vertical)
+              const path = `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
               
               return (
                 <g key={i} filter="url(#shadow)">
@@ -514,8 +514,8 @@ const FamilyTree = () => {
             <div 
               className="absolute bg-amber-500/20 border border-amber-500/40 rounded-sm transition-all duration-100"
               style={{
-                width: `${viewRatio.w * 100}%`,
-                height: `${viewRatio.h * 100}%`,
+                width: `${Math.max(10, viewRatio.w * 100)}%`,
+                height: `${Math.max(10, viewRatio.h * 100)}%`,
                 left: `${scrollPos.x * 100}%`,
                 top: `${scrollPos.y * 100}%`
               }}
