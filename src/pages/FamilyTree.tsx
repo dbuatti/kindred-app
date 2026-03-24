@@ -52,8 +52,8 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph();
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 80, // Reduced to keep siblings and spouses closer
-        ranksep: 120, // Balanced vertical spacing
+        nodesep: 100, // Increased horizontal spacing to separate cousin groups
+        ranksep: 150, // Increased vertical spacing between generations
         marginx: 100, 
         marginy: 100,
         ranker: 'network-simplex'
@@ -151,24 +151,28 @@ const FamilyTree = () => {
 
         if (!assigned) {
           parents.forEach(parentId => {
-            g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR, weight: 1 });
+            g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR, weight: 10 });
           });
         }
       });
 
-      // 4. Add Union Nodes
+      // 4. Add Union Nodes and Marriage Edges
       Object.values(unions).forEach(u => {
-        // Add union node (the heart)
         g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
 
-        // Connect parents to union with EXTREMELY high weight to force them together
-        // This prevents other family branches from pulling spouses apart
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 1000 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 1000 });
+        // Marriage edges have extremely high weight to keep spouses together
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 2000 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 2000 });
 
-        // Connect union to children
-        u.children.forEach((childId) => {
-          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 10 });
+        // Lineage edges have high weight to keep siblings grouped under the union
+        u.children.forEach((childId, idx) => {
+          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 500 });
+          
+          // Sibling grouping trick: add invisible edges between siblings to force them to stay contiguous
+          if (idx > 0) {
+            const prevChildId = u.children[idx - 1];
+            g.setEdge(prevChildId, childId, { type: 'sibling-spacer', weight: 1, style: { display: 'none' } });
+          }
         });
       });
 
@@ -179,7 +183,7 @@ const FamilyTree = () => {
         from: g.node(e.v), 
         to: g.node(e.w),
         ...g.edge(e)
-      })).filter(e => e.from && e.to);
+      })).filter(e => e.from && e.to && e.type !== 'sibling-spacer');
 
       const minX = Math.min(...nodes.map(n => n.x - 120));
       const maxX = Math.max(...nodes.map(n => n.x + 120));
