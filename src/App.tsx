@@ -58,7 +58,11 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
 };
 
 const PageWrapper = ({ children }: { children: React.ReactNode }) => {
-  useKeyboardShortcuts();
+  const location = useLocation();
+  // Disable shortcuts on onboarding and auth pages
+  const shortcutsDisabled = ['/onboarding', '/login', '/join'].includes(location.pathname);
+  
+  useKeyboardShortcuts([], shortcutsDisabled);
   
   return (
     <motion.div

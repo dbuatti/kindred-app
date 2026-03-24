@@ -10,10 +10,12 @@ interface ShortcutConfig {
   description: string;
 }
 
-export const useKeyboardShortcuts = (customShortcuts: ShortcutConfig[] = []) => {
+export const useKeyboardShortcuts = (customShortcuts: ShortcutConfig[] = [], disabled: boolean = false) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (disabled) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if user is typing in an input, textarea, or any form-related element
       const activeElement = document.activeElement;
@@ -63,5 +65,5 @@ export const useKeyboardShortcuts = (customShortcuts: ShortcutConfig[] = []) => 
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, customShortcuts]);
+  }, [navigate, customShortcuts, disabled]);
 };
