@@ -58,6 +58,7 @@ export interface Person {
   id: string;
   familyId: string;
   name: string;
+  nickname?: string;
   maidenName?: string;
   birthYear?: string;
   birthDate?: string;

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Camera, Calendar, MapPin, Briefcase, Quote, Edit3 } from 'lucide-react';
+import { Camera, Calendar, MapPin, Briefcase, Quote, Edit3, Heart, Skull } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Person } from '@/types';
@@ -33,6 +33,8 @@ const PersonHero = ({
   onProfileDragLeave
 }: PersonHeroProps) => {
   const birthDisplay = person.birthDate ? formatFamilyDate(person.birthDate) : (person.birthYear || 'Unknown');
+  const deathDisplay = person.deathDate ? formatFamilyDate(person.deathDate) : (person.deathYear || 'Unknown');
+  
   const canEditDirectly = isOwnProfile || isAdmin;
 
   return (
@@ -64,9 +66,21 @@ const PersonHero = ({
       <div className="space-y-8 flex-1">
         <div className="space-y-4">
           <div className="flex items-center gap-4 flex-wrap">
-            <h1 className="text-5xl font-serif font-bold text-stone-800 leading-tight">
-              {formatDisplayName(person.name)}
-            </h1>
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <h1 className="text-5xl font-serif font-bold text-stone-800 leading-tight">
+                  {formatDisplayName(person.name)}
+                </h1>
+                {person.nickname && (
+                  <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-none rounded-full px-4 py-1 text-sm italic">
+                    "{person.nickname}"
+                  </Badge>
+                )}
+              </div>
+              {person.maidenName && (
+                <p className="text-stone-400 text-lg font-serif italic">née {person.maidenName}</p>
+              )}
+            </div>
             
             {isOwnProfile ? (
               <Button 
@@ -93,21 +107,38 @@ const PersonHero = ({
             ) : null}
           </div>
           
-          <div className="flex flex-wrap gap-6 text-stone-500">
+          <div className="flex flex-wrap gap-x-8 gap-y-4 text-stone-500">
             <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-amber-600" />
-              <span className="text-lg font-medium">Born {birthDisplay}</span>
+              <div className="h-8 w-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
+                <Heart className="w-4 h-4 fill-current" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Born</span>
+                <span className="text-base font-medium">{birthDisplay} {person.birthPlace ? `in ${person.birthPlace}` : ''}</span>
+              </div>
             </div>
-            {person.birthPlace && (
+
+            {!person.isLiving && (
               <div className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-amber-600" />
-                <span className="text-lg font-medium">{person.birthPlace}</span>
+                <div className="h-8 w-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-500">
+                  <Skull className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Passed</span>
+                  <span className="text-base font-medium">{deathDisplay} {person.deathPlace ? `in ${person.deathPlace}` : ''}</span>
+                </div>
               </div>
             )}
+
             {person.occupation && (
               <div className="flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-amber-600" />
-                <span className="text-lg font-medium">{person.occupation}</span>
+                <div className="h-8 w-8 rounded-full bg-stone-50 flex items-center justify-center text-stone-400">
+                  <Briefcase className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Occupation</span>
+                  <span className="text-base font-medium">{person.occupation}</span>
+                </div>
               </div>
             )}
           </div>

@@ -65,6 +65,7 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
 
   const [formData, setFormData] = useState({
     name: person.name,
+    nickname: person.nickname || '',
     maidenName: person.maidenName || '',
     gender: person.gender || '',
     birthYear: person.birthYear || '',
@@ -87,16 +88,9 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
 
   useEffect(() => {
     if (isOpen) {
-      console.log(`[EditPersonDialog] Preloading data for ${person.name}:`, {
-        birthDate: person.birthDate,
-        birthYear: person.birthYear,
-        birthPlace: person.birthPlace,
-        isLiving: person.isLiving,
-        gender: person.gender
-      });
-      
       setFormData({
         name: person.name,
+        nickname: person.nickname || '',
         maidenName: person.maidenName || '',
         gender: person.gender || '',
         birthYear: person.birthYear || '',
@@ -141,26 +135,8 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
       .map(tag => tag.trim())
       .filter(tag => tag !== '');
 
-    let birthYear = formData.birthYear;
-    if (!birthYear && formData.birthDate && formData.birthDate.length >= 4) {
-      const parts = formData.birthDate.split(/[-/]/);
-      const yearPart = parts.find(p => p.length === 4);
-      if (yearPart) birthYear = yearPart;
-    }
-
-    let deathYear = formData.deathYear;
-    if (!deathYear && formData.deathDate && formData.deathDate.length >= 4) {
-      const parts = formData.deathDate.split(/[-/]/);
-      const yearPart = parts.find(p => p.length === 4);
-      if (yearPart) deathYear = yearPart;
-    }
-
-    console.log(`[EditPersonDialog] Saving updates for ${person.id}:`, { ...formData, birthYear, deathYear });
-
     await updatePerson(person.id, {
       ...formData,
-      birthYear,
-      deathYear,
       personalityTags: tagsArray
     });
     
@@ -243,6 +219,18 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
                   />
                 </div>
                 <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Nickname</label>
+                  <Input 
+                    value={formData.nickname}
+                    onChange={(e) => setFormData({...formData, nickname: e.target.value})}
+                    placeholder="e.g. 'Bibi'"
+                    className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Maiden Name</label>
                   <Input 
                     value={formData.maidenName}
@@ -251,9 +239,6 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
                     className="bg-stone-50 border-none rounded-2xl h-12 text-base px-4 focus-visible:ring-amber-500/20"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Gender</label>
                   <Select onValueChange={(val) => setFormData({...formData, gender: val})} value={formData.gender}>
@@ -266,18 +251,6 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-2">Photo URL</label>
-                  <div className="relative">
-                    <Camera className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-300" />
-                    <Input 
-                      value={formData.photoUrl}
-                      onChange={(e) => setFormData({...formData, photoUrl: e.target.value})}
-                      placeholder="Link to a photo..."
-                      className="bg-stone-50 border-none rounded-2xl h-12 text-base pl-10 focus-visible:ring-amber-500/20"
-                    />
-                  </div>
                 </div>
               </div>
             </div>
@@ -382,97 +355,6 @@ const EditPersonDialog = ({ person, trigger, open: externalOpen, onOpenChange: s
                   placeholder="A short sentence describing their essence..."
                   className="bg-stone-50 border-none rounded-2xl min-h-[100px] text-base font-serif p-4 focus-visible:ring-amber-500/20"
                 />
-              </div>
-            </div>
-
-            <div className="space-y-6 pt-4 border-t border-stone-100">
-              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-stone-400 flex items-center gap-2">
-                <Users className="w-3 h-3" /> Family Connections
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {currentRels.map(rel => (
-                  <div key={rel.id} className="flex items-center justify-between p-3 bg-stone-50 rounded-xl border border-stone-100">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center text-stone-400">
-                        <Users className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-stone-700 truncate">{rel.targetName}</p>
-                        <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">{rel.type}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-amber-50/50 p-6 rounded-3xl border border-amber-100 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-amber-800 uppercase tracking-widest flex items-center gap-2">
-                    <UserPlus className="w-3 h-3" /> Add New Connection
-                  </p>
-                  <div className="flex bg-stone-200/50 p-1 rounded-lg">
-                    <button 
-                      onClick={() => setIsCreatingNew(false)}
-                      className={cn(
-                        "px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all",
-                        !isCreatingNew ? "bg-white text-stone-800 shadow-sm" : "text-stone-400"
-                      )}
-                    >
-                      Existing
-                    </button>
-                    <button 
-                      onClick={() => setIsCreatingNew(true)}
-                      className={cn(
-                        "px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all",
-                        isCreatingNew ? "bg-white text-stone-800 shadow-sm" : "text-stone-400"
-                      )}
-                    >
-                      New
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <Select onValueChange={setNewRelType} value={newRelType}>
-                    <SelectTrigger className="bg-white border-none rounded-xl h-10 text-sm">
-                      <SelectValue placeholder="Relationship" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      {RELATIONSHIP_OPTIONS.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {isCreatingNew ? (
-                    <Input 
-                      placeholder="Full Name"
-                      value={newPersonName}
-                      onChange={(e) => setNewPersonName(e.target.value)}
-                      className="bg-white border-none rounded-xl h-10 text-sm focus-visible:ring-amber-500/20"
-                    />
-                  ) : (
-                    <Select onValueChange={setNewRelTargetId} value={newRelTargetId}>
-                      <SelectTrigger className="bg-white border-none rounded-xl h-10 text-sm">
-                        <SelectValue placeholder="Select Person" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl">
-                        {otherPeople.map(p => (
-                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-                <Button 
-                  onClick={handleAddRelationship}
-                  disabled={!newRelType || (isCreatingNew ? !newPersonName : !newRelTargetId)}
-                  className="w-full h-10 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold uppercase tracking-widest gap-2"
-                >
-                  {isCreatingNew ? <Plus className="w-3 h-3" /> : <UserCheck className="w-3 h-3" />}
-                  {isCreatingNew ? "Create & Connect" : "Add Connection"}
-                </Button>
               </div>
             </div>
           </div>

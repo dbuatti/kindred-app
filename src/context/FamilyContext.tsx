@@ -110,6 +110,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         id: p.id,
         familyId: p.family_id,
         name: p.name,
+        nickname: p.nickname,
         maidenName: p.maiden_name,
         gender: p.gender,
         isLiving: p.is_living,
@@ -182,6 +183,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .from('people')
         .insert([{
           name: newPerson.name,
+          nickname: newPerson.nickname,
           gender: newPerson.gender,
           maiden_name: newPerson.maidenName,
           is_living: newPerson.isLiving !== false,
@@ -217,6 +219,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .from('people')
         .update({
           name: updates.name,
+          nickname: updates.nickname,
           birth_year: updates.birthYear,
           birth_date: updates.birthDate || null,
           birth_place: updates.birthPlace,
