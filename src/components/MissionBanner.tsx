@@ -10,29 +10,38 @@ const MissionBanner = () => {
   return (
     <div 
       onClick={() => navigate('/complete')}
-      className="bg-indigo-950 border-2 border-indigo-800 rounded-[2rem] p-6 flex items-center justify-between gap-6 cursor-pointer hover:bg-indigo-900 transition-all group shadow-xl relative overflow-hidden"
+      className="relative overflow-hidden bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-950 border border-white/10 rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center justify-between gap-8 cursor-pointer hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] transition-all duration-500 group"
     >
-      {/* Decorative background glow */}
-      <div className="absolute -right-4 -top-4 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl group-hover:bg-indigo-500/30 transition-colors" />
-      <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl" />
+      {/* Premium background effects */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[100px] rounded-full -mr-32 -mt-32 group-hover:bg-indigo-500/20 transition-colors duration-700" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-500/5 blur-[80px] rounded-full -ml-24 -mb-24" />
       
-      <div className="flex items-center gap-5 relative z-10">
-        <div className="h-12 w-12 rounded-2xl bg-indigo-500 flex items-center justify-center text-white shrink-0 shadow-lg animate-pulse">
-          <Sparkles className="w-6 h-6" />
+      {/* Subtle shimmer line */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+
+      <div className="flex items-center gap-6 relative z-10">
+        <div className="h-14 w-14 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center text-amber-400 shrink-0 shadow-2xl group-hover:scale-110 transition-transform duration-500">
+          <Sparkles className="w-7 h-7 animate-pulse" />
         </div>
-        <div className="space-y-1">
-          <h3 className="text-xl font-serif font-bold text-white leading-tight">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="h-px w-8 bg-amber-500/50" />
+            <span className="text-[10px] font-bold text-amber-500 uppercase tracking-[0.3em]">Family Quest</span>
+          </div>
+          <h3 className="text-2xl font-serif font-bold text-white leading-tight">
             A Piece of the Puzzle is Missing
           </h3>
-          <p className="text-indigo-200/80 text-sm md:text-base font-medium leading-relaxed max-w-xl">
-            Help us complete our family story. Add missing details about siblings, parents, and more in the Mission center.
+          <p className="text-indigo-200/60 text-base font-light leading-relaxed max-w-xl">
+            Help us preserve our legacy. Add missing details about siblings and parents to complete the archive.
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 bg-indigo-500 text-white px-5 py-2.5 rounded-full font-bold text-[10px] uppercase tracking-[0.2em] shrink-0 shadow-md group-hover:bg-indigo-400 transition-colors relative z-10">
-        Start Quest
-        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+      <div className="relative z-10 shrink-0">
+        <div className="flex items-center gap-3 bg-amber-500 hover:bg-amber-400 text-indigo-950 px-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-[0_10px_20px_-5px_rgba(245,158,11,0.4)] transition-all group-hover:translate-x-1">
+          Start Quest
+          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+        </div>
       </div>
     </div>
   );
