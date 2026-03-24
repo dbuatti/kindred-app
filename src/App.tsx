@@ -19,6 +19,7 @@ import EditProfile from "./pages/EditProfile";
 import Help from "./pages/Help";
 import Profile from "./pages/Profile";
 import CompleteArchive from "./pages/CompleteArchive";
+import FamilyTree from "./pages/FamilyTree";
 import DataExportButton from "./components/DataExportButton";
 
 const queryClient = new QueryClient();
@@ -84,6 +85,7 @@ const AnimatedRoutes = () => {
         <Route path="/edit-profile" element={<ProtectedRoute><PageWrapper><EditProfile /></PageWrapper></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><PageWrapper><Profile /></PageWrapper></ProtectedRoute>} />
         <Route path="/help" element={<ProtectedRoute><PageWrapper><Help /></PageWrapper></ProtectedRoute>} />
+        <Route path="/tree" element={<ProtectedRoute><OnboardingCheck><PageWrapper><FamilyTree /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
         <Route path="/complete" element={<ProtectedRoute><OnboardingCheck><PageWrapper><CompleteArchive /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
         <Route path="/" element={<ProtectedRoute><OnboardingCheck><PageWrapper><Index /></PageWrapper></OnboardingCheck></ProtectedRoute>} />
         <Route path="/person/:slug" element={<ProtectedRoute><OnboardingCheck><PageWrapper><PersonDetail /></PageWrapper></OnboardingCheck></ProtectedRoute>} />

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Sparkles, UserCircle, HelpCircle } from 'lucide-react';
+import { Home, Sparkles, UserCircle, HelpCircle, GitBranch } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const BottomNav = () => {
@@ -11,8 +11,8 @@ const BottomNav = () => {
 
   const navItems = [
     { label: 'Home', icon: Home, path: '/' },
+    { label: 'Tree', icon: GitBranch, path: '/tree' },
     { label: 'Mission', icon: Sparkles, path: '/complete' },
-    { label: 'Help', icon: HelpCircle, path: '/help' },
     { label: 'Profile', icon: UserCircle, path: '/profile' },
   ];
 

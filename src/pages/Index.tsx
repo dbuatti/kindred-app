@@ -13,8 +13,9 @@ import ScrollToTop from '../components/ScrollToTop';
 import BottomNav from '../components/BottomNav';
 import SearchBar from '../components/index/SearchBar';
 import RecentPeople from '../components/index/RecentPeople';
+import UpcomingMilestones from '../components/UpcomingMilestones';
 import { PersonCardSkeleton } from '../components/SkeletonLoader';
-import { Share2, ScrollText, HelpCircle, UserCircle, Users, ShieldCheck, Sparkles, History, ArrowRight, Search } from 'lucide-react';
+import { Share2, ScrollText, HelpCircle, UserCircle, Users, ShieldCheck, Sparkles, History, ArrowRight, Search, GitBranch } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { getPersonUrl } from '@/lib/slugify';
@@ -103,6 +104,10 @@ const Index = () => {
               <p className="text-stone-500 text-lg italic">Our Family Storybook</p>
             </div>
             <div className="hidden md:flex gap-4">
+              <button onClick={() => navigate('/tree')} className="flex flex-col items-center gap-1 text-stone-500 hover:text-amber-600 transition-colors">
+                <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center"><GitBranch className="w-6 h-6" /></div>
+                <span className="text-[10px] font-bold uppercase tracking-widest">Tree</span>
+              </button>
               <button onClick={() => navigate('/complete')} className="flex flex-col items-center gap-1 text-amber-600 hover:text-amber-700 transition-colors">
                 <div className="h-12 w-12 rounded-full bg-amber-50 flex items-center justify-center"><Sparkles className="w-6 h-6" /></div>
                 <span className="text-[10px] font-bold uppercase tracking-widest">Mission</span>
@@ -113,10 +118,6 @@ const Index = () => {
                   <span className="text-[10px] font-bold uppercase tracking-widest">Admin</span>
                 </button>
               )}
-              <button onClick={() => navigate('/help')} className="flex flex-col items-center gap-1 text-stone-500 hover:text-amber-600 transition-colors">
-                <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center"><HelpCircle className="w-6 h-6" /></div>
-                <span className="text-[10px] font-bold uppercase tracking-widest">Help</span>
-              </button>
               <button onClick={handleInvite} className="flex flex-col items-center gap-1 text-stone-500 hover:text-amber-600 transition-colors">
                 <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center"><Share2 className="w-6 h-6" /></div>
                 <span className="text-[10px] font-bold uppercase tracking-widest">Invite</span>
@@ -144,7 +145,10 @@ const Index = () => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-12"
           >
-            <RecentPeople people={recentPeopleList} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <RecentPeople people={recentPeopleList} />
+              <UpcomingMilestones />
+            </div>
 
             <div className={cn(
               "grid grid-cols-1 gap-8",
