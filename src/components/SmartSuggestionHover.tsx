@@ -15,6 +15,7 @@ interface SmartSuggestionHoverProps {
 const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
   const { people, relationships, addRelationship, addSuggestion, isAdmin, user } = useFamily();
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const person = useMemo(() => people.find(p => p.id === personId), [people, personId]);
 
@@ -46,12 +47,19 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
           );
         
         const sharesParent = theirParents.some(tp => myParents.includes(tp));
+        
         const alreadySiblings = relationships.some(r => 
           (r.person_id === personId && r.related_person_id === p.id || r.person_id === p.id && r.related_person_id === personId) &&
           ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase())
         );
 
-        return sharesParent && !alreadySiblings;
+        // CRITICAL: Don't suggest siblings if they are already marked as spouses
+        const alreadySpouses = relationships.some(r => 
+          (r.person_id === personId && r.related_person_id === p.id || r.person_id === p.id && r.related_person_id === personId) &&
+          ['spouse', 'wife', 'husband'].includes(r.relationship_type.toLowerCase())
+        );
+
+        return sharesParent && !alreadySiblings && !alreadySpouses;
       });
 
       potentialSiblings.forEach(sib => {
@@ -179,8 +187,9 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       });
     }
 
-    return items;
-  }, [person, personId, people, relationships, isAdmin, user]);
+    // Filter out dismissed suggestions
+    return items.filter(item => !dismissedIds.has(item.id));
+  }, [person, personId, people, relationships, isAdmin, user, dismissedIds]);
 
   if (suggestions.length === 0) return null;
 
@@ -194,6 +203,15 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     } finally {
       setIsProcessing(null);
     }
+  };
+
+  const handleDismiss = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissedIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
   };
 
   return (
@@ -236,7 +254,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
                     size="sm" 
                     variant="ghost" 
                     className="flex-1 text-stone-400 hover:text-white hover:bg-white/10 rounded-lg h-8 text-xs"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => handleDismiss(s.id, e)}
                   >
                     <X className="w-3 h-3 mr-1" />
                     No
