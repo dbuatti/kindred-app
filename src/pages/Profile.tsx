@@ -89,6 +89,7 @@ const Profile = () => {
     if (!user) return;
     setIsResetting(true);
     try {
+      // 1. Reset the flag in DB
       const { error } = await supabase
         .from('profiles')
         .update({ onboarding_completed: false })
@@ -96,10 +97,13 @@ const Profile = () => {
 
       if (error) throw error;
       
-      toast.success("Onboarding reset! Redirecting...");
-      // Refresh data so the AuthGuard picks up the change
-      await refreshData();
-      navigate('/onboarding');
+      toast.success("Onboarding reset! Signing you out to start fresh...");
+      
+      // 2. Sign out so user can test the magic link flow
+      await supabase.auth.signOut();
+      
+      // 3. Redirect to Join page
+      navigate('/join');
     } catch (error: any) {
       toast.error("Failed to reset: " + error.message);
     } finally {
