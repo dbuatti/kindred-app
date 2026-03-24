@@ -11,7 +11,6 @@ const AuthCallback = () => {
 
   useEffect(() => {
     const handleAuth = async () => {
-      // Prevent double-processing in Strict Mode
       if (processed.current) return;
       processed.current = true;
 
@@ -19,45 +18,45 @@ const AuthCallback = () => {
       const type = searchParams.get('type');
       const inviteToken = searchParams.get('token');
 
+      console.log("[auth-callback] URL Parameters:", { 
+        hasHash: !!token_hash, 
+        type, 
+        hasInvite: !!inviteToken,
+        origin: window.location.origin 
+      });
+
       try {
         if (token_hash && type) {
-          console.log("[auth-callback] Verifying token...", { type });
           const { error } = await supabase.auth.verifyOtp({
             token_hash,
             type: type as any,
           });
-
           if (error) throw error;
         }
 
-        // Wait a tiny bit for the session to propagate
         const { data, error: sessionError } = await supabase.auth.getSession();
-        
         if (sessionError) throw sessionError;
 
         if (data.session) {
-          console.log("[auth-callback] Success! Checking for invite token...");
+          console.log("[auth-callback] Session established for:", data.session.user.email);
           
           if (inviteToken) {
-            const { error: linkError } = await supabase
+            await supabase
               .from('people')
               .update({ user_id: data.session.user.id })
               .eq('invite_token', inviteToken)
               .is('user_id', null);
-
-            if (linkError) console.error("[auth-callback] Error linking profile:", linkError.message);
           }
 
           toast.success("Welcome back!");
-          // Use replace to prevent going back to the callback page
           navigate('/', { replace: true });
         } else {
-          console.warn("[auth-callback] No session found, redirecting to login.");
+          console.error("[auth-callback] No session found after verification.");
           navigate('/login', { replace: true });
         }
       } catch (error: any) {
         console.error("[auth-callback] Auth error:", error.message);
-        toast.error("Authentication failed. Please try again.");
+        toast.error("Authentication failed: " + error.message);
         navigate('/login', { replace: true });
       }
     };
