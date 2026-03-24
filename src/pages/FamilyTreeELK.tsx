@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
-import { cn, extractYear } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import AddPersonDialog from '../components/AddPersonDialog';
 import SmartSuggestionHover from '../components/SmartSuggestionHover';
@@ -59,7 +59,7 @@ const FamilyTreeELK = () => {
       try {
         const validIds = new Set(people.map(p => p.id));
         
-        // 1. Build ELK Nodes
+        // 1. Build ELK Graph Structure
         const elkNodes: any[] = people.map(p => {
           let displayYear = p.birthYear;
           if (!displayYear && p.birthDate) {
@@ -75,10 +75,10 @@ const FamilyTreeELK = () => {
         });
 
         const elkEdges: any[] = [];
-        const unions: Record<string, { id: string, p1: string, p2: string, color: string, children: string[] }> = {};
+        const unions: Record<string, { id: string, p1: string, p2: string, color: string }> = {};
         let colorIdx = 0;
 
-        // 2. Identify Unions (Marriages)
+        // 2. Identify Unions
         relationships.forEach(r => {
           if (r.relationship_type.toLowerCase() === 'spouse') {
             if (validIds.has(r.person_id) && validIds.has(r.related_person_id)) {
@@ -89,24 +89,13 @@ const FamilyTreeELK = () => {
                   id: unionId, 
                   p1: r.person_id, 
                   p2: r.related_person_id, 
-                  color: BRANCH_COLORS[colorIdx % BRANCH_COLORS.length],
-                  children: []
+                  color: BRANCH_COLORS[colorIdx % BRANCH_COLORS.length]
                 };
                 elkNodes.push({ id: unionId, width: 40, height: 40, isUnion: true, color: unions[pairId].color });
                 
-                // Marriage edges - High weight to keep spouses close to the heart
-                elkEdges.push({ 
-                  id: `e_${unionId}_1`, 
-                  sources: [r.person_id], 
-                  targets: [unionId], 
-                  layoutOptions: { 'elk.layered.edgeThickness': '2', 'elk.weight': '10' } 
-                });
-                elkEdges.push({ 
-                  id: `e_${unionId}_2`, 
-                  sources: [r.related_person_id], 
-                  targets: [unionId],
-                  layoutOptions: { 'elk.layered.edgeThickness': '2', 'elk.weight': '10' }
-                });
+                // Marriage edges
+                elkEdges.push({ id: `e_${unionId}_1`, sources: [r.person_id], targets: [unionId], type: 'marriage', color: unions[pairId].color });
+                elkEdges.push({ id: `e_${unionId}_2`, sources: [r.related_person_id], targets: [unionId], type: 'marriage', color: unions[pairId].color });
                 
                 colorIdx++;
               }
@@ -114,8 +103,8 @@ const FamilyTreeELK = () => {
           }
         });
 
-        // 3. Map Children to Unions
-        relationships.forEach((r) => {
+        // 3. Map Children to Unions or Parents
+        relationships.forEach((r, idx) => {
           const type = r.relationship_type.toLowerCase();
           if (['cousin', 'aunt', 'uncle', 'nephew', 'niece'].includes(type)) return;
 
@@ -131,54 +120,19 @@ const FamilyTreeELK = () => {
           }
 
           if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
+            // Check if this parent is part of a union
             const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
-            if (union) {
-              if (!union.children.includes(childId)) union.children.push(childId);
-            } else {
-              // Direct parent-child if no union found
-              elkEdges.push({ 
-                id: `lineage_${parentId}_${childId}`, 
-                sources: [parentId], 
-                targets: [childId]
-              });
-            }
-          }
-        });
+            const sourceId = union ? union.id : parentId;
+            const edgeColor = union ? union.color : LINEAGE_COLOR;
 
-        // 4. Add Lineage Edges from Unions and Sibling Proximity
-        Object.values(unions).forEach(u => {
-          // Sort children by birth year to keep them in order
-          const sortedChildren = [...u.children].sort((a, b) => {
-            const pA = people.find(p => p.id === a);
-            const pB = people.find(p => p.id === b);
-            const yearA = parseInt(extractYear(pA?.birthDate || pA?.birthYear) || '9999');
-            const yearB = parseInt(extractYear(pB?.birthDate || pB?.birthYear) || '9999');
-            return yearA - yearB;
-          });
-
-          sortedChildren.forEach((childId, idx) => {
             elkEdges.push({ 
-              id: `union_child_${u.id}_${childId}`, 
-              sources: [u.id], 
-              targets: [childId],
-              color: u.color
+              id: `rel_${idx}`, 
+              sources: [sourceId], 
+              targets: [childId], 
+              type: 'lineage', 
+              color: edgeColor 
             });
-
-            // Sibling Proximity: Add invisible edges between siblings to force them to stay together
-            if (idx > 0) {
-              const prevChildId = sortedChildren[idx - 1];
-              elkEdges.push({
-                id: `sib_prox_${prevChildId}_${childId}`,
-                sources: [prevChildId],
-                targets: [childId],
-                layoutOptions: { 
-                  'elk.layered.edgeRouting': 'SPLINES',
-                  'elk.weight': '1',
-                  'elk.hidden': 'true' // Custom flag for our renderer
-                }
-              });
-            }
-          });
+          }
         });
 
         const graph = {
@@ -186,12 +140,10 @@ const FamilyTreeELK = () => {
           layoutOptions: {
             'elk.algorithm': 'layered',
             'elk.direction': 'DOWN',
+            'elk.spacing.nodeNode': '120',
+            'elk.layered.spacing.nodeNodeBetweenLayers': '180',
             'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
-            'elk.spacing.nodeNode': '90',
-            'elk.layered.spacing.nodeNodeBetweenLayers': '140',
             'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-            'elk.layered.mergeEdges': 'true',
-            'elk.layered.considerModelOrder.strategy': 'PREFER_NODES',
             'elk.edgeRouting': 'ORTHOGONAL',
             'elk.padding': '[top=100,left=100,bottom=100,right=100]'
           },
@@ -202,7 +154,7 @@ const FamilyTreeELK = () => {
         const layout = await elk.layout(graph);
         
         const nodes = layout.children || [];
-        const edges = (layout.edges || []).filter((e: any) => !e.layoutOptions?.['elk.hidden']);
+        const edges = layout.edges || [];
 
         const minX = Math.min(...nodes.map(n => n.x || 0));
         const maxX = Math.max(...nodes.map(n => (n.x || 0) + (n.width || 0)));
@@ -369,7 +321,7 @@ const FamilyTreeELK = () => {
               
               if (!sourceNode || !targetNode) return null;
 
-              const isMarriage = edge.id.startsWith('e_union');
+              const isMarriage = edge.type === 'marriage';
               const startX = sourceNode.x + layoutData.offsetX + sourceNode.width / 2;
               const startY = sourceNode.y + layoutData.offsetY + (sourceNode.isUnion ? sourceNode.height / 2 : sourceNode.height);
               const endX = targetNode.x + layoutData.offsetX + targetNode.width / 2;
