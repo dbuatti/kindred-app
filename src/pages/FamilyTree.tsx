@@ -16,7 +16,6 @@ import {
   RefreshCw,
   UserPlus,
   Maximize,
-  Sparkles,
   Search,
   X
 } from 'lucide-react';
@@ -53,16 +52,17 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph({ compound: true });
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 60, 
-        ranksep: 100, 
-        marginx: 50, 
-        marginy: 50,
+        nodesep: 100, // Increased for better horizontal separation between branches
+        ranksep: 120, 
+        marginx: 100, 
+        marginy: 100,
         ranker: 'network-simplex'
       });
       g.setDefaultEdgeLabel(() => ({}));
 
       const validIds = new Set(people.map(p => p.id));
 
+      // 1. Add Person Nodes
       people.forEach(p => {
         let displayYear = p.birthYear;
         if (!displayYear && p.birthDate) {
@@ -71,12 +71,13 @@ const FamilyTree = () => {
         }
 
         g.setNode(p.id, { 
-          width: 200, 
-          height: 60, 
+          width: 220, 
+          height: 70, 
           person: { ...p, displayYear: displayYear || 'Year Unknown' } 
         });
       });
 
+      // 2. Identify Unions (Spouses)
       const unions: Record<string, { id: string, p1: string, p2: string, children: string[], color: string }> = {};
       let colorIdx = 0;
 
@@ -98,6 +99,9 @@ const FamilyTree = () => {
         }
       });
 
+      // 3. Map Children to Unions
+      const parentChildMap: Record<string, Set<string>> = {}; // childId -> Set of parentIds
+      
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
         if (['cousin', 'aunt', 'uncle', 'nephew', 'niece'].includes(type)) return;
@@ -114,45 +118,89 @@ const FamilyTree = () => {
         }
 
         if (parentId && childId && validIds.has(parentId) && validIds.has(childId)) {
-          const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
-          if (union) {
-            if (!union.children.includes(childId)) union.children.push(childId);
-          } else {
-            g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR, weight: 1 });
-          }
+          if (!parentChildMap[childId]) parentChildMap[childId] = new Set();
+          parentChildMap[childId].add(parentId);
         }
       });
 
+      // Assign children to the correct union
+      Object.entries(parentChildMap).forEach(([childId, parentIds]) => {
+        const parents = Array.from(parentIds);
+        let assigned = false;
+
+        // Try to find a union that contains BOTH parents (ideal for biological grouping)
+        if (parents.length >= 2) {
+          for (const u of Object.values(unions)) {
+            if (parentIds.has(u.p1) && parentIds.has(u.p2)) {
+              if (!u.children.includes(childId)) u.children.push(childId);
+              assigned = true;
+              break;
+            }
+          }
+        }
+
+        // Fallback: find any union involving one of the parents
+        if (!assigned) {
+          for (const parentId of parents) {
+            const u = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
+            if (u) {
+              if (!u.children.includes(childId)) u.children.push(childId);
+              assigned = true;
+              break;
+            }
+          }
+        }
+
+        // Final fallback: single parent lineage (no union node)
+        if (!assigned) {
+          parents.forEach(parentId => {
+            g.setEdge(parentId, childId, { type: 'lineage', color: LINEAGE_COLOR, weight: 1 });
+          });
+        }
+      });
+
+      // 4. Add Union Nodes and Edges with Clusters to force grouping
       Object.values(unions).forEach(u => {
-        g.setNode(u.id, { width: 30, height: 30, isUnion: true, color: u.color });
-        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 10 });
-        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 10 });
+        const clusterId = `cluster_${u.id}`;
+        // Create a cluster for this family unit
+        g.setNode(clusterId, { label: '', style: 'fill: none; stroke: none;' });
+        
+        // Add union node to cluster
+        g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
+        g.setParent(u.id, clusterId);
+
+        // Connect parents to union (high weight to keep them close)
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color, weight: 20 });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color, weight: 20 });
+
+        // Connect union to children and put children in the same cluster
         u.children.forEach((childId) => {
-          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 5 });
+          g.setParent(childId, clusterId);
+          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, weight: 15 });
         });
       });
 
       dagre.layout(g);
       
-      const nodes = g.nodes().map(v => ({ id: v, ...g.node(v) }));
+      const nodes = g.nodes().map(v => ({ id: v, ...g.node(v) })).filter(n => !n.id.startsWith('cluster_'));
       const edges = g.edges().map(e => ({ 
         from: g.node(e.v), 
         to: g.node(e.w),
         ...g.edge(e)
-      }));
+      })).filter(e => e.from && e.to);
 
-      const minX = Math.min(...nodes.map(n => n.x - 100));
-      const maxX = Math.max(...nodes.map(n => n.x + 100));
-      const minY = Math.min(...nodes.map(n => n.y - 50));
-      const maxY = Math.max(...nodes.map(n => n.y + 50));
+      const minX = Math.min(...nodes.map(n => n.x - 120));
+      const maxX = Math.max(...nodes.map(n => n.x + 120));
+      const minY = Math.min(...nodes.map(n => n.y - 60));
+      const maxY = Math.max(...nodes.map(n => n.y + 60));
 
       return {
         nodes,
         edges,
-        width: maxX - minX + 200,
-        height: maxY - minY + 100,
-        offsetX: -minX + 100,
-        offsetY: -minY + 50
+        width: maxX - minX + 240,
+        height: maxY - minY + 120,
+        offsetX: -minX + 120,
+        offsetY: -minY + 60
       };
     } catch (err) {
       console.error("[FamilyTree] Layout error:", err);
@@ -171,7 +219,6 @@ const FamilyTree = () => {
       setHighlightedId(id);
       setZoom(1);
       
-      // Calculate scroll position
       const container = treeContainerRef.current;
       const scrollX = (node.x * 1) - (container.clientWidth / 2);
       const scrollY = (node.y * 1) - (container.clientHeight / 2);
@@ -312,22 +359,22 @@ const FamilyTree = () => {
               if (!edge.from || !edge.to) return null;
               const isMarriage = edge.type === 'marriage';
               const startX = edge.from.x;
-              const startY = edge.from.y + (edge.from.isUnion ? 0 : 30); 
+              const startY = edge.from.y + (edge.from.isUnion ? 0 : 35); 
               const endX = edge.to.x;
-              const endY = edge.to.y - (edge.to.isUnion ? 15 : 30); 
+              const endY = edge.to.y - (edge.to.isUnion ? 20 : 35); 
               const midY = startY + (endY - startY) * 0.5;
               const path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               
               return (
                 <g key={i}>
-                  <path d={path} stroke="white" strokeWidth={isMarriage ? "6" : "4"} fill="none" strokeLinecap="round" opacity="0.4" />
+                  <path d={path} stroke="white" strokeWidth={isMarriage ? "8" : "6"} fill="none" strokeLinecap="round" opacity="0.4" />
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
                     transition={{ duration: 1, ease: "easeInOut", delay: i * 0.01 }}
                     d={path}
                     stroke={edge.color || LINEAGE_COLOR}
-                    strokeWidth={isMarriage ? "2.5" : "1.5"}
+                    strokeWidth={isMarriage ? "3" : "2"}
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -345,10 +392,10 @@ const FamilyTree = () => {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', damping: 12, delay: 0.3 }}
-                  style={{ left: node.x - 15, top: node.y - 15, backgroundColor: 'white', borderColor: node.color }}
-                  className="absolute w-8 h-8 rounded-full border-2 flex items-center justify-center shadow-md z-10 group"
+                  style={{ left: node.x - 20, top: node.y - 20, backgroundColor: 'white', borderColor: node.color }}
+                  className="absolute w-10 h-10 rounded-full border-4 flex items-center justify-center shadow-md z-10 group"
                 >
-                  <Heart className="w-4 h-4 fill-current transition-transform group-hover:scale-125" style={{ color: node.color }} />
+                  <Heart className="w-5 h-5 fill-current transition-transform group-hover:scale-125" style={{ color: node.color }} />
                 </motion.div>
               );
             }
@@ -361,10 +408,10 @@ const FamilyTree = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ scale: 1.05, y: -2 }}
-                style={{ left: node.x - 100, top: node.y - 30, width: 200, height: 60 }}
+                style={{ left: node.x - 110, top: node.y - 35, width: 220, height: 70 }}
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
                 className={cn(
-                  "absolute bg-white rounded-xl border transition-all p-2 flex items-center gap-3 cursor-pointer group z-20",
+                  "absolute bg-white rounded-2xl border transition-all p-3 flex items-center gap-3 cursor-pointer group z-20",
                   isHighlighted 
                     ? "ring-4 ring-amber-500 border-amber-500 shadow-2xl scale-110 z-50" 
                     : "border-stone-100 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] hover:border-amber-200"
@@ -372,23 +419,23 @@ const FamilyTree = () => {
               >
                 <SmartSuggestionHover personId={node.id} />
                 
-                <div className="h-10 w-10 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 group-hover:border-amber-200 transition-all">
+                <div className="h-12 w-12 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 group-hover:border-amber-200 transition-all">
                   {node.person.photoUrl ? (
                     <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-stone-200">
-                      <UserCircle className="w-6 h-6" />
+                      <UserCircle className="w-8 h-8" />
                     </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1 space-y-0.5">
-                  <p className="text-xs font-serif font-bold text-stone-800 truncate group-hover:text-amber-900 transition-colors">{node.person.name}</p>
+                  <p className="text-sm font-serif font-bold text-stone-800 truncate group-hover:text-amber-900 transition-colors">{node.person.name}</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">
+                    <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
                       {node.person.displayYear}
                     </span>
                     {!node.person.isLiving && (
-                      <Badge variant="secondary" className="bg-stone-50 text-stone-400 border-none text-[6px] px-1 py-0">
+                      <Badge variant="secondary" className="bg-stone-50 text-stone-400 border-none text-[8px] px-1.5 py-0">
                         In Memory
                       </Badge>
                     )}
