@@ -97,7 +97,7 @@ const Login = () => {
             <Heart className="w-10 h-10 fill-current" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-3xl font-serif font-medium text-stone-800">Welcome to Kindred</h1>
+            <h1 className="text-4xl font-serif font-medium text-stone-800">Welcome to Kindred</h1>
             <p className="text-stone-500 italic">Our private family storybook.</p>
           </div>
         </div>
