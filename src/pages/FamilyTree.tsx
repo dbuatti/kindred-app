@@ -46,24 +46,38 @@ const FamilyTree = () => {
       }
     });
 
-    // 2. Assign children to unions
+    // 2. Assign children to unions with direction-agnostic logic
     relationships.forEach(r => {
       const type = r.relationship_type.toLowerCase();
+      let parentId = '';
+      let childId = '';
+
+      // If the record says "This person is the Father/Mother of that person"
       if (['mother', 'father', 'parent'].includes(type)) {
-        // person_id is child, related_person_id is parent
-        const childId = r.person_id;
-        const parentId = r.related_person_id;
-        
-        // Find if this parent belongs to a union
-        const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
-        if (union && !union.children.includes(childId)) {
-          union.children.push(childId);
+        // We need to check if the person_id is the parent or the related_person is the parent
+        // Based on your data, it varies. We'll check if the person_id exists in a union.
+        const p1IsParent = Object.values(unions).some(u => u.p1 === r.person_id || u.p2 === r.person_id);
+        if (p1IsParent) {
+          parentId = r.person_id;
+          childId = r.related_person_id;
+        } else {
+          parentId = r.related_person_id;
+          childId = r.person_id;
         }
-      } else if (['son', 'daughter', 'child'].includes(type)) {
-        // person_id is parent, related_person_id is child
-        const parentId = r.person_id;
-        const childId = r.related_person_id;
-        
+      } 
+      // If the record says "This person is the Son/Daughter of that person"
+      else if (['son', 'daughter', 'child'].includes(type)) {
+        const p1IsChild = !Object.values(unions).some(u => u.p1 === r.person_id || u.p2 === r.person_id);
+        if (p1IsChild) {
+          childId = r.person_id;
+          parentId = r.related_person_id;
+        } else {
+          childId = r.related_person_id;
+          parentId = r.person_id;
+        }
+      }
+
+      if (parentId && childId) {
         const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
         if (union && !union.children.includes(childId)) {
           union.children.push(childId);
@@ -100,7 +114,7 @@ const FamilyTree = () => {
       });
     });
 
-    // 5. Add Sibling/Extended links that aren't covered by unions
+    // 5. Add Sibling links (Explicit ones from DB)
     relationships.forEach(r => {
       const type = r.relationship_type.toLowerCase();
       if (['brother', 'sister', 'sibling'].includes(type)) {
@@ -163,13 +177,10 @@ const FamilyTree = () => {
                   let path = "";
 
                   if (isMarriage) {
-                    // Simple line for marriage to union point
                     path = `M ${startX} ${startY} L ${endX} ${endY}`;
                   } else if (isSibling) {
-                    // Dashed line for siblings
                     path = `M ${startX} ${startY} L ${endX} ${endY}`;
                   } else {
-                    // Orthogonal step for lineage
                     const midY = startY + (endY - startY) / 2;
                     path = `M ${startX} ${startY} 
                             L ${startX} ${midY} 
