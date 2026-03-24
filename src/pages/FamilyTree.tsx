@@ -23,7 +23,6 @@ import AddPersonDialog from '../components/AddPersonDialog';
 import SmartSuggestionHover from '../components/SmartSuggestionHover';
 import TreeSmartInbox from '../components/TreeSmartInbox';
 
-// A palette of soft, distinct colors for family branches
 const BRANCH_COLORS = [
   '#d97706', // Amber
   '#2563eb', // Blue
@@ -46,8 +45,8 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph();
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 120, 
-        ranksep: 150, // Increased vertical spacing for smoother curves
+        nodesep: 150, // Increased horizontal spacing
+        ranksep: 200, // Increased vertical spacing for structured paths
         marginx: 100, 
         marginy: 100,
       });
@@ -55,7 +54,6 @@ const FamilyTree = () => {
 
       const validIds = new Set(people.map(p => p.id));
 
-      // 1. Add People Nodes
       people.forEach(p => {
         let displayYear = p.birthYear;
         if (!displayYear && p.birthDate) {
@@ -70,7 +68,6 @@ const FamilyTree = () => {
         });
       });
 
-      // 2. Identify Unions (Spouse pairs) and assign branch colors
       const unions: Record<string, { id: string, p1: string, p2: string, children: Set<string>, color: string }> = {};
       let colorIdx = 0;
 
@@ -92,7 +89,6 @@ const FamilyTree = () => {
         }
       });
 
-      // 3. Assign children to unions or direct parents
       const processedLinks = new Set<string>();
       relationships.forEach(r => {
         const type = r.relationship_type.toLowerCase();
@@ -116,13 +112,11 @@ const FamilyTree = () => {
           if (union) {
             union.children.add(childId);
           } else {
-            // Direct parent link if no union found
             g.setEdge(parentId, childId, { type: 'lineage', weight: 1, color: '#e7e5e4' });
           }
         }
       });
 
-      // 4. Add Union Nodes and Marriage Edges
       Object.values(unions).forEach(u => {
         g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
         g.setEdge(u.p1, u.id, { type: 'marriage', weight: 2, color: u.color });
@@ -143,7 +137,6 @@ const FamilyTree = () => {
         color: g.edge(e).color
       }));
 
-      // Calculate bounding box
       const minX = Math.min(...nodes.map(n => n.x - 150));
       const maxX = Math.max(...nodes.map(n => n.x + 150));
       const minY = Math.min(...nodes.map(n => n.y - 100));
@@ -234,6 +227,12 @@ const FamilyTree = () => {
             height={data.height} 
             className="absolute inset-0 pointer-events-none overflow-visible"
           >
+            <defs>
+              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
             {data.edges.map((edge, i) => {
               const isMarriage = edge.type === 'marriage';
               
@@ -245,30 +244,47 @@ const FamilyTree = () => {
               let path = "";
 
               if (isMarriage) {
-                // Straight line for marriage
+                // Marriage lines are straight but slightly offset to look like they connect the sides
                 path = `M ${startX} ${startY} L ${endX} ${endY}`;
               } else {
-                // Smooth Cubic Bezier curve for lineage
-                // This prevents multiple children from sharing a single horizontal line
-                const midY = startY + (endY - startY) * 0.5;
+                // Structured "Step" path with rounded corners
+                const midY = startY + (endY - startY) * 0.4; // Drop point
+                const radius = 20; // Corner radius
+                
+                const direction = endX > startX ? 1 : -1;
+                
                 path = `M ${startX} ${startY} 
-                        C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
+                        L ${startX} ${midY - radius}
+                        Q ${startX} ${midY}, ${startX + (radius * direction)} ${midY}
+                        L ${endX - (radius * direction)} ${midY}
+                        Q ${endX} ${midY}, ${endX} ${midY + radius}
+                        L ${endX} ${endY}`;
               }
               
               return (
-                <motion.path
-                  key={i}
-                  initial={{ pathLength: 0, opacity: 0 }}
-                  animate={{ pathLength: 1, opacity: 1 }}
-                  transition={{ duration: 1.5, ease: "easeInOut" }}
-                  d={path}
-                  stroke={edge.color}
-                  strokeWidth={isMarriage ? "4" : "2.5"}
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ filter: isMarriage ? 'drop-shadow(0 0 2px rgba(0,0,0,0.1))' : 'none' }}
-                />
+                <g key={i}>
+                  {/* Background "shadow" line for better visibility */}
+                  <path
+                    d={path}
+                    stroke="white"
+                    strokeWidth={isMarriage ? "6" : "4.5"}
+                    fill="none"
+                    strokeLinecap="round"
+                    opacity="0.5"
+                  />
+                  <motion.path
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    transition={{ duration: 1.5, ease: "easeInOut" }}
+                    d={path}
+                    stroke={edge.color}
+                    strokeWidth={isMarriage ? "4" : "2.5"}
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ filter: 'url(#glow)' }}
+                  />
+                </g>
               );
             })}
           </svg>
@@ -281,10 +297,10 @@ const FamilyTree = () => {
                   style={{ 
                     left: node.x - 20, 
                     top: node.y - 20,
-                    backgroundColor: node.color + '20', // 20% opacity
+                    backgroundColor: 'white',
                     borderColor: node.color
                   }}
-                  className="absolute w-10 h-10 rounded-full border-2 flex items-center justify-center shadow-sm z-10"
+                  className="absolute w-10 h-10 rounded-full border-2 flex items-center justify-center shadow-md z-10"
                 >
                   <Heart className="w-5 h-5 fill-current" style={{ color: node.color }} />
                 </div>
@@ -303,7 +319,7 @@ const FamilyTree = () => {
                   height: 100
                 }}
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
-                className="absolute bg-white rounded-2xl border-2 border-stone-100 shadow-sm hover:shadow-md hover:border-amber-200 transition-all p-4 flex items-center gap-4 cursor-pointer group"
+                className="absolute bg-white rounded-2xl border-2 border-stone-100 shadow-sm hover:shadow-xl hover:border-amber-200 transition-all p-4 flex items-center gap-4 cursor-pointer group z-20"
               >
                 <SmartSuggestionHover personId={node.id} />
                 
