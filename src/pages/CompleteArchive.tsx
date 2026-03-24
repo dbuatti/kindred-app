@@ -5,16 +5,22 @@ import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { 
   ArrowLeft, 
   Sparkles, 
   Search,
-  ChevronRight,
+  ChevronRight, 
   AlertCircle,
   Trophy,
   Target,
   RefreshCw,
-  X
+  X,
+  Filter,
+  Camera,
+  User,
+  MapPin,
+  Quote
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getPersonUrl } from '@/lib/slugify';
@@ -27,6 +33,7 @@ const CompleteArchive = () => {
   const { people, loading } = useFamily();
   const [questIndex, setQuestIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<string | null>(null);
 
   const peopleWithScores = useMemo(() => {
     return people.map(person => {
@@ -62,12 +69,34 @@ const CompleteArchive = () => {
     }).sort((a, b) => a.percentage - b.percentage);
   }, [people]);
 
+  const aggregateMissing = useMemo(() => {
+    const counts: Record<string, { label: string, count: number, icon: any }> = {};
+    const iconMap: Record<string, any> = {
+      photo_url: Camera,
+      vibe_sentence: Quote,
+      birth_place: MapPin,
+      birth_date: User,
+    };
+
+    peopleWithScores.forEach(p => {
+      p.missing.forEach(m => {
+        if (!counts[m.id]) counts[m.id] = { label: m.label, count: 0, icon: iconMap[m.id] || AlertCircle };
+        counts[m.id].count++;
+      });
+    });
+    return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 4);
+  }, [peopleWithScores]);
+
   const filteredPeople = useMemo(() => {
-    if (!searchQuery) return peopleWithScores;
-    return peopleWithScores.filter(p => 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [peopleWithScores, searchQuery]);
+    let result = peopleWithScores;
+    if (searchQuery) {
+      result = result.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+    if (filterType) {
+      result = result.filter(p => p.missing.some(m => m.id === filterType));
+    }
+    return result;
+  }, [peopleWithScores, searchQuery, filterType]);
 
   const stats = useMemo(() => {
     if (peopleWithScores.length === 0) return { avg: 0, totalMemories: 0 };
@@ -121,7 +150,27 @@ const CompleteArchive = () => {
           totalMemories={stats.totalMemories} 
         />
 
-        {featuredQuest && !searchQuery && (
+        {/* Archive Needs Summary */}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {aggregateMissing.map((need) => (
+            <button
+              key={need.label}
+              onClick={() => setFilterType(filterType === need.label ? null : need.label)}
+              className={cn(
+                "p-6 rounded-[2rem] border-2 transition-all text-left group",
+                filterType === need.label 
+                  ? "bg-amber-600 border-amber-600 text-white shadow-lg scale-105" 
+                  : "bg-white border-stone-100 text-stone-800 hover:border-amber-200"
+              )}
+            >
+              <need.icon className={cn("w-6 h-6 mb-3", filterType === need.label ? "text-white" : "text-amber-600")} />
+              <p className={cn("text-2xl font-serif font-bold", filterType === need.label ? "text-white" : "text-stone-800")}>{need.count}</p>
+              <p className={cn("text-[10px] font-bold uppercase tracking-widest", filterType === need.label ? "text-amber-100" : "text-stone-400")}>{need.label}s needed</p>
+            </button>
+          ))}
+        </section>
+
+        {featuredQuest && !searchQuery && !filterType && (
           <section className="bg-stone-900 text-white p-10 rounded-[3rem] shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[100px] rounded-full -mr-32 -mt-32" />
             
@@ -169,11 +218,18 @@ const CompleteArchive = () => {
 
         <div className="space-y-8">
           <div className="flex items-center justify-between border-b-4 border-stone-100 pb-4">
-            <h2 className="text-2xl font-serif font-bold text-stone-800">The Archive List</h2>
             <div className="flex items-center gap-4">
-              {searchQuery && (
-                <Button variant="ghost" size="sm" onClick={() => setSearchQuery('')} className="text-stone-400 gap-2">
-                  <X className="w-4 h-4" /> Clear Search
+              <h2 className="text-2xl font-serif font-bold text-stone-800">The Archive List</h2>
+              {filterType && (
+                <Badge className="bg-amber-100 text-amber-700 border-none rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest">
+                  Filtering: {filterType}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-4">
+              {(searchQuery || filterType) && (
+                <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setFilterType(null); }} className="text-stone-400 gap-2">
+                  <X className="w-4 h-4" /> Clear Filters
                 </Button>
               )}
               <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Sorted by need</span>

@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { 
   ArrowLeft, 
   ChevronRight, 
@@ -19,7 +20,8 @@ import {
   Mic,
   Camera,
   Play,
-  Image as ImageIcon
+  Star,
+  Trophy
 } from 'lucide-react';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import FamilyConnections from '../components/FamilyConnections';
@@ -259,6 +261,7 @@ const PersonDetail = () => {
                 filteredMemories.map((memory, idx) => {
                   const memoryReactions = reactions[memory.id] || [];
                   const isWarmed = memoryReactions.includes(user?.id);
+                  const isMilestone = memory.isMilestone;
                   
                   return (
                     <motion.div 
@@ -270,8 +273,19 @@ const PersonDetail = () => {
                       transition={{ delay: idx * 0.1 }} 
                       className="relative pl-16 group transition-all duration-500"
                     >
-                      <div className="absolute left-0 top-2 w-12 h-12 rounded-full bg-white border-4 border-stone-50 flex items-center justify-center z-10 shadow-sm group-hover:border-amber-100 transition-colors">
-                        {memory.type === 'voice' ? <Mic className="w-5 h-5 text-amber-600" /> : memory.type === 'photo' ? <Camera className="w-5 h-5 text-stone-400" /> : <MessageSquare className="w-5 h-5 text-stone-400" />}
+                      <div className={cn(
+                        "absolute left-0 top-2 w-12 h-12 rounded-full bg-white border-4 flex items-center justify-center z-10 shadow-sm transition-colors",
+                        isMilestone ? "border-amber-200" : "border-stone-50 group-hover:border-amber-100"
+                      )}>
+                        {isMilestone ? (
+                          <Trophy className="w-5 h-5 text-amber-600" />
+                        ) : memory.type === 'voice' ? (
+                          <Mic className="w-5 h-5 text-amber-600" />
+                        ) : memory.type === 'photo' ? (
+                          <Camera className="w-5 h-5 text-stone-400" />
+                        ) : (
+                          <MessageSquare className="w-5 h-5 text-stone-400" />
+                        )}
                       </div>
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -281,6 +295,11 @@ const PersonDetail = () => {
                             <span className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em]">
                               {formatFamilyDate(memory.createdAt)}
                             </span>
+                            {isMilestone && (
+                              <Badge className="bg-amber-500 text-white border-none rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest ml-2">
+                                Significant Milestone
+                              </Badge>
+                            )}
                           </div>
                           <button 
                             onClick={() => handleWarm(memory.id)}
@@ -297,7 +316,13 @@ const PersonDetail = () => {
                             </span>
                           </button>
                         </div>
-                        <div className={cn("p-8 rounded-[2.5rem] text-xl font-serif leading-relaxed shadow-sm transition-all duration-500", memory.type === 'voice' ? "bg-amber-50/40 border border-amber-100/50" : memory.type === 'photo' ? "bg-stone-50/50 border border-stone-100" : "bg-white border border-stone-100 group-hover:shadow-md")}>
+                        <div className={cn(
+                          "p-8 rounded-[2.5rem] text-xl font-serif leading-relaxed shadow-sm transition-all duration-500",
+                          isMilestone ? "bg-amber-50/30 border-2 border-amber-200 shadow-amber-100/20" :
+                          memory.type === 'voice' ? "bg-amber-50/40 border border-amber-100/50" : 
+                          memory.type === 'photo' ? "bg-stone-50/50 border border-stone-100" : 
+                          "bg-white border border-stone-100 group-hover:shadow-md"
+                        )}>
                           {memory.type === 'voice' && <Button size="icon" variant="ghost" className="mb-6 h-14 w-14 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 shadow-sm"><Play className="w-6 h-6 fill-current" /></Button>}
                           {memory.type === 'photo' && memory.imageUrl && <div className="mb-6 rounded-2xl overflow-hidden border-4 border-white shadow-sm"><img src={memory.imageUrl} alt="Memory" className="w-full h-auto max-h-[400px] object-cover" /></div>}
                           <p className="text-stone-700 italic">"{memory.content}"</p>
