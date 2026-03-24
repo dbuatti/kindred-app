@@ -19,6 +19,7 @@ import {
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { extractYear } from '@/lib/utils';
 
 const RELATIONSHIP_TYPES = [
   { label: "Mother", value: "mother" },
@@ -96,18 +97,20 @@ const Onboarding = () => {
       if (profileError) throw profileError;
 
       const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+      const birthYear = extractYear(formData.birthDate);
       
       // 2. Link or Create Person record
       const personData = {
         user_id: user.id,
         name: fullName,
         gender: formData.gender,
-        birth_year: formData.birthDate ? formData.birthDate.split('-')[0] : '',
+        birth_year: birthYear,
+        birth_date: formData.birthDate || null,
         birth_place: formData.birthPlace,
         vibe_sentence: formData.bio || "",
         personality_tags: ["✨ Family Member"],
         created_by_email: user.email,
-        is_living: true // Ensure the user is marked as living
+        is_living: true // Users are always living
       };
 
       let myPersonId = formData.claimedPersonId;
@@ -248,7 +251,7 @@ const Onboarding = () => {
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-stone-400 uppercase">Birth Date (Optional)</label>
-                <Input type="date" value={formData.birthDate} onChange={(e) => updateField('birthDate', e.target.value)} className="h-14 bg-stone-50 border-none rounded-2xl text-lg" />
+                <Input type="text" placeholder="e.g. 15/05/1980" value={formData.birthDate} onChange={(e) => updateField('birthDate', e.target.value)} className="h-14 bg-stone-50 border-none rounded-2xl text-lg" />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-stone-400 uppercase">Birth Place (Optional)</label>

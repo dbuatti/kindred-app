@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Save, Loader2, UserCircle, ChevronsUpDown, Check, Briefcase, Heart, User, MapPin, Globe } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, extractYear } from '@/lib/utils';
 
 const INITIAL_SUGGESTIONS = [
   "Melbourne, Australia",
@@ -130,14 +130,7 @@ const EditProfile = () => {
       if (error) throw error;
 
       const fullName = [formData.firstName, formData.middleName, formData.lastName].filter(Boolean).join(' ');
-      
-      // Extract year for the people table if it's a full date
-      let birthYear = '';
-      if (formData.birthDate && formData.birthDate.length >= 4) {
-        const parts = formData.birthDate.split(/[-/]/);
-        const yearPart = parts.find(p => p.length === 4);
-        if (yearPart) birthYear = yearPart;
-      }
+      const birthYear = extractYear(formData.birthDate);
 
       await supabase.from('people').upsert({
         user_id: user.id,
@@ -150,7 +143,7 @@ const EditProfile = () => {
         vibe_sentence: formData.bio || "",
         personality_tags: ["✨ Family Member"],
         created_by_email: user.email,
-        is_living: true // Ensure the user is marked as living
+        is_living: true // Users are always living
       }, { onConflict: 'user_id' });
 
       toast.success("Profile saved successfully!");

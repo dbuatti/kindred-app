@@ -16,6 +16,15 @@ export function formatDisplayName(name: string) {
 }
 
 /**
+ * Extracts a 4-digit year from a string.
+ */
+export function extractYear(dateStr: string | undefined | null): string {
+  if (!dateStr) return "";
+  const match = dateStr.match(/\d{4}/);
+  return match ? match[0] : "";
+}
+
+/**
  * Formats a date string into the genealogical standard.
  * Handles ISO strings and common DD/MM/YYYY formats.
  */
@@ -32,9 +41,12 @@ export function formatFamilyDate(dateStr: string | undefined | null) {
     
     // Try common slash format
     if (dateStr.includes('/')) {
-      const [d, m, y] = dateStr.split('/').map(Number);
-      const manualDate = new Date(y, m - 1, d);
-      if (isValid(manualDate)) return format(manualDate, "d MMM yyyy");
+      const parts = dateStr.split('/').map(Number);
+      if (parts.length === 3) {
+        const [d, m, y] = parts;
+        const manualDate = new Date(y, m - 1, d);
+        if (isValid(manualDate)) return format(manualDate, "d MMM yyyy");
+      }
     }
     
     return dateStr;
