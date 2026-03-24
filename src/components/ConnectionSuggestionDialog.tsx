@@ -48,10 +48,21 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
     const inferences: { id: string; question: string; inferredRole: string; targetPersonName: string; targetId: string }[] = [];
     const relType = rel.toLowerCase();
 
+    // Logic to find the parents of the current person
+    const myParents = relationships
+      .filter(r => {
+        const type = r.relationship_type.toLowerCase();
+        // Case 1: Row says "[Someone] is the parent of [Me]"
+        if (r.related_person_id === person.id && ['mother', 'father', 'parent'].includes(type)) return true;
+        // Case 2: Row says "[Me] is the child of [Someone]"
+        if (r.person_id === person.id && ['son', 'daughter', 'child'].includes(type)) return true;
+        return false;
+      })
+      .map(r => r.related_person_id === person.id ? r.person_id : r.related_person_id);
+
     if (relType === "brother" || relType === "sister") {
-      const parentRels = relationships.filter(r => r.person_id === person.id && (r.relationship_type === 'mother' || r.relationship_type === 'father'));
-      parentRels.forEach(pr => {
-        const parent = people.find(p => p.id === pr.related_person_id);
+      myParents.forEach(parentId => {
+        const parent = people.find(p => p.id === parentId);
         if (parent) {
           inferences.push({
             id: `sib-parent-${parent.id}`,
@@ -65,19 +76,17 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
     }
 
     if (relType === "cousin") {
-      const myParents = relationships
-        .filter(r => r.person_id === person.id && (r.relationship_type === 'mother' || r.relationship_type === 'father'))
-        .map(r => people.find(p => p.id === r.related_person_id))
-        .filter(Boolean);
-
-      myParents.forEach(parent => {
-        inferences.push({
-          id: `cousin-parent-link-${parent!.id}`,
-          question: `Is one of ${name}'s parents a brother or sister of ${parent!.name}?`,
-          inferredRole: 'Sibling',
-          targetPersonName: parent!.name,
-          targetId: parent!.id
-        });
+      myParents.forEach(parentId => {
+        const parent = people.find(p => p.id === parentId);
+        if (parent) {
+          inferences.push({
+            id: `cousin-parent-link-${parent.id}`,
+            question: `Is one of ${name}'s parents a brother or sister of ${parent.name}?`,
+            inferredRole: 'Sibling',
+            targetPersonName: parent.name,
+            targetId: parent.id
+          });
+        }
       });
     }
 
@@ -92,7 +101,6 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
 
     if (isAdmin) {
       if (selectedPersonId) {
-        // Direction: selectedPersonId IS THE rel OF person.id
         await addRelationship(selectedPersonId, person.id, rel);
         
         const confirmed = smartInferences.filter(inf => confirmedInferences[inf.id]);
@@ -100,7 +108,6 @@ const ConnectionSuggestionDialog = ({ person }: ConnectionSuggestionDialogProps)
           await addRelationship(selectedPersonId, inf.targetId, inf.inferredRole);
         }
       } else {
-        // Add New
         const newId = await addPerson({ 
           name: relativeName, 
           personalityTags: [relationship],
