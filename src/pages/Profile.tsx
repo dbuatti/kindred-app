@@ -24,7 +24,8 @@ import {
   Briefcase,
   Heart,
   UploadCloud,
-  Camera
+  Camera,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { getPersonUrl } from '@/lib/slugify';
@@ -40,9 +41,10 @@ const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { user, profiles, people, relationships, suggestions, resolveSuggestion, updatePerson, loading } = useFamily();
+  const { user, profiles, people, relationships, suggestions, resolveSuggestion, updatePerson, loading, refreshData } = useFamily();
 
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const profile = user ? profiles[user.id] : null;
   const isAdmin = user?.email === ADMIN_EMAIL;
@@ -81,6 +83,28 @@ const Profile = () => {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate('/login');
+  };
+
+  const handleResetOnboarding = async () => {
+    if (!user) return;
+    setIsResetting(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ onboarding_completed: false })
+        .eq('id', user.id);
+
+      if (error) throw error;
+      
+      toast.success("Onboarding reset! Redirecting...");
+      // Refresh data so the AuthGuard picks up the change
+      await refreshData();
+      navigate('/onboarding');
+    } catch (error: any) {
+      toast.error("Failed to reset: " + error.message);
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   if (loading) return <div className="p-20 text-center text-2xl font-serif">Loading your hub...</div>;
@@ -356,6 +380,20 @@ const Profile = () => {
               >
                 How to use Kindred
                 <ChevronRight className="w-4 h-4 text-stone-300" />
+              </Button>
+              
+              {/* Debug/Trial Action */}
+              <Button 
+                variant="outline"
+                onClick={handleResetOnboarding}
+                disabled={isResetting}
+                className="w-full h-16 bg-amber-50/30 hover:bg-amber-50 text-amber-700 border-2 border-amber-100 border-dashed rounded-2xl shadow-sm justify-between px-6"
+              >
+                <span className="flex items-center gap-2">
+                  {isResetting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  Trial Onboarding Flow
+                </span>
+                <ChevronRight className="w-4 h-4 text-amber-300" />
               </Button>
             </div>
           </div>
