@@ -30,6 +30,7 @@ import { supabase } from '../integrations/supabase/client';
 import { getPersonUrl } from '@/lib/slugify';
 import ConnectionSuggestionDialog from '../components/ConnectionSuggestionDialog';
 import AddMemoryDialog from '../components/AddMemoryDialog';
+import FloatingMenu from '../components/FloatingMenu';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useImageUpload } from '@/hooks/use-image-upload';
@@ -362,6 +363,7 @@ const Profile = () => {
       </main>
 
       {/* Floating Action */}
+      <FloatingMenu personId={myPerson?.id} personName={fullName} />
       <AddMemoryDialog 
         personId={myPerson?.id}
         personName={fullName} 

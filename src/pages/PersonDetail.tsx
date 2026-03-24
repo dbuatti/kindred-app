@@ -26,6 +26,7 @@ import BottomNav from '../components/BottomNav';
 import PersonHero from '../components/person/PersonHero';
 import PhotoGallery from '../components/person/PhotoGallery';
 import CommentSection from '../components/CommentSection';
+import FloatingMenu from '../components/FloatingMenu';
 import { PersonDetailSkeleton } from '../components/SkeletonLoader';
 import { cn, formatFamilyDate } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -286,6 +287,7 @@ const PersonDetail = () => {
         </section>
       </main>
 
+      <FloatingMenu personId={person.id} personName={person.name} />
       <AddMemoryDialog personId={person.id} personName={person.name} open={isAddMemoryOpen} onOpenChange={setIsAddMemoryOpen} initialImage={droppedImage} />
       <ScrollToTop />
       <BottomNav />

@@ -134,14 +134,7 @@ const AddMemoryDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button className="fixed bottom-6 right-6 h-16 px-8 rounded-full shadow-xl bg-amber-600 hover:bg-amber-700 text-white z-20 text-lg font-bold gap-3 border-2 border-white">
-            <Mic className="w-6 h-6" />
-            Tell a Story
-          </Button>
-        )}
-      </DialogTrigger>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent 
         className={cn(
           "sm:max-w-2xl rounded-[3rem] border-none bg-white p-8 transition-all duration-300 max-h-[90vh] overflow-y-auto",

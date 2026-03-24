@@ -9,7 +9,12 @@ import AddMemoryDialog from './AddMemoryDialog';
 import { cn } from '@/lib/utils';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 
-const FloatingMenu = () => {
+interface FloatingMenuProps {
+  personId?: string;
+  personName?: string;
+}
+
+const FloatingMenu = ({ personId, personName = "the family" }: FloatingMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isPersonDialogOpen, setIsPersonDialogOpen] = useState(false);
   const [isMemoryDialogOpen, setIsMemoryDialogOpen] = useState(false);
@@ -38,10 +43,11 @@ const FloatingMenu = () => {
               <AddPersonDialog 
                 open={isPersonDialogOpen}
                 onOpenChange={setIsPersonDialogOpen}
+                initialRelatedToId={personId}
                 trigger={
-                  <Button className="h-14 w-14 rounded-full bg-white text-stone-800 shadow-xl border-2 border-stone-100 hover:bg-stone-50">
+                  <button className="h-14 w-14 rounded-full bg-white text-stone-800 shadow-xl border-2 border-stone-100 hover:bg-stone-50 flex items-center justify-center transition-transform hover:scale-110">
                     <UserPlus className="w-6 h-6" />
-                  </Button>
+                  </button>
                 }
               />
             </div>
@@ -51,13 +57,14 @@ const FloatingMenu = () => {
                 <span className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mt-1 mr-1">Press 'N'</span>
               </div>
               <AddMemoryDialog 
-                personName="the family"
+                personId={personId}
+                personName={personName}
                 open={isMemoryDialogOpen}
                 onOpenChange={setIsMemoryDialogOpen}
                 trigger={
-                  <Button className="h-14 w-14 rounded-full bg-amber-600 text-white shadow-xl border-2 border-white hover:bg-amber-700">
+                  <button className="h-14 w-14 rounded-full bg-amber-600 text-white shadow-xl border-2 border-white hover:bg-amber-700 flex items-center justify-center transition-transform hover:scale-110">
                     <Mic className="w-6 h-6" />
-                  </Button>
+                  </button>
                 }
               />
             </div>
