@@ -45,8 +45,8 @@ const FamilyTree = () => {
       const g = new dagre.graphlib.Graph();
       g.setGraph({ 
         rankdir: 'TB', 
-        nodesep: 150, // Increased horizontal spacing
-        ranksep: 200, // Increased vertical spacing for structured paths
+        nodesep: 200, // Wide spacing for distinct paths
+        ranksep: 250, // Tall spacing for staggered curves
         marginx: 100, 
         marginy: 100,
       });
@@ -68,7 +68,7 @@ const FamilyTree = () => {
         });
       });
 
-      const unions: Record<string, { id: string, p1: string, p2: string, children: Set<string>, color: string }> = {};
+      const unions: Record<string, { id: string, p1: string, p2: string, children: string[], color: string }> = {};
       let colorIdx = 0;
 
       relationships.forEach(r => {
@@ -80,7 +80,7 @@ const FamilyTree = () => {
                 id: `union_${pairId}`, 
                 p1: r.person_id, 
                 p2: r.related_person_id, 
-                children: new Set(),
+                children: [],
                 color: BRANCH_COLORS[colorIdx % BRANCH_COLORS.length]
               };
               colorIdx++;
@@ -110,20 +110,21 @@ const FamilyTree = () => {
 
           const union = Object.values(unions).find(u => u.p1 === parentId || u.p2 === parentId);
           if (union) {
-            union.children.add(childId);
+            if (!union.children.includes(childId)) union.children.push(childId);
           } else {
-            g.setEdge(parentId, childId, { type: 'lineage', weight: 1, color: '#e7e5e4' });
+            g.setEdge(parentId, childId, { type: 'lineage', color: '#e7e5e4' });
           }
         }
       });
 
       Object.values(unions).forEach(u => {
         g.setNode(u.id, { width: 40, height: 40, isUnion: true, color: u.color });
-        g.setEdge(u.p1, u.id, { type: 'marriage', weight: 2, color: u.color });
-        g.setEdge(u.p2, u.id, { type: 'marriage', weight: 2, color: u.color });
+        g.setEdge(u.p1, u.id, { type: 'marriage', color: u.color });
+        g.setEdge(u.p2, u.id, { type: 'marriage', color: u.color });
         
-        u.children.forEach(childId => {
-          g.setEdge(u.id, childId, { type: 'lineage', weight: 1, parentId: u.id, color: u.color });
+        u.children.forEach((childId, idx) => {
+          // Pass the index to the edge for staggering
+          g.setEdge(u.id, childId, { type: 'lineage', color: u.color, index: idx });
         });
       });
 
@@ -133,8 +134,7 @@ const FamilyTree = () => {
       const edges = g.edges().map(e => ({ 
         from: g.node(e.v), 
         to: g.node(e.w),
-        type: g.edge(e).type,
-        color: g.edge(e).color
+        ...g.edge(e)
       }));
 
       const minX = Math.min(...nodes.map(n => n.x - 150));
@@ -227,62 +227,57 @@ const FamilyTree = () => {
             height={data.height} 
             className="absolute inset-0 pointer-events-none overflow-visible"
           >
-            <defs>
-              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="2" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
             {data.edges.map((edge, i) => {
+              if (!edge.from || !edge.to) return null;
+
               const isMarriage = edge.type === 'marriage';
               
+              // Adjust start/end points to node boundaries
               const startX = edge.from.x;
-              const startY = edge.from.y;
+              const startY = edge.from.y + (edge.from.isUnion ? 0 : 50); // Bottom of person node
               const endX = edge.to.x;
-              const endY = edge.to.y;
+              const endY = edge.to.y - (edge.to.isUnion ? 20 : 50); // Top of node
 
               let path = "";
 
               if (isMarriage) {
-                // Marriage lines are straight but slightly offset to look like they connect the sides
-                path = `M ${startX} ${startY} L ${endX} ${endY}`;
+                // Curved "V" meeting at the heart
+                const midY = startY + (endY - startY) * 0.5;
+                path = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
               } else {
-                // Structured "Step" path with rounded corners
-                const midY = startY + (endY - startY) * 0.4; // Drop point
-                const radius = 20; // Corner radius
-                
-                const direction = endX > startX ? 1 : -1;
+                // Staggered "Step" path
+                // Every child gets a slightly different horizontal height (midY)
+                const staggerOffset = (edge.index || 0) * 15; 
+                const midY = startY + 60 + staggerOffset; 
                 
                 path = `M ${startX} ${startY} 
-                        L ${startX} ${midY - radius}
-                        Q ${startX} ${midY}, ${startX + (radius * direction)} ${midY}
-                        L ${endX - (radius * direction)} ${midY}
-                        Q ${endX} ${midY}, ${endX} ${midY + radius}
+                        L ${startX} ${midY - 20}
+                        Q ${startX} ${midY}, ${startX + (endX > startX ? 20 : -20)} ${midY}
+                        L ${endX + (endX > startX ? -20 : 20)} ${midY}
+                        Q ${endX} ${midY}, ${endX} ${midY + 20}
                         L ${endX} ${endY}`;
               }
               
               return (
                 <g key={i}>
-                  {/* Background "shadow" line for better visibility */}
                   <path
                     d={path}
                     stroke="white"
-                    strokeWidth={isMarriage ? "6" : "4.5"}
+                    strokeWidth={isMarriage ? "6" : "5"}
                     fill="none"
                     strokeLinecap="round"
-                    opacity="0.5"
+                    opacity="0.6"
                   />
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 1.5, ease: "easeInOut" }}
+                    transition={{ duration: 1.2, ease: "easeInOut" }}
                     d={path}
                     stroke={edge.color}
                     strokeWidth={isMarriage ? "4" : "2.5"}
                     fill="none"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    style={{ filter: 'url(#glow)' }}
                   />
                 </g>
               );
