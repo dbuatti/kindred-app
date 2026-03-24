@@ -20,6 +20,7 @@ import { getPersonUrl } from '@/lib/slugify';
 import { cn } from '@/lib/utils';
 import dagre from 'dagre';
 import AddPersonDialog from '../components/AddPersonDialog';
+import SmartSuggestionHover from '../components/SmartSuggestionHover';
 
 const FamilyTree = () => {
   const navigate = useNavigate();
@@ -317,6 +318,8 @@ const FamilyTree = () => {
                 onClick={() => navigate(getPersonUrl(node.id, node.person.name))}
                 className="absolute bg-white rounded-2xl border-2 border-stone-100 shadow-sm hover:shadow-md hover:border-amber-200 transition-all p-4 flex items-center gap-4 cursor-pointer group"
               >
+                <SmartSuggestionHover personId={node.id} />
+                
                 <div className="h-14 w-14 rounded-full overflow-hidden bg-stone-50 shrink-0 border border-stone-100 shadow-inner">
                   {node.person.photoUrl ? (
                     <img src={node.person.photoUrl} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all" />
