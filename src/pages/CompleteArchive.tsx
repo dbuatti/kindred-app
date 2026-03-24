@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { getPersonUrl } from '@/lib/slugify';
 import MissionProgress from '../components/MissionProgress';
 import SuggestionDialog from '../components/SuggestionDialog';
+import MissingPersonBanner from '../components/MissingPersonBanner';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const CompleteArchive = () => {
@@ -215,6 +216,8 @@ const CompleteArchive = () => {
             </div>
           </section>
         )}
+
+        <MissingPersonBanner />
 
         <div className="space-y-8">
           <div className="flex items-center justify-between border-b-4 border-stone-100 pb-4">
