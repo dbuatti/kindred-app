@@ -33,6 +33,7 @@ export const getInverseRelationship = (type: string, relativeGender?: string) =>
     return 'Spouse';
   }
   
+  // Handle Grandparents
   if (t === 'grandmother' || t === 'grandfather' || t === 'grandparent' || t === 'grandson' || t === 'granddaughter' || t === 'grandchild') {
     if (t.includes('grandparent') || t.includes('grandm') || t.includes('grandf')) {
       if (g === 'male') return 'Grandson';
@@ -42,6 +43,19 @@ export const getInverseRelationship = (type: string, relativeGender?: string) =>
       if (g === 'male') return 'Grandfather';
       if (g === 'female') return 'Grandmother';
       return 'Grandparent';
+    }
+  }
+
+  // Handle Great Grandparents
+  if (t.includes('great')) {
+    if (t.includes('grandparent') || t.includes('grandm') || t.includes('grandf')) {
+      if (g === 'male') return 'Great Grandson';
+      if (g === 'female') return 'Great Granddaughter';
+      return 'Great Grandchild';
+    } else {
+      if (g === 'male') return 'Great Grandfather';
+      if (g === 'female') return 'Great Grandmother';
+      return 'Great Grandparent';
     }
   }
 
@@ -92,6 +106,14 @@ export const getGenderedRole = (role: string, gender?: string) => {
     if (g === 'male') return 'Nephew';
     if (g === 'female') return 'Niece';
     return 'Nephew/Niece';
+  }
+  if (r.includes('great')) {
+    if (r.includes('grandm') || r.includes('mother')) return g === 'male' ? 'Great Grandfather' : 'Great Grandmother';
+    if (r.includes('grandf') || r.includes('father')) return g === 'female' ? 'Great Grandmother' : 'Great Grandfather';
+  }
+  if (r.includes('grand')) {
+    if (r.includes('grandm') || r.includes('mother')) return g === 'male' ? 'Grandfather' : 'Grandmother';
+    if (r.includes('grandf') || r.includes('father')) return g === 'female' ? 'Grandmother' : 'Grandfather';
   }
   return role;
 };

@@ -30,46 +30,27 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       );
     };
 
-    const getRelIds = (id: string, types: string[]) => {
-      const ids = new Set<string>();
-      relationships.forEach(r => {
-        const t = r.relationship_type.toLowerCase();
-        const matchesType = types.some(type => t.includes(type));
-        if (!matchesType) return;
-
-        if (r.person_id === id) ids.add(r.related_person_id);
-        if (r.related_person_id === id) ids.add(r.person_id);
-      });
-      return Array.from(ids);
+    const getParentIds = (id: string) => {
+      return relationships
+        .filter(r => {
+          const t = r.relationship_type.toLowerCase();
+          if (r.related_person_id === id && ['mother', 'father', 'parent'].includes(t)) return true;
+          if (r.person_id === id && ['son', 'daughter', 'child'].includes(t)) return true;
+          return false;
+        })
+        .map(r => r.person_id === id ? r.related_person_id : r.person_id);
     };
-
-    const mySiblingIds = getRelIds(personId, ['brother', 'sister', 'sibling']);
 
     const items: { id: string; text: string; action: () => Promise<void> }[] = [];
 
     // 1. Sibling Inference (Shared Parents)
-    const actualParentIds = relationships
-      .filter(r => {
-        const t = r.relationship_type.toLowerCase();
-        if (r.related_person_id === personId && ['mother', 'father', 'parent'].includes(t)) return true;
-        if (r.person_id === personId && ['son', 'daughter', 'child'].includes(t)) return true;
-        return false;
-      })
-      .map(r => r.person_id === personId ? r.related_person_id : r.person_id);
+    const actualParentIds = getParentIds(personId);
 
     if (actualParentIds.length > 0) {
       people.forEach(p => {
         if (p.id === personId || areLinked(personId, p.id)) return;
         
-        const theirParentIds = relationships
-          .filter(r => {
-            const t = r.relationship_type.toLowerCase();
-            if (r.related_person_id === p.id && ['mother', 'father', 'parent'].includes(t)) return true;
-            if (r.person_id === p.id && ['son', 'daughter', 'child'].includes(t)) return true;
-            return false;
-          })
-          .map(r => r.person_id === p.id ? r.related_person_id : r.person_id);
-        
+        const theirParentIds = getParentIds(p.id);
         if (theirParentIds.some(id => actualParentIds.includes(id))) {
           const relType = getGenderedRole('sibling', p.gender);
           items.push({
@@ -92,44 +73,49 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       });
     }
 
-    // 2. Parent Inference (Sibling of my sibling)
-    mySiblingIds.forEach(sibId => {
-      const sibParentIds = relationships
-        .filter(r => {
-          const t = r.relationship_type.toLowerCase();
-          if (r.related_person_id === sibId && ['mother', 'father', 'parent'].includes(t)) return true;
-          if (r.person_id === sibId && ['son', 'daughter', 'child'].includes(t)) return true;
-          return false;
-        })
-        .map(r => r.person_id === sibId ? r.related_person_id : r.person_id);
-
-      sibParentIds.forEach(pId => {
-        if (pId === personId || areLinked(personId, pId)) return;
-
-        const parent = people.find(p => p.id === pId);
-        if (parent) {
-          const role = getGenderedRole('parent', parent.gender);
-          items.push({
-            id: `parent-${pId}`,
-            text: `Is ${parent.name} also the ${role} of ${person.name.split(' ')[0]}?`,
-            action: async () => {
-              if (isAdmin) {
-                await addRelationship(pId, personId, role);
-              } else {
-                await addSuggestion({
-                  personId: personId,
-                  fieldName: 'link_existing',
-                  suggestedValue: `LINK_EXISTING: ${pId} as ${role} to ${personId}`,
-                  suggestedByEmail: user?.email || 'family@kindred.com'
-                });
+    // 2. Generational Inference (Grandparents & Great-Grandparents)
+    actualParentIds.forEach(parentId => {
+      const grandparentIds = getParentIds(parentId);
+      
+      grandparentIds.forEach(gpId => {
+        // Suggest Grandparent
+        if (!areLinked(personId, gpId)) {
+          const gp = people.find(p => p.id === gpId);
+          if (gp) {
+            const role = getGenderedRole('Grandparent', gp.gender);
+            items.push({
+              id: `gp-${gpId}`,
+              text: `Is ${gp.name.split(' ')[0]} the ${role} of ${person.name.split(' ')[0]}?`,
+              action: async () => {
+                if (isAdmin) await addRelationship(gpId, personId, role);
+                else await addSuggestion({ personId, fieldName: 'link_existing', suggestedValue: `LINK_EXISTING: ${gpId} as ${role} to ${personId}`, suggestedByEmail: user?.email || 'family@kindred.com' });
               }
-            }
-          });
+            });
+          }
         }
+
+        // Suggest Great-Grandparent
+        const greatGrandparentIds = getParentIds(gpId);
+        greatGrandparentIds.forEach(ggpId => {
+          if (!areLinked(personId, ggpId)) {
+            const ggp = people.find(p => p.id === ggpId);
+            if (ggp) {
+              const role = getGenderedRole('Great Grandparent', ggp.gender);
+              items.push({
+                id: `ggp-${ggpId}`,
+                text: `Is ${ggp.name.split(' ')[0]} the ${role} of ${person.name.split(' ')[0]}?`,
+                action: async () => {
+                  if (isAdmin) await addRelationship(ggpId, personId, role);
+                  else await addSuggestion({ personId, fieldName: 'link_existing', suggestedValue: `LINK_EXISTING: ${ggpId} as ${role} to ${personId}`, suggestedByEmail: user?.email || 'family@kindred.com' });
+                }
+              });
+            }
+          }
+        });
       });
     });
 
-    // 3. Sibling-of-Relative Inference
+    // 3. Sibling-of-Relative Inference (Uncles/Aunts)
     const directRelatives = relationships
       .filter(r => r.person_id === personId || r.related_person_id === personId)
       .map(r => {
@@ -137,7 +123,6 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
         const relId = isPrimary ? r.related_person_id : r.person_id;
         const rel = people.find(p => p.id === relId);
         if (!rel) return null;
-        
         const type = !isPrimary ? r.relationship_type : getInverseRelationship(r.relationship_type, rel.gender);
         return { id: relId, name: rel.name, type, gender: rel.gender };
       })
@@ -146,8 +131,6 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     directRelatives.forEach(rel => {
       const relId = rel.id;
       const relType = rel.type.toLowerCase();
-      
-      // Skip spouse propagation - siblings of spouses are not spouses
       if (['spouse', 'wife', 'husband'].includes(relType)) return;
 
       const siblingsOfRel = relationships
@@ -157,36 +140,21 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
         
       siblingsOfRel.forEach(sibId => {
         if (sibId === personId || areLinked(personId, sibId)) return;
-        
         const sibling = people.find(p => p.id === sibId);
         if (sibling) {
           let suggestedRole = rel.type;
-          
-          // If rel is a parent, their sibling is an Uncle/Aunt
           if (['mother', 'father', 'parent'].includes(relType)) {
             suggestedRole = getGenderedRole('uncle', sibling.gender);
           } else {
-            // Otherwise (e.g. Son/Daughter), adjust gender for the sibling
             suggestedRole = getGenderedRole(rel.type, sibling.gender);
           }
-
-          // Final check: Ensure the text uses the correct gendered term for the relative too
           const relDisplayRole = getGenderedRole(rel.type, rel.gender);
-
           items.push({
             id: `sib-rel-${relId}-${sibId}`,
             text: `Since ${rel.name.split(' ')[0]} is ${withArticle(relDisplayRole)}, is their sibling ${sibling.name.split(' ')[0]} also ${withArticle(suggestedRole)}?`,
             action: async () => {
-              if (isAdmin) {
-                await addRelationship(sibId, personId, suggestedRole);
-              } else {
-                await addSuggestion({
-                  personId: personId,
-                  fieldName: 'link_existing',
-                  suggestedValue: `LINK_EXISTING: ${sibId} as ${suggestedRole} to ${personId}`,
-                  suggestedByEmail: user?.email || 'family@kindred.com'
-                });
-              }
+              if (isAdmin) await addRelationship(sibId, personId, suggestedRole);
+              else await addSuggestion({ personId, fieldName: 'link_existing', suggestedValue: `LINK_EXISTING: ${sibId} as ${suggestedRole} to ${personId}`, suggestedByEmail: user?.email || 'family@kindred.com' });
             }
           });
         }
@@ -196,7 +164,9 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     return items.filter(item => !dismissedIds.has(item.id));
   }, [person, personId, people, relationships, isAdmin, user, dismissedIds]);
 
-  const handleAction = async (id: string, action: () => Promise<void>) => {
+  const handleAction = async (id: string, action: () => Promise<void>, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setIsProcessing(id);
     try {
       await action();
@@ -209,7 +179,9 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     }
   };
 
-  const handleConfirmAll = async () => {
+  const handleConfirmAll = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setIsProcessing('all');
     const toastId = toast.loading(`Processing ${suggestions.length} suggestions...`);
     const idsToDismiss = suggestions.map(s => s.id);
@@ -231,6 +203,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
   };
 
   const handleDismiss = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     setDismissedIds(prev => {
       const next = new Set(prev);
@@ -240,6 +213,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
   };
 
   const handleCopy = (text: string, e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     navigator.clipboard.writeText(text);
     toast.success("Question copied to clipboard!");
@@ -257,7 +231,12 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
           <Sparkles className="w-4 h-4" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-4 rounded-2xl border-none shadow-2xl bg-stone-900 text-white" side="top" align="start">
+      <PopoverContent 
+        className="w-72 p-4 rounded-2xl border-none shadow-2xl bg-stone-900 text-white" 
+        side="top" 
+        align="start"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-amber-400">
@@ -297,10 +276,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
                   <Button 
                     size="sm" 
                     className="flex-1 bg-amber-500 hover:bg-amber-400 text-stone-900 rounded-lg h-8 text-xs font-bold"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAction(s.id, s.action);
-                    }}
+                    onClick={(e) => handleAction(s.id, s.action, e)}
                     disabled={!!isProcessing}
                   >
                     {isProcessing === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}
