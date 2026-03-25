@@ -16,6 +16,16 @@ export function formatDisplayName(name: string) {
 }
 
 /**
+ * Adds 'a' or 'an' to a word based on its first letter.
+ */
+export function withArticle(word: string) {
+  if (!word) return "";
+  const firstLetter = word.toLowerCase()[0];
+  const article = ['a', 'e', 'i', 'o', 'u'].includes(firstLetter) ? 'an' : 'a';
+  return `${article} ${word}`;
+}
+
+/**
  * Constructs the full legal name including middle names.
  */
 export function getFullLegalName(person: { name: string, middleName?: string }) {

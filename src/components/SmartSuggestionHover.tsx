@@ -5,7 +5,7 @@ import { Sparkles, Check, X, HelpCircle, Loader2, Copy, CheckCircle2 } from 'luc
 import { useFamily } from '../context/FamilyContext';
 import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { cn } from '@/lib/utils';
+import { cn, withArticle } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getInverseRelationship, getGenderedRole } from '@/lib/relationships';
 
@@ -175,7 +175,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
 
           items.push({
             id: `sib-rel-${relId}-${sibId}`,
-            text: `Since ${rel.name.split(' ')[0]} is a ${relDisplayRole}, is their sibling ${sibling.name.split(' ')[0]} also a ${suggestedRole}?`,
+            text: `Since ${rel.name.split(' ')[0]} is ${withArticle(relDisplayRole)}, is their sibling ${sibling.name.split(' ')[0]} also ${withArticle(suggestedRole)}?`,
             action: async () => {
               if (isAdmin) {
                 await addRelationship(sibId, personId, suggestedRole);
