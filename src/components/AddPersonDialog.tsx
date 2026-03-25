@@ -76,7 +76,7 @@ const AddPersonDialog = ({
       relationshipType: relationship,
       vibeSentence: "", 
       personalityTags: [relationship],
-      photoUrl: null // Removed the hardcoded placeholder URL
+      photoUrl: null
     }, relatedToId, relationship);
 
     toast.success(`${name} added to the family!`);
@@ -193,7 +193,7 @@ const AddPersonDialog = ({
 
             {/* Relationship Preview Sentence */}
             {name && relationship && targetPerson && (
-              <div className="bg-white p-6 rounded-2xl border border-amber-200 flex items-center gap-4 animate-in fade-in slide-in-from-top-2 shadow-sm">
+              <div className="bg-white p-6 rounded-2xl border-2 border-amber-100 flex items-center gap-4 animate-in fade-in slide-in-from-top-2 shadow-sm">
                 <div className="flex-1">
                   <p className="text-lg text-stone-800 leading-relaxed">
                     <span className="font-bold text-amber-700">{name}</span> is the <span className="font-bold text-amber-700">{relationship}</span> of <span className="font-bold text-amber-700">{targetPerson.name}</span>.
