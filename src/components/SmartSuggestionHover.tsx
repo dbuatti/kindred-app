@@ -7,7 +7,7 @@ import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { getInverseRelationship } from '@/lib/relationships';
+import { getInverseRelationship, getGenderedRole } from '@/lib/relationships';
 
 interface SmartSuggestionHoverProps {
   personId: string;
@@ -71,12 +71,11 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
           .map(r => r.person_id === p.id ? r.related_person_id : r.person_id);
         
         if (theirParentIds.some(id => actualParentIds.includes(id))) {
+          const relType = getGenderedRole('sibling', p.gender);
           items.push({
             id: `sib-${p.id}`,
             text: `Should ${person.name.split(' ')[0]} and ${p.name.split(' ')[0]} be marked as siblings?`,
             action: async () => {
-              const relType = p.gender?.toLowerCase() === 'female' ? 'sister' : 
-                             p.gender?.toLowerCase() === 'male' ? 'brother' : 'sibling';
               if (isAdmin) {
                 await addRelationship(personId, p.id, relType);
               } else {
@@ -109,8 +108,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
 
         const parent = people.find(p => p.id === pId);
         if (parent) {
-          const role = parent.gender?.toLowerCase() === 'female' ? 'mother' : 
-                       parent.gender?.toLowerCase() === 'male' ? 'father' : 'parent';
+          const role = getGenderedRole('parent', parent.gender);
           items.push({
             id: `parent-${pId}`,
             text: `Is ${parent.name} also the ${role} of ${person.name.split(' ')[0]}?`,
@@ -139,16 +137,21 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
         const relId = isPrimary ? r.related_person_id : r.person_id;
         const rel = people.find(p => p.id === relId);
         if (!rel) return null;
-        const type = isPrimary ? r.relationship_type : getInverseRelationship(r.relationship_type, person.gender);
+        
+        // If isPrimary (person -> rel), r.relationship_type is person's role. We need rel's role.
+        // If !isPrimary (rel -> person), r.relationship_type is rel's role.
+        const type = !isPrimary ? r.relationship_type : getInverseRelationship(r.relationship_type, rel.gender);
         return { id: relId, name: rel.name, type };
       })
-      .filter(Boolean);
+      .filter((r): r is any => r !== null);
 
     directRelatives.forEach(rel => {
-      if (!rel) return;
       const relId = rel.id;
-      const relType = rel.type;
+      const relType = rel.type.toLowerCase();
       
+      // Skip spouse propagation - siblings of spouses are not spouses
+      if (['spouse', 'wife', 'husband'].includes(relType)) return;
+
       const siblingsOfRel = relationships
         .filter(r => (r.person_id === relId || r.related_person_id === relId) && 
                      ['brother', 'sister', 'sibling'].includes(r.relationship_type.toLowerCase()))
@@ -159,17 +162,27 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
         
         const sibling = people.find(p => p.id === sibId);
         if (sibling) {
+          let suggestedRole = rel.type;
+          
+          // If rel is a parent, their sibling is an Uncle/Aunt
+          if (['mother', 'father', 'parent'].includes(relType)) {
+            suggestedRole = getGenderedRole('uncle', sibling.gender);
+          } else {
+            // Otherwise (e.g. Son/Daughter), adjust gender for the sibling
+            suggestedRole = getGenderedRole(rel.type, sibling.gender);
+          }
+
           items.push({
             id: `sib-rel-${relId}-${sibId}`,
-            text: `Since ${rel.name.split(' ')[0]} is a ${relType}, is their sibling ${sibling.name.split(' ')[0]} also a ${relType}?`,
+            text: `Since ${rel.name.split(' ')[0]} is a ${rel.type}, is their sibling ${sibling.name.split(' ')[0]} also a ${suggestedRole}?`,
             action: async () => {
               if (isAdmin) {
-                await addRelationship(personId, sibId, relType);
+                await addRelationship(personId, sibId, suggestedRole);
               } else {
                 await addSuggestion({
                   personId: personId,
                   fieldName: 'link_existing',
-                  suggestedValue: `LINK_EXISTING: ${sibId} as ${relType} to ${personId}`,
+                  suggestedValue: `LINK_EXISTING: ${sibId} as ${suggestedRole} to ${personId}`,
                   suggestedByEmail: user?.email || 'family@kindred.com'
                 });
               }
