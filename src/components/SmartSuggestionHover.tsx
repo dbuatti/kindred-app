@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import { Sparkles, Check, X, HelpCircle, Loader2 } from 'lucide-react';
+import { Sparkles, Check, X, HelpCircle, Loader2, Copy } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -132,7 +132,6 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     });
 
     // 3. Sibling-of-Relative Inference (The "James/Scott" case)
-    // If A is my [Type] and B is A's sibling, then B is also my [Type]
     const directRelatives = relationships
       .filter(r => r.person_id === personId || r.related_person_id === personId)
       .map(r => {
@@ -206,6 +205,12 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     });
   };
 
+  const handleCopy = (text: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+    toast.success("Question copied to clipboard!");
+  };
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -218,17 +223,28 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       </PopoverTrigger>
       <PopoverContent className="w-72 p-4 rounded-2xl border-none shadow-2xl bg-stone-900 text-white" side="top" align="start">
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-amber-400">
-            <HelpCircle className="w-4 h-4" />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Smart Suggestion</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-amber-400">
+              <HelpCircle className="w-4 h-4" />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Smart Suggestion</span>
+            </div>
           </div>
           
           <div className="space-y-3">
             {suggestions.map((s) => (
-              <div key={s.id} className="space-y-2">
-                <p className="text-sm font-serif italic leading-relaxed text-stone-200">
-                  "{s.text}"
-                </p>
+              <div key={s.id} className="space-y-2 group/item">
+                <div className="relative">
+                  <p className="text-sm font-serif italic leading-relaxed text-stone-200 pr-8">
+                    "{s.text}"
+                  </p>
+                  <button 
+                    onClick={(e) => handleCopy(s.text, e)}
+                    className="absolute top-0 right-0 p-1.5 text-stone-500 hover:text-amber-400 transition-colors rounded-lg hover:bg-white/5"
+                    title="Copy question"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 <div className="flex gap-2">
                   <Button 
                     size="sm" 
