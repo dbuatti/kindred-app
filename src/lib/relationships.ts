@@ -51,6 +51,12 @@ export const getInverseRelationship = (type: string, relativeGender?: string) =>
     return 'Relative';
   }
 
+  if (t === 'nephew' || t === 'niece') {
+    if (g === 'male') return 'Uncle';
+    if (g === 'female') return 'Aunt';
+    return 'Uncle/Aunt';
+  }
+
   return type;
 };
 
@@ -81,6 +87,11 @@ export const getGenderedRole = (role: string, gender?: string) => {
     if (g === 'male') return 'Uncle';
     if (g === 'female') return 'Aunt';
     return 'Uncle/Aunt';
+  }
+  if (['nephew', 'niece'].includes(r)) {
+    if (g === 'male') return 'Nephew';
+    if (g === 'female') return 'Niece';
+    return 'Nephew/Niece';
   }
   return role;
 };

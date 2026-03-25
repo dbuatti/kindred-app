@@ -77,7 +77,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
             text: `Should ${person.name.split(' ')[0]} and ${p.name.split(' ')[0]} be marked as siblings?`,
             action: async () => {
               if (isAdmin) {
-                await addRelationship(personId, p.id, relType);
+                await addRelationship(p.id, personId, relType);
               } else {
                 await addSuggestion({
                   personId: personId,
@@ -129,7 +129,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       });
     });
 
-    // 3. Sibling-of-Relative Inference (The "James/Scott" case)
+    // 3. Sibling-of-Relative Inference
     const directRelatives = relationships
       .filter(r => r.person_id === personId || r.related_person_id === personId)
       .map(r => {
@@ -138,10 +138,8 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
         const rel = people.find(p => p.id === relId);
         if (!rel) return null;
         
-        // If isPrimary (person -> rel), r.relationship_type is person's role. We need rel's role.
-        // If !isPrimary (rel -> person), r.relationship_type is rel's role.
         const type = !isPrimary ? r.relationship_type : getInverseRelationship(r.relationship_type, rel.gender);
-        return { id: relId, name: rel.name, type };
+        return { id: relId, name: rel.name, type, gender: rel.gender };
       })
       .filter((r): r is any => r !== null);
 
@@ -172,12 +170,15 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
             suggestedRole = getGenderedRole(rel.type, sibling.gender);
           }
 
+          // Final check: Ensure the text uses the correct gendered term for the relative too
+          const relDisplayRole = getGenderedRole(rel.type, rel.gender);
+
           items.push({
             id: `sib-rel-${relId}-${sibId}`,
-            text: `Since ${rel.name.split(' ')[0]} is a ${rel.type}, is their sibling ${sibling.name.split(' ')[0]} also a ${suggestedRole}?`,
+            text: `Since ${rel.name.split(' ')[0]} is a ${relDisplayRole}, is their sibling ${sibling.name.split(' ')[0]} also a ${suggestedRole}?`,
             action: async () => {
               if (isAdmin) {
-                await addRelationship(personId, sibId, suggestedRole);
+                await addRelationship(sibId, personId, suggestedRole);
               } else {
                 await addSuggestion({
                   personId: personId,
@@ -261,7 +262,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
                 <div className="flex gap-2">
                   <Button 
                     size="sm" 
-                    className="flex-1 bg-amber-500 hover:bg-amber-600 text-stone-900 rounded-lg h-8 text-xs font-bold"
+                    className="flex-1 bg-amber-500 hover:bg-amber-400 text-stone-900 rounded-lg h-8 text-xs font-bold"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleAction(s.id, s.action);
