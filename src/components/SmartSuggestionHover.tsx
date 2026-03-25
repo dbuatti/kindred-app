@@ -234,12 +234,12 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
         </button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-72 p-4 rounded-2xl border-none shadow-2xl bg-stone-900 text-white" 
+        className="w-96 p-6 rounded-[2rem] border-none shadow-2xl bg-stone-900 text-white" 
         side="top" 
         align="start"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-amber-400">
               <HelpCircle className="w-4 h-4" />
@@ -259,11 +259,11 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
             )}
           </div>
           
-          <div className="space-y-3">
+          <div className="space-y-5">
             {suggestions.map((s) => (
-              <div key={s.id} className="space-y-2 group/item">
+              <div key={s.id} className="space-y-3 group/item">
                 <div className="relative">
-                  <p className="text-sm font-serif italic leading-relaxed text-stone-200 pr-8">
+                  <p className="text-base font-serif italic leading-relaxed text-stone-200 pr-8">
                     "{s.text}"
                   </p>
                   <button 
@@ -277,7 +277,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
                 <div className="flex gap-2">
                   <Button 
                     size="sm" 
-                    className="flex-1 bg-amber-500 hover:bg-amber-400 text-stone-900 rounded-lg h-8 text-xs font-bold"
+                    className="flex-1 bg-amber-500 hover:bg-amber-400 text-stone-900 rounded-xl h-10 text-xs font-bold"
                     onClick={(e) => handleAction(s.id, s.action, e)}
                     disabled={!!isProcessing}
                   >
@@ -287,7 +287,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
                   <Button 
                     size="sm" 
                     variant="ghost" 
-                    className="flex-1 text-stone-400 hover:text-white hover:bg-white/10 rounded-lg h-8 text-xs"
+                    className="flex-1 text-stone-400 hover:text-white hover:bg-white/10 rounded-xl h-10 text-xs"
                     onClick={(e) => handleDismiss(s.id, e)}
                   >
                     <X className="w-3 h-3 mr-1" />
