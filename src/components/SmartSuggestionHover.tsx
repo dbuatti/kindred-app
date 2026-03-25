@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import { Sparkles, Check, X, HelpCircle, Loader2, Copy } from 'lucide-react';
+import { Sparkles, Check, X, HelpCircle, Loader2, Copy, CheckCircle2 } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -196,15 +196,35 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     return items.filter(item => !dismissedIds.has(item.id));
   }, [person, personId, people, relationships, isAdmin, user, dismissedIds]);
 
-  if (suggestions.length === 0) return null;
-
   const handleAction = async (id: string, action: () => Promise<void>) => {
     setIsProcessing(id);
     try {
       await action();
       toast.success(isAdmin ? "Connection added!" : "Suggestion sent to inbox!");
+      setDismissedIds(prev => new Set(prev).add(id));
     } catch (err) {
       // Error handled in context
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleConfirmAll = async () => {
+    setIsProcessing('all');
+    const toastId = toast.loading(`Processing ${suggestions.length} suggestions...`);
+    const idsToDismiss = suggestions.map(s => s.id);
+    try {
+      for (const s of suggestions) {
+        await s.action();
+      }
+      toast.success("All connections confirmed!", { id: toastId });
+      setDismissedIds(prev => {
+        const next = new Set(prev);
+        idsToDismiss.forEach(id => next.add(id));
+        return next;
+      });
+    } catch (err) {
+      toast.error("Failed to process all suggestions.", { id: toastId });
     } finally {
       setIsProcessing(null);
     }
@@ -225,6 +245,8 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     toast.success("Question copied to clipboard!");
   };
 
+  if (suggestions.length === 0) return null;
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -242,6 +264,18 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
               <HelpCircle className="w-4 h-4" />
               <span className="text-[10px] font-bold uppercase tracking-widest">Smart Suggestion</span>
             </div>
+            {suggestions.length > 1 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleConfirmAll}
+                disabled={!!isProcessing}
+                className="h-7 px-2 text-[9px] font-bold uppercase tracking-widest text-amber-500 hover:text-amber-400 hover:bg-white/5 gap-1"
+              >
+                {isProcessing === 'all' ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                Confirm All
+              </Button>
+            )}
           </div>
           
           <div className="space-y-3">
