@@ -115,7 +115,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       });
     });
 
-    // 3. Sibling-of-Relative Inference (Uncles/Aunts)
+    // 3. Sibling-of-Relative Inference (Uncles/Aunts, Great-Aunts/Uncles)
     const directRelatives = relationships
       .filter(r => r.person_id === personId || r.related_person_id === personId)
       .map(r => {
@@ -143,11 +143,18 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
         const sibling = people.find(p => p.id === sibId);
         if (sibling) {
           let suggestedRole = rel.type;
+          
+          // Transform role based on the relative's relationship to the current person
           if (['mother', 'father', 'parent'].includes(relType)) {
             suggestedRole = getGenderedRole('uncle', sibling.gender);
+          } else if (relType.includes('grandparent') || relType.includes('grandm') || relType.includes('grandf')) {
+            suggestedRole = getGenderedRole('Great Aunt', sibling.gender);
+          } else if (relType.includes('great grandparent')) {
+            suggestedRole = getGenderedRole('Great Great Aunt', sibling.gender);
           } else {
             suggestedRole = getGenderedRole(rel.type, sibling.gender);
           }
+
           const relDisplayRole = getGenderedRole(rel.type, rel.gender);
           items.push({
             id: `sib-rel-${relId}-${sibId}`,

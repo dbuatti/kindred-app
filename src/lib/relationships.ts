@@ -102,6 +102,16 @@ export const getGenderedRole = (role: string, gender?: string) => {
     if (g === 'female') return 'Aunt';
     return 'Uncle/Aunt';
   }
+  if (r.includes('great aunt') || r.includes('great uncle')) {
+    if (g === 'male') return 'Great Uncle';
+    if (g === 'female') return 'Great Aunt';
+    return 'Great Aunt/Uncle';
+  }
+  if (r.includes('great great aunt') || r.includes('great great uncle')) {
+    if (g === 'male') return 'Great Great Uncle';
+    if (g === 'female') return 'Great Great Aunt';
+    return 'Great Great Aunt/Uncle';
+  }
   if (['nephew', 'niece'].includes(r)) {
     if (g === 'male') return 'Nephew';
     if (g === 'female') return 'Niece';
