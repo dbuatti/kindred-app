@@ -115,7 +115,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       });
     });
 
-    // 3. Sibling-of-Relative Inference (Uncles/Aunts, Great-Aunts/Uncles)
+    // 3. Sibling-of-Relative Inference (Uncles/Aunts ONLY)
     const directRelatives = relationships
       .filter(r => r.person_id === personId || r.related_person_id === personId)
       .map(r => {
@@ -131,7 +131,10 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
     directRelatives.forEach(rel => {
       const relId = rel.id;
       const relType = rel.type.toLowerCase();
-      if (['spouse', 'wife', 'husband'].includes(relType)) return;
+      
+      // Only suggest siblings for PARENTS (Aunts/Uncles)
+      // We skip grandparents/great-grandparents as requested
+      if (!['mother', 'father', 'parent'].includes(relType)) return;
 
       const siblingsOfRel = relationships
         .filter(r => (r.person_id === relId || r.related_person_id === relId) && 
@@ -142,20 +145,9 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
         if (sibId === personId || areLinked(personId, sibId)) return;
         const sibling = people.find(p => p.id === sibId);
         if (sibling) {
-          let suggestedRole = rel.type;
-          
-          // Transform role based on the relative's relationship to the current person
-          if (['mother', 'father', 'parent'].includes(relType)) {
-            suggestedRole = getGenderedRole('uncle', sibling.gender);
-          } else if (relType.includes('grandparent') || relType.includes('grandm') || relType.includes('grandf')) {
-            suggestedRole = getGenderedRole('Great Aunt', sibling.gender);
-          } else if (relType.includes('great grandparent')) {
-            suggestedRole = getGenderedRole('Great Great Aunt', sibling.gender);
-          } else {
-            suggestedRole = getGenderedRole(rel.type, sibling.gender);
-          }
-
+          const suggestedRole = getGenderedRole('uncle', sibling.gender);
           const relDisplayRole = getGenderedRole(rel.type, rel.gender);
+          
           items.push({
             id: `sib-rel-${relId}-${sibId}`,
             text: `Since ${rel.name.split(' ')[0]} is ${withArticle(relDisplayRole)}, is their sibling ${sibling.name.split(' ')[0]} also ${withArticle(suggestedRole)}?`,
