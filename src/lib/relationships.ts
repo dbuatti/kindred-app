@@ -59,13 +59,14 @@ export const getInverseRelationship = (type: string, relativeGender?: string) =>
     }
   }
 
-  if (t === 'aunt' || t === 'uncle') {
+  // Handle Uncles/Aunts and Nephews/Nieces
+  if (t.includes('aunt') || t.includes('uncle')) {
     if (g === 'male') return 'Nephew';
     if (g === 'female') return 'Niece';
-    return 'Relative';
+    return 'Nephew/Niece';
   }
 
-  if (t === 'nephew' || t === 'niece') {
+  if (t.includes('nephew') || t.includes('niece')) {
     if (g === 'male') return 'Uncle';
     if (g === 'female') return 'Aunt';
     return 'Uncle/Aunt';
@@ -97,7 +98,7 @@ export const getGenderedRole = (role: string, gender?: string) => {
     if (g === 'female') return 'Sister';
     return 'Sibling';
   }
-  if (['uncle', 'aunt'].includes(r)) {
+  if (r.includes('uncle') || r.includes('aunt')) {
     if (g === 'male') return 'Uncle';
     if (g === 'female') return 'Aunt';
     return 'Uncle/Aunt';
@@ -112,7 +113,7 @@ export const getGenderedRole = (role: string, gender?: string) => {
     if (g === 'female') return 'Great Great Aunt';
     return 'Great Great Aunt/Uncle';
   }
-  if (['nephew', 'niece'].includes(r)) {
+  if (r.includes('nephew') || r.includes('niece')) {
     if (g === 'male') return 'Nephew';
     if (g === 'female') return 'Niece';
     return 'Nephew/Niece';
