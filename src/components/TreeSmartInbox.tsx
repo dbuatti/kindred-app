@@ -10,7 +10,7 @@ import {
   DialogDescription 
 } from './ui/dialog';
 import { Button } from './ui/button';
-import { Sparkles, Check, X, Loader2, Users, Heart, UserPlus } from 'lucide-react';
+import { Sparkles, Check, X, Loader2, Users, Heart, UserPlus, Copy, CheckCircle2 } from 'lucide-react';
 import { useFamily } from '../context/FamilyContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 const TreeSmartInbox = () => {
   const { people, relationships, addRelationship, addSuggestion, isAdmin, user } = useFamily();
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const allSuggestions = useMemo(() => {
@@ -167,6 +168,32 @@ const TreeSmartInbox = () => {
     }
   };
 
+  const handleApproveAll = async () => {
+    setIsBulkProcessing(true);
+    const toastId = toast.loading(`Processing ${allSuggestions.length} connections...`);
+    try {
+      for (const s of allSuggestions) {
+        await s.action();
+      }
+      toast.success(isAdmin ? "All connections added!" : "All suggestions sent to inbox!", { id: toastId });
+      setDismissedIds(prev => {
+        const next = new Set(prev);
+        allSuggestions.forEach(s => next.add(s.id));
+        return next;
+      });
+    } catch (err) {
+      toast.error("Failed to process all suggestions.", { id: toastId });
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  const handleCopyAll = () => {
+    const text = allSuggestions.map(s => s.text).join('\n');
+    navigator.clipboard.writeText(text);
+    toast.success("All suggestions copied to clipboard!");
+  };
+
   const handleDismiss = (id: string) => {
     setDismissedIds(prev => {
       const next = new Set(prev);
@@ -192,14 +219,37 @@ const TreeSmartInbox = () => {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl rounded-[2.5rem] border-none bg-stone-50 p-8 max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="font-serif text-3xl text-stone-800 flex items-center gap-3">
-            <Sparkles className="w-6 h-6 text-amber-500" />
-            Tree Insights
-          </DialogTitle>
-          <DialogDescription className="text-stone-500 text-lg">
-            We've found potential connections based on existing family links.
-          </DialogDescription>
+        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-stone-200/60">
+          <div className="space-y-1">
+            <DialogTitle className="font-serif text-3xl text-stone-800 flex items-center gap-3">
+              <Sparkles className="w-6 h-6 text-amber-500" />
+              Tree Insights
+            </DialogTitle>
+            <DialogDescription className="text-stone-500 text-lg">
+              Potential connections found.
+            </DialogDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleCopyAll}
+              className="h-10 w-10 rounded-full text-stone-400 hover:text-amber-600 hover:bg-amber-50"
+              title="Copy all questions"
+            >
+              <Copy className="w-4 h-4" />
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleApproveAll}
+              disabled={isBulkProcessing}
+              className="text-amber-700 border-amber-200 hover:bg-amber-50 rounded-full gap-2 h-10 px-4 font-bold text-xs uppercase tracking-widest"
+            >
+              {isBulkProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+              Approve All
+            </Button>
+          </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pr-2 py-6 space-y-4 custom-scrollbar">
@@ -229,7 +279,7 @@ const TreeSmartInbox = () => {
                 <Button 
                   className="flex-1 h-12 bg-stone-800 hover:bg-stone-900 text-white rounded-xl font-bold gap-2"
                   onClick={() => handleAction(s.id, s.action)}
-                  disabled={!!isProcessing}
+                  disabled={!!isProcessing || isBulkProcessing}
                 >
                   {isProcessing === s.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   Confirm Connection
@@ -238,6 +288,7 @@ const TreeSmartInbox = () => {
                   variant="ghost" 
                   className="h-12 w-12 rounded-xl text-stone-400 hover:text-red-500 hover:bg-red-50"
                   onClick={() => handleDismiss(s.id)}
+                  disabled={isBulkProcessing}
                 >
                   <X className="w-5 h-5" />
                 </Button>
