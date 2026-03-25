@@ -55,7 +55,7 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
           const relType = getGenderedRole('sibling', p.gender);
           items.push({
             id: `sib-${p.id}`,
-            text: `Should ${person.name.split(' ')[0]} and ${p.name.split(' ')[0]} be marked as siblings?`,
+            text: `Are ${person.name.split(' ')[0]} and ${p.name.split(' ')[0]} siblings?`,
             action: async () => {
               if (isAdmin) {
                 await addRelationship(p.id, personId, relType);
@@ -133,7 +133,6 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
       const relType = rel.type.toLowerCase();
       
       // Only suggest siblings for PARENTS (Aunts/Uncles)
-      // We skip grandparents/great-grandparents as requested
       if (!['mother', 'father', 'parent'].includes(relType)) return;
 
       const siblingsOfRel = relationships
@@ -148,9 +147,13 @@ const SmartSuggestionHover = ({ personId }: SmartSuggestionHoverProps) => {
           const suggestedRole = getGenderedRole('uncle', sibling.gender);
           const relDisplayRole = getGenderedRole(rel.type, rel.gender);
           
+          const relFirstName = rel.name.split(' ')[0];
+          const personFirstName = person.name.split(' ')[0];
+          const siblingFirstName = sibling.name.split(' ')[0];
+
           items.push({
             id: `sib-rel-${relId}-${sibId}`,
-            text: `Since ${rel.name.split(' ')[0]} is ${withArticle(relDisplayRole)}, is their sibling ${sibling.name.split(' ')[0]} also ${withArticle(suggestedRole)}?`,
+            text: `Since ${relFirstName} is ${personFirstName}'s ${relDisplayRole}, is ${relFirstName}'s sibling ${siblingFirstName}, ${personFirstName}'s ${suggestedRole}?`,
             action: async () => {
               if (isAdmin) await addRelationship(sibId, personId, suggestedRole);
               else await addSuggestion({ personId, fieldName: 'link_existing', suggestedValue: `LINK_EXISTING: ${sibId} as ${suggestedRole} to ${personId}`, suggestedByEmail: user?.email || 'family@kindred.com' });
