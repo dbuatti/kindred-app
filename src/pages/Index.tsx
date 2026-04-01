@@ -17,6 +17,7 @@ import UpcomingMilestones from '../components/UpcomingMilestones';
 import PeopleViewControls from '../components/index/PeopleViewControls';
 import AddPersonDialog from '../components/AddPersonDialog';
 import MissionBanner from '../components/MissionBanner';
+import QuickPrompt from '../components/QuickPrompt';
 import { PersonCardSkeleton } from '../components/SkeletonLoader';
 import { Button } from '@/components/ui/button';
 import { Share2, ScrollText, HelpCircle, UserCircle, Users, ShieldCheck, Sparkles, History, ArrowRight, Search, GitBranch, UserPlus, Brain } from 'lucide-react';
@@ -190,6 +191,8 @@ const Index = () => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-12"
           >
+            <QuickPrompt />
+            
             <MissionBanner />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
