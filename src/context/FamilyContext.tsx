@@ -78,7 +78,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   const isFetching = useRef(false);
   const lastFetchTime = useRef(0);
-  const lastLoginLogTime = useRef<Record<string, number>>({});
 
   const setTheme = (newTheme: 'default' | 'heritage') => {
     setThemeState(newTheme);
@@ -100,13 +99,20 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const logActivity = useCallback(async (eventType: string, details: any = {}) => {
     if (!user) return;
 
+    // Smarter login throttling: Only log once every 24 hours per user session
     if (eventType === 'login') {
+      const storageKey = `kindred_last_login_${user.id}`;
+      const lastLogStr = localStorage.getItem(storageKey);
       const now = Date.now();
-      const lastLog = lastLoginLogTime.current[user.id] || 0;
-      if (now - lastLog < 1000 * 60 * 60 * 4) {
-        return;
+      
+      if (lastLogStr) {
+        const lastLog = parseInt(lastLogStr);
+        // 24 hour throttle
+        if (now - lastLog < 1000 * 60 * 60 * 24) {
+          return;
+        }
       }
-      lastLoginLogTime.current[user.id] = now;
+      localStorage.setItem(storageKey, now.toString());
     }
 
     try {
@@ -195,7 +201,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .from('activity_logs')
           .select('*')
           .order('created_at', { ascending: false })
-          .limit(100);
+          .limit(200); // Increased limit to allow for filtering
         setActivityLogs(logs || []);
 
         // Fetch full user list via edge function

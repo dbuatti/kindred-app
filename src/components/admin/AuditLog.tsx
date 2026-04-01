@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useFamily } from '../../context/FamilyContext';
 import { formatDistanceToNow } from 'date-fns';
 import { 
@@ -14,12 +14,17 @@ import {
   CheckCircle2, 
   LogIn,
   Activity,
-  UserCheck
+  UserCheck,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Switch } from '../ui/switch';
+import { Label } from '../ui/label';
 
 const AuditLog = () => {
   const { activityLogs, people, profiles } = useFamily();
+  const [hideLogins, setHideLogins] = useState(true);
 
   const getPersonName = (id: string) => {
     return people.find(p => p.id === id)?.name || 'Unknown Person';
@@ -75,32 +80,53 @@ const AuditLog = () => {
     }
   };
 
-  // Limit to 50 entries as requested
-  const displayLogs = activityLogs.slice(0, 50);
+  const filteredLogs = useMemo(() => {
+    let logs = activityLogs;
+    if (hideLogins) {
+      logs = logs.filter(l => l.event_type !== 'login');
+    }
+    return logs.slice(0, 50);
+  }, [activityLogs, hideLogins]);
 
   return (
-    <div className="space-y-3">
-      {displayLogs.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-[3rem] border-4 border-dashed border-stone-100">
-          <p className="text-stone-400 font-serif italic text-xl">No activity recorded yet...</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-end px-2">
+        <div className="flex items-center gap-3 bg-stone-100/50 px-4 py-2 rounded-2xl border border-stone-200/40">
+          <Label htmlFor="hide-logins" className="text-[10px] font-bold uppercase tracking-widest text-stone-500 cursor-pointer">
+            {hideLogins ? "Show Login Events" : "Hide Login Events"}
+          </Label>
+          <Switch 
+            id="hide-logins" 
+            checked={hideLogins} 
+            onCheckedChange={setHideLogins}
+            className="data-[state=checked]:bg-amber-500"
+          />
         </div>
-      ) : (
-        displayLogs.map((log) => (
-          <div key={log.id} className="flex items-center gap-4 p-5 bg-white rounded-3xl border border-stone-100 shadow-sm hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-2">
-            <div className="h-12 w-12 rounded-2xl bg-stone-50 flex items-center justify-center shrink-0 border border-stone-100">
-              {getIcon(log.event_type)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-base text-stone-700 leading-relaxed">
-                {getLogMessage(log)}
-              </p>
-              <p className="text-[10px] text-stone-300 uppercase tracking-[0.2em] mt-1 font-bold">
-                {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
-              </p>
-            </div>
+      </div>
+
+      <div className="space-y-3">
+        {filteredLogs.length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-[3rem] border-4 border-dashed border-stone-100">
+            <p className="text-stone-400 font-serif italic text-xl">No activity recorded yet...</p>
           </div>
-        ))
-      )}
+        ) : (
+          filteredLogs.map((log) => (
+            <div key={log.id} className="flex items-center gap-4 p-5 bg-white rounded-3xl border border-stone-100 shadow-sm hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-2">
+              <div className="h-12 w-12 rounded-2xl bg-stone-50 flex items-center justify-center shrink-0 border border-stone-100">
+                {getIcon(log.event_type)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base text-stone-700 leading-relaxed">
+                  {getLogMessage(log)}
+                </p>
+                <p className="text-[10px] text-stone-300 uppercase tracking-[0.2em] mt-1 font-bold">
+                  {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                </p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 };
