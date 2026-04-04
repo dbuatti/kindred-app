@@ -64,16 +64,29 @@ export const useVoiceInput = () => {
       };
 
       recognition.onerror = (event: any) => {
+        console.error("[useVoiceInput] Recognition error:", event.error);
         setError(event.error);
         stopListening();
       };
       
       recognition.onresult = (event: any) => {
-        let currentTranscript = '';
-        for (let i = 0; i < event.results.length; i++) {
-          currentTranscript += event.results[i][0].transcript;
+        let finalTranscript = '';
+        let interimTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
         }
-        setTranscript(currentTranscript);
+
+        // Update the transcript with both final and interim results for real-time feel
+        setTranscript(prev => {
+          // If we have a lot of text, we append. If it's a fresh start, we set.
+          const base = finalTranscript || interimTranscript;
+          return base;
+        });
       };
 
       recognition.start();

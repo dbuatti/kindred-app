@@ -22,7 +22,8 @@ import {
   Play,
   Pause,
   Star,
-  Trophy
+  Trophy,
+  Volume2
 } from 'lucide-react';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import FamilyConnections from '../components/FamilyConnections';
@@ -45,6 +46,7 @@ import { parsePersonIdFromSlug } from '@/lib/slugify';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import { useImageUpload } from '@/hooks/use-image-upload';
 import { usePersonRelatives } from '@/hooks/use-person-relatives';
+import { useTextToSpeech } from '@/hooks/use-tts';
 
 const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
@@ -59,6 +61,8 @@ const PersonDetail = () => {
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const { isReading, currentText, startReading, stopReading } = useTextToSpeech();
 
   const shortId = useMemo(() => parsePersonIdFromSlug(slug), [slug]);
 
@@ -248,6 +252,7 @@ const PersonDetail = () => {
                   const isWarmed = memoryReactions.includes(user?.id);
                   const isMilestone = memory.isMilestone;
                   const isPlaying = playingId === memory.id;
+                  const isBeingRead = isReading && currentText === memory.content;
                   
                   return (
                     <motion.div 
@@ -304,19 +309,38 @@ const PersonDetail = () => {
                           memory.type === 'photo' ? "bg-stone-50/50 border border-stone-100" : 
                           "bg-white border border-stone-100 group-hover:shadow-md"
                         )}>
-                          {memory.type === 'voice' && memory.voiceUrl && (
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
-                              onClick={() => handlePlayAudio(memory.id, memory.voiceUrl!)}
-                              className={cn(
-                                "mb-6 h-14 w-14 rounded-full shadow-sm transition-all",
-                                isPlaying ? "bg-amber-600 text-white scale-110" : "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                              )}
-                            >
-                              {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-3 mb-6">
+                            {memory.type === 'voice' && memory.voiceUrl && (
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                onClick={() => handlePlayAudio(memory.id, memory.voiceUrl!)}
+                                className={cn(
+                                  "h-14 w-14 rounded-full shadow-sm transition-all",
+                                  isPlaying ? "bg-amber-600 text-white scale-110" : "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                                )}
+                              >
+                                {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
+                              </Button>
+                            )}
+                            
+                            {/* Text to Speech Button for non-voice memories */}
+                            {memory.type !== 'voice' && (
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                onClick={() => isBeingRead ? stopReading() : startReading(memory.content)}
+                                className={cn(
+                                  "rounded-full gap-2 h-10 px-4 font-bold text-[10px] uppercase tracking-widest transition-all",
+                                  isBeingRead ? "bg-amber-600 text-white" : "bg-stone-100 text-stone-500 hover:bg-amber-50 hover:text-amber-700"
+                                )}
+                              >
+                                {isBeingRead ? <Pause className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                                {isBeingRead ? "Stop Reading" : "Listen to Story"}
+                              </Button>
+                            )}
+                          </div>
+
                           {memory.type === 'photo' && memory.imageUrl && <div className="mb-6 rounded-2xl overflow-hidden border-4 border-white shadow-sm"><img src={memory.imageUrl} alt="Memory" className="w-full h-auto max-h-[400px] object-cover" /></div>}
                           <p className="text-stone-700 italic">"{memory.content}"</p>
                           

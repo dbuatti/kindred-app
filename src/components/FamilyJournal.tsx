@@ -1,18 +1,21 @@
 import React, { useState, useMemo } from 'react';
 import { useFamily } from '../context/FamilyContext';
 import { formatDistanceToNow } from 'date-fns';
-import { Mic, MessageSquare, Heart, ArrowRight, Camera, Users, Filter, X, Share2 } from 'lucide-react';
+import { Mic, MessageSquare, Heart, ArrowRight, Camera, Users, Filter, X, Share2, Volume2, Pause } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPersonUrl } from '@/lib/slugify';
 import CommentSection from './CommentSection';
+import { useTextToSpeech } from '@/hooks/use-tts';
+import { Button } from './ui/button';
 
 const FamilyJournal = () => {
   const { people, reactions, user, toggleReaction } = useFamily();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<'all' | 'voice' | 'photo' | 'text'>('all');
+  const { isReading, currentText, startReading, stopReading } = useTextToSpeech();
 
   const allMemories = useMemo(() => {
     const memories = people.flatMap(p => 
@@ -104,6 +107,7 @@ const FamilyJournal = () => {
               const memoryReactions = reactions[memory.id] || [];
               const isWarmed = memoryReactions.includes(user?.id);
               const isGeneral = !memory.personId || memory.personId === 'general';
+              const isBeingRead = isReading && currentText === memory.content;
               
               return (
                 <motion.div 
@@ -166,6 +170,22 @@ const FamilyJournal = () => {
                           <div className="rounded-2xl overflow-hidden border-4 border-white shadow-sm mb-4">
                             <img src={memory.imageUrl} alt="Memory" className="w-full h-auto max-h-[400px] object-cover" />
                           </div>
+                        )}
+
+                        {/* Text to Speech Button for non-voice memories */}
+                        {memory.type !== 'voice' && (
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => isBeingRead ? stopReading() : startReading(memory.content)}
+                            className={cn(
+                              "rounded-full gap-2 h-9 px-4 font-bold text-[9px] uppercase tracking-widest transition-all mb-2",
+                              isBeingRead ? "bg-amber-600 text-white" : "bg-stone-50 text-stone-400 hover:bg-amber-50 hover:text-amber-700"
+                            )}
+                          >
+                            {isBeingRead ? <Pause className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                            {isBeingRead ? "Stop Reading" : "Listen to Story"}
+                          </Button>
                         )}
                         
                         <p className="text-2xl font-serif italic text-stone-800 leading-relaxed">
