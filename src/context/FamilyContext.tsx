@@ -30,6 +30,7 @@ interface AuthUser {
 
 interface FamilyContextType {
   people: Person[];
+  memories: Memory[];
   suggestions: Suggestion[];
   profiles: Record<string, Profile>;
   authUsers: Record<string, AuthUser>;
@@ -66,6 +67,7 @@ const FamilyContext = createContext<FamilyContextType | undefined>(undefined);
 
 export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [people, setPeople] = useState<Person[]>([]);
+  const [memories, setMemories] = useState<Memory[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [authUsers, setAuthUsers] = useState<Record<string, AuthUser>>({});
@@ -218,23 +220,28 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       }
 
+      const allMemories: Memory[] = (memoriesData || []).map((m: any) => {
+        const person = (peopleData || []).find((p: any) => p.id === m.person_id);
+        return {
+          id: m.id,
+          personId: m.person_id || 'general',
+          content: m.content,
+          type: m.type,
+          createdByEmail: m.created_by_email,
+          createdAt: m.created_at,
+          voiceUrl: m.voice_url,
+          imageUrl: m.image_url,
+          eventDate: m.event_date,
+          isMilestone: m.is_milestone,
+          authorName: profileMap[m.user_id]?.first_name || m.created_by_email.split('@')[0],
+          personName: person?.name || 'Family Lore',
+          comments: commentMap[m.id] || []
+        };
+      });
+      setMemories(allMemories);
+
       const mappedPeople: Person[] = (peopleData || []).map((p: any) => {
-        const personMemories = (memoriesData || [])
-          .filter((m: any) => m.person_id === p.id)
-          .map((m: any) => ({
-            id: m.id,
-            personId: m.person_id,
-            content: m.content,
-            type: m.type,
-            createdByEmail: m.created_by_email,
-            createdAt: m.created_at,
-            voiceUrl: m.voice_url,
-            imageUrl: m.image_url,
-            eventDate: m.event_date,
-            isMilestone: m.is_milestone,
-            authorName: profileMap[m.user_id]?.first_name || m.created_by_email.split('@')[0],
-            comments: commentMap[m.id] || []
-          }));
+        const personMemories = allMemories.filter((m) => m.personId === p.id);
 
         const personEdu = (eduData || [])
           .filter((e: any) => e.person_id === p.id)
@@ -641,7 +648,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   return (
     <FamilyContext.Provider value={{ 
-      people, suggestions, profiles, authUsers, reactions, relationships, activityLogs, loading, user, isAdmin, theme, setTheme, treeLayoutData, setTreeLayoutData,
+      people, memories, suggestions, profiles, authUsers, reactions, relationships, activityLogs, loading, user, isAdmin, theme, setTheme, treeLayoutData, setTreeLayoutData,
       addPerson, updatePerson, deletePerson, addMemory, uploadAudio, addComment, addSuggestion, addRelationship, resolveSuggestion, resolveAllSuggestions, toggleReaction, refreshData: fetchData, logActivity,
       resendMagicLink, deleteUserAccount, addEducation, deleteEducation
     }}>

@@ -12,19 +12,21 @@ import { useTextToSpeech } from '@/hooks/use-tts';
 import { Button } from './ui/button';
 
 const FamilyJournal = () => {
-  const { people, reactions, user, toggleReaction } = useFamily();
+  const { memories: allMemoriesFromContext, reactions, user, toggleReaction } = useFamily();
   const navigate = useNavigate();
   const [filter, setFilter] = useState<'all' | 'voice' | 'photo' | 'text'>('all');
   const { isReading, currentText, startReading, stopReading } = useTextToSpeech();
 
-  const allMemories = useMemo(() => {
-    const memories = people.flatMap(p => 
-      p.memories.map(m => ({ ...m, personName: p.name, personId: p.id }))
-    ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const filteredMemories = useMemo(() => {
+    let memories = [...allMemoriesFromContext].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 
-    if (filter === 'all') return memories;
-    return memories.filter(m => m.type === filter);
-  }, [people, filter]);
+    if (filter !== 'all') {
+      memories = memories.filter(m => m.type === filter);
+    }
+    return memories;
+  }, [allMemoriesFromContext, filter]);
 
   const handleWarm = async (id: string) => {
     const memoryReactions = reactions[id] || [];
@@ -41,7 +43,7 @@ const FamilyJournal = () => {
 
   const handleShareMemory = (memory: any) => {
     const baseUrl = window.location.origin;
-    const personUrl = getPersonUrl(memory.personId, memory.personName);
+    const personUrl = memory.personId !== 'general' ? getPersonUrl(memory.personId, memory.personName) : '/';
     const shareUrl = `${baseUrl}${personUrl}?memory=${memory.id}`;
     
     if (navigator.share) {
@@ -86,7 +88,7 @@ const FamilyJournal = () => {
         ))}
       </div>
 
-      {allMemories.length === 0 ? (
+      {filteredMemories.length === 0 ? (
         <div className="text-center py-24 space-y-6 bg-white rounded-[3rem] border-4 border-dashed border-stone-100">
           <div className="h-24 w-24 bg-stone-50 rounded-full flex items-center justify-center mx-auto">
             <MessageSquare className="w-10 h-10 text-stone-200" />
@@ -103,7 +105,7 @@ const FamilyJournal = () => {
       ) : (
         <div className="relative space-y-16 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-[1px] before:bg-stone-200">
           <AnimatePresence mode="popLayout">
-            {allMemories.map((memory, idx) => {
+            {filteredMemories.map((memory, idx) => {
               const memoryReactions = reactions[memory.id] || [];
               const isWarmed = memoryReactions.includes(user?.id);
               const isGeneral = !memory.personId || memory.personId === 'general';

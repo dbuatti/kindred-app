@@ -58,6 +58,7 @@ export interface Memory {
   voiceUrl?: string;
   imageUrl?: string;
   authorName?: string;
+  personName?: string;
   reactions?: Record<string, number>;
   comments?: Comment[];
   // Milestone Fields
