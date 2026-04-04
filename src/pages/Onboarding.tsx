@@ -23,12 +23,15 @@ import {
   Save,
   Info,
   Sparkles,
-  UserCheck
+  UserCheck,
+  Users,
+  ChevronRight
 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { extractYear, cn } from '@/lib/utils';
+import { usePersonRelatives } from '@/hooks/use-person-relatives';
 
 const RELATIONSHIP_TYPES = [
   { label: "Mother", value: "mother" },
@@ -59,7 +62,7 @@ const INITIAL_SUGGESTIONS = [
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const { user, people, profiles, loading: contextLoading, refreshData } = useFamily();
+  const { user, people, profiles, relationships, loading: contextLoading, refreshData } = useFamily();
   const [step, setStep] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -87,6 +90,13 @@ const Onboarding = () => {
 
   const [relativeName, setRelativeName] = useState('');
   const [relativeType, setRelativeType] = useState('mother');
+
+  // Calculate existing relatives if a profile was claimed
+  const claimedPerson = useMemo(() => 
+    formData.claimedPersonId ? people.find(p => p.id === formData.claimedPersonId) : null
+  , [formData.claimedPersonId, people]);
+
+  const existingRelatives = usePersonRelatives(claimedPerson || null, people, relationships);
 
   // Load existing progress
   useEffect(() => {
@@ -160,6 +170,14 @@ const Onboarding = () => {
 
   const addRelative = () => {
     if (!relativeName) return;
+    
+    // Check if already in existing relatives
+    const isDuplicate = existingRelatives.some(r => r.name.toLowerCase() === relativeName.toLowerCase());
+    if (isDuplicate) {
+      toast.error(`${relativeName} is already linked to your profile!`);
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       newRelatives: [...prev.newRelatives, { name: relativeName, type: relativeType }]
@@ -614,52 +632,90 @@ const Onboarding = () => {
 
           {step === 3 && (
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="space-y-4">
-                <p className="text-sm text-stone-400 font-medium">Add relatives who aren't here yet:</p>
+              {/* Existing Connections Section */}
+              {existingRelatives.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-amber-700">
+                    <Users className="w-5 h-5" />
+                    <h2 className="text-lg font-serif font-bold">We already found these connections:</h2>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                    {existingRelatives.map((rel: any) => (
+                      <div key={rel.id} className="flex items-center justify-between p-4 bg-amber-50/50 rounded-2xl border border-amber-100">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center text-amber-600 shadow-sm">
+                            <UserCheck className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-stone-800">{rel.name}</p>
+                            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">{rel.type}</p>
+                          </div>
+                        </div>
+                        <Check className="w-5 h-5 text-green-500" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-6 pt-4 border-t border-stone-100">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-serif font-bold text-stone-800">Who else should be in our storybook?</h3>
+                  <p className="text-sm text-stone-400">Add relatives who aren't here yet:</p>
+                </div>
+                
                 <div className="flex gap-2">
                   <Input 
                     placeholder="e.g. Uncle Joe" 
                     value={relativeName}
                     onChange={(e) => setRelativeName(e.target.value)}
-                    className="h-14 bg-stone-50 border-none rounded-2xl flex-1"
+                    className="h-14 bg-stone-50 border-none rounded-2xl flex-1 text-lg"
                   />
                   <select 
                     value={relativeType}
                     onChange={(e) => setRelativeType(e.target.value)}
-                    className="h-14 bg-stone-50 border-none rounded-2xl px-4 text-stone-600 outline-none"
+                    className="h-14 bg-stone-50 border-none rounded-2xl px-4 text-stone-600 outline-none font-medium"
                   >
                     {RELATIONSHIP_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
-                  <Button onClick={addRelative} className="h-14 w-14 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white">
+                  <Button onClick={addRelative} className="h-14 w-14 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white shadow-lg">
                     <UserPlus className="w-6 h-6" />
                   </Button>
                 </div>
               </div>
 
-              <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2">
-                {formData.newRelatives.map((rel, i) => (
-                  <div key={i} className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl border border-stone-100">
-                    <div>
-                      <p className="font-medium text-stone-800">{rel.name}</p>
-                      <p className="text-xs text-stone-400 uppercase tracking-widest">{rel.type}</p>
+              {formData.newRelatives.length > 0 && (
+                <div className="space-y-3 max-h-[150px] overflow-y-auto pr-2 custom-scrollbar">
+                  <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest ml-1">New relatives to add:</p>
+                  {formData.newRelatives.map((rel, i) => (
+                    <div key={i} className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl border border-stone-100 animate-in zoom-in duration-300">
+                      <div>
+                        <p className="font-medium text-stone-800">{rel.name}</p>
+                        <p className="text-xs text-stone-400 uppercase tracking-widest">{rel.type}</p>
+                      </div>
+                      <button 
+                        onClick={() => setFormData(prev => ({ ...prev, newRelatives: prev.newRelatives.filter((_, idx) => idx !== i) }))}
+                        className="text-stone-300 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                    <Check className="w-5 h-5 text-green-500" />
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           <div className="mt-auto pt-10 flex gap-4">
             {step > 1 && (
-              <Button variant="ghost" onClick={() => setStep(s => s - 1)} className="h-14 px-8 rounded-2xl text-stone-400">
+              <Button variant="ghost" onClick={() => setStep(s => s - 1)} className="h-14 px-8 rounded-2xl text-stone-400 hover:text-stone-600">
                 <ArrowLeft className="w-5 h-5 mr-2" /> Back
               </Button>
             )}
             <Button 
               onClick={() => step < 3 ? handleNext() : handleComplete()}
               disabled={isSaving || (step === 1 && !formData.firstName)}
-              className="flex-1 h-14 bg-stone-800 hover:bg-stone-900 text-white rounded-2xl text-lg font-medium group"
+              className="flex-1 h-14 bg-stone-800 hover:bg-stone-900 text-white rounded-2xl text-lg font-medium group shadow-xl"
             >
               {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                 step < 3 ? (
