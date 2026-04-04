@@ -20,7 +20,8 @@ import {
   Globe,
   MapPin,
   X,
-  Save
+  Save,
+  Info
 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
@@ -73,6 +74,7 @@ const Onboarding = () => {
     firstName: '',
     middleName: '',
     lastName: '',
+    maidenName: '',
     gender: '',
     birthDate: '',
     birthPlace: '',
@@ -95,6 +97,7 @@ const Onboarding = () => {
           firstName: profile.first_name || '',
           middleName: profile.middle_name || '',
           lastName: profile.last_name || '',
+          maidenName: profile.maiden_name || '',
           gender: profile.gender || '',
           birthDate: profile.birth_date || '',
           birthPlace: profile.birth_place || '',
@@ -169,6 +172,7 @@ const Onboarding = () => {
     updateField('firstName', names[0]);
     updateField('middleName', person.middleName || '');
     updateField('lastName', names.slice(1).join(' '));
+    updateField('maidenName', person.maidenName || '');
     updateField('gender', person.gender || '');
     
     if (person.birthDate) updateField('birthDate', person.birthDate);
@@ -190,6 +194,7 @@ const Onboarding = () => {
           first_name: formData.firstName,
           middle_name: formData.middleName,
           last_name: formData.lastName,
+          maiden_name: formData.maidenName,
           gender: formData.gender,
           birth_date: formData.birthDate || null,
           birth_place: formData.birthPlace,
@@ -205,6 +210,7 @@ const Onboarding = () => {
             user_id: user.id,
             name: fullName,
             middle_name: formData.middleName,
+            maiden_name: formData.maidenName,
             gender: formData.gender,
             birth_date: formData.birthDate || null,
             birth_place: formData.birthPlace,
@@ -237,6 +243,7 @@ const Onboarding = () => {
           first_name: formData.firstName,
           middle_name: formData.middleName,
           last_name: formData.lastName,
+          maiden_name: formData.maidenName,
           gender: formData.gender,
           birth_date: formData.birthDate || null,
           birth_place: formData.birthPlace,
@@ -251,7 +258,6 @@ const Onboarding = () => {
       const birthYear = extractYear(formData.birthDate);
       
       // 2. Link or Create Person record
-      // If we claimed a person, we want to preserve their existing tags but add the "Family Member" tag
       const existingPerson = formData.claimedPersonId ? people.find(p => p.id === formData.claimedPersonId) : null;
       const existingTags = existingPerson?.personalityTags || [];
       const newTags = Array.from(new Set([...existingTags, "✨ Family Member"]));
@@ -260,6 +266,7 @@ const Onboarding = () => {
         user_id: user.id,
         name: fullName,
         middle_name: formData.middleName,
+        maiden_name: formData.maidenName,
         gender: formData.gender,
         birth_year: birthYear,
         birth_date: formData.birthDate || null,
@@ -273,14 +280,12 @@ const Onboarding = () => {
       let myPersonId = formData.claimedPersonId;
 
       if (myPersonId) {
-        // Update the SPECIFIC record that was claimed
         const { error: updateErr } = await supabase
           .from('people')
           .update(personData)
           .eq('id', myPersonId);
         if (updateErr) throw updateErr;
       } else {
-        // Create a new record or update one already linked to this user_id
         const { data: person, error: pErr } = await supabase
           .from('people')
           .upsert(personData, { onConflict: 'user_id' })
@@ -454,28 +459,46 @@ const Onboarding = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-stone-400 uppercase">Last Name</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-stone-400 uppercase">Last Name</label>
+                      <div className="flex items-center gap-1 text-[10px] text-amber-600 font-bold uppercase tracking-tighter">
+                        <Info className="w-3 h-3" />
+                        Use married name
+                      </div>
+                    </div>
                     <Input 
                       value={formData.lastName} 
                       onChange={(e) => updateField('lastName', e.target.value)} 
-                      placeholder="Optional"
+                      placeholder="Current/Married Name"
                       className="h-14 bg-stone-50 border-none rounded-2xl text-lg" 
                     />
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-stone-400 uppercase">Gender</label>
+                    <Select onValueChange={(val) => updateField('gender', val)} value={formData.gender}>
+                      <SelectTrigger className="h-14 bg-stone-50 border-none rounded-2xl text-lg">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl">
+                        {GENDER_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value} className="text-lg py-3">{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-stone-400 uppercase">Gender</label>
-                  <Select onValueChange={(val) => updateField('gender', val)} value={formData.gender}>
-                    <SelectTrigger className="h-14 bg-stone-50 border-none rounded-2xl text-lg">
-                      <SelectValue placeholder="Select gender" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-2xl">
-                      {GENDER_OPTIONS.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value} className="text-lg py-3">{opt.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+
+                {formData.gender === 'female' && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-500">
+                    <label className="text-xs font-bold text-stone-400 uppercase">Maiden Name</label>
+                    <Input 
+                      value={formData.maidenName} 
+                      onChange={(e) => updateField('maidenName', e.target.value)} 
+                      placeholder="Family name at birth"
+                      className="h-14 bg-stone-50 border-none rounded-2xl text-lg" 
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
