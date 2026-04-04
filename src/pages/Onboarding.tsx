@@ -21,7 +21,9 @@ import {
   MapPin,
   X,
   Save,
-  Info
+  Info,
+  Sparkles,
+  UserCheck
 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
@@ -180,7 +182,7 @@ const Onboarding = () => {
     if (person.vibeSentence) updateField('bio', person.vibeSentence);
     
     setSelfSearchQuery('');
-    toast.success(`Linked to ${person.name}! You can still edit your name below.`);
+    toast.success(`Linked to ${person.name}! You can fix the spelling below if needed.`);
   };
 
   const saveProgress = async () => {
@@ -361,10 +363,10 @@ const Onboarding = () => {
             <Heart className="w-8 h-8 fill-current" />
           </div>
           <h1 className="text-4xl font-serif font-medium text-stone-800">
-            {step === 1 ? "Who are you?" : step === 2 ? "Your Roots" : "Your Connections"}
+            {step === 1 ? "Let's find you" : step === 2 ? "Your Roots" : "Your Connections"}
           </h1>
           <p className="text-stone-500 italic text-lg">
-            {step === 1 ? "Just a name or nickname is fine to start." : step === 2 ? "Tell us a bit about your beginning." : "Who else should be in our storybook?"}
+            {step === 1 ? "Someone may have already started your profile." : step === 2 ? "Tell us a bit about your beginning." : "Who else should be in our storybook?"}
           </p>
         </div>
 
@@ -377,90 +379,115 @@ const Onboarding = () => {
           )}
 
           {step === 1 && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="space-y-4">
-                <p className="text-sm text-stone-400 uppercase tracking-widest font-bold">Search for yourself</p>
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-300" />
-                  <Input 
-                    placeholder="Has someone already added you?" 
-                    className="h-14 pl-12 bg-stone-50 border-none rounded-2xl text-lg"
-                    value={selfSearchQuery}
-                    onChange={(e) => setSelfSearchQuery(e.target.value)}
-                  />
-                  {selfSearchQuery && (
-                    <button 
-                      onClick={() => setSelfSearchQuery('')}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-50"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  )}
+            <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
+              {/* Search Section - Primary Focus */}
+              <div className="space-y-6">
+                <div className="bg-amber-50/50 p-6 rounded-3xl border-2 border-amber-100 space-y-4">
+                  <div className="flex items-center gap-3 text-amber-700">
+                    <Sparkles className="w-5 h-5" />
+                    <h2 className="text-lg font-serif font-bold">Is your name already here?</h2>
+                  </div>
+                  <p className="text-sm text-stone-600 leading-relaxed">
+                    Family members often add each other. Search for your name below—even if it's spelled wrong! If you find yourself, click it and you can fix the spelling in the next step.
+                  </p>
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                    <Input 
+                      placeholder="Type your name to search..." 
+                      className="h-14 pl-12 bg-white border-stone-200 rounded-2xl text-lg shadow-sm focus-visible:ring-amber-500/20"
+                      value={selfSearchQuery}
+                      onChange={(e) => setSelfSearchQuery(e.target.value)}
+                    />
+                    {selfSearchQuery && (
+                      <button 
+                        onClick={() => setSelfSearchQuery('')}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-300 hover:text-stone-500"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Search Results Dropdown */}
                 {selfSearchResults.length > 0 && (
-                  <div className="bg-stone-50 rounded-2xl border border-stone-100 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                  <div className="bg-white rounded-2xl border-2 border-amber-200 overflow-hidden animate-in fade-in slide-in-from-top-2 shadow-xl">
+                    <div className="px-6 py-3 bg-amber-50 border-b border-amber-100">
+                      <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">Matches Found</p>
+                    </div>
                     {selfSearchResults.map(person => (
                       <button
                         key={person.id}
                         onClick={() => handleClaimPerson(person)}
-                        className="w-full px-6 py-4 text-left hover:bg-amber-50 transition-colors flex items-center justify-between group border-b border-stone-100 last:border-none"
+                        className="w-full px-6 py-5 text-left hover:bg-amber-50 transition-colors flex items-center justify-between group border-b border-stone-100 last:border-none"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-stone-300 border border-stone-100">
-                            <User className="w-5 h-5" />
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-full bg-stone-100 flex items-center justify-center text-stone-300 border border-stone-100 group-hover:border-amber-200 group-hover:bg-white transition-all">
+                            <UserCheck className="w-6 h-6 text-amber-600" />
                           </div>
                           <div>
-                            <p className="font-bold text-stone-800 group-hover:text-amber-900">{person.name}</p>
+                            <p className="text-lg font-bold text-stone-800 group-hover:text-amber-900">{person.name}</p>
                             <p className="text-xs text-stone-400 uppercase tracking-widest">Added by {person.createdByEmail.split('@')[0]}</p>
                           </div>
                         </div>
-                        <ArrowRight className="w-4 h-4 text-stone-300 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
+                        <div className="flex items-center gap-2 text-amber-600 font-bold text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all">
+                          This is me
+                          <ArrowRight className="w-4 h-4" />
+                        </div>
                       </button>
                     ))}
                   </div>
                 )}
 
                 {formData.claimedPersonId && !selfSearchQuery && (
-                  <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex items-center justify-between">
+                  <div className="bg-green-50 p-5 rounded-2xl border-2 border-green-100 flex items-center justify-between animate-in zoom-in duration-300">
                     <div className="flex items-center gap-3">
-                      <Check className="w-5 h-5 text-green-600" />
-                      <p className="text-sm font-medium text-amber-900">Linked to existing profile</p>
+                      <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                        <Check className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-green-900">Profile Linked!</p>
+                        <p className="text-xs text-green-700">You can fix any typos in your name below.</p>
+                      </div>
                     </div>
                     <button 
                       onClick={() => updateField('claimedPersonId', null)}
-                      className="text-xs font-bold text-amber-700 uppercase tracking-widest hover:underline"
+                      className="text-xs font-bold text-stone-400 uppercase tracking-widest hover:text-red-500 transition-colors"
                     >
-                      Undo
+                      Change
                     </button>
                   </div>
                 )}
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-6 pt-6 border-t border-stone-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="w-4 h-4 text-stone-400" />
+                  <p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Your Official Details</p>
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-stone-400 uppercase">First Name</label>
+                    <label className="text-xs font-bold text-stone-500 uppercase ml-1">First Name</label>
                     <Input 
                       value={formData.firstName} 
                       onChange={(e) => updateField('firstName', e.target.value)} 
                       placeholder="e.g. Mary"
-                      className="h-14 bg-stone-50 border-none rounded-2xl text-lg" 
+                      className="h-14 bg-stone-50 border-none rounded-2xl text-lg focus-visible:ring-amber-500/20" 
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-stone-400 uppercase">Middle Name</label>
+                    <label className="text-xs font-bold text-stone-500 uppercase ml-1">Middle Name</label>
                     <Input 
                       value={formData.middleName} 
                       onChange={(e) => updateField('middleName', e.target.value)} 
                       placeholder="Optional"
-                      className="h-14 bg-stone-50 border-none rounded-2xl text-lg" 
+                      className="h-14 bg-stone-50 border-none rounded-2xl text-lg focus-visible:ring-amber-500/20" 
                     />
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-stone-400 uppercase">Last Name</label>
+                      <label className="text-xs font-bold text-stone-500 uppercase ml-1">Last Name</label>
                       <div className="flex items-center gap-1 text-[10px] text-amber-600 font-bold uppercase tracking-tighter">
                         <Info className="w-3 h-3" />
                         Use married name
@@ -470,13 +497,13 @@ const Onboarding = () => {
                       value={formData.lastName} 
                       onChange={(e) => updateField('lastName', e.target.value)} 
                       placeholder="Current/Married Name"
-                      className="h-14 bg-stone-50 border-none rounded-2xl text-lg" 
+                      className="h-14 bg-stone-50 border-none rounded-2xl text-lg focus-visible:ring-amber-500/20" 
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-stone-400 uppercase">Gender</label>
+                    <label className="text-xs font-bold text-stone-500 uppercase ml-1">Gender</label>
                     <Select onValueChange={(val) => updateField('gender', val)} value={formData.gender}>
-                      <SelectTrigger className="h-14 bg-stone-50 border-none rounded-2xl text-lg">
+                      <SelectTrigger className="h-14 bg-stone-50 border-none rounded-2xl text-lg focus:ring-amber-500/20">
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
                       <SelectContent className="rounded-2xl">
@@ -490,12 +517,12 @@ const Onboarding = () => {
 
                 {formData.gender === 'female' && (
                   <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-500">
-                    <label className="text-xs font-bold text-stone-400 uppercase">Maiden Name</label>
+                    <label className="text-xs font-bold text-stone-500 uppercase ml-1">Maiden Name</label>
                     <Input 
                       value={formData.maidenName} 
                       onChange={(e) => updateField('maidenName', e.target.value)} 
                       placeholder="Family name at birth"
-                      className="h-14 bg-stone-50 border-none rounded-2xl text-lg" 
+                      className="h-14 bg-stone-50 border-none rounded-2xl text-lg focus-visible:ring-amber-500/20" 
                     />
                   </div>
                 )}
