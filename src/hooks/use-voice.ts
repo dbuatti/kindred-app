@@ -12,7 +12,11 @@ export const useVoiceInput = () => {
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Recognition might already be stopped
+      }
     }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
@@ -29,7 +33,7 @@ export const useVoiceInput = () => {
     }
 
     try {
-      // 1. Setup Audio Recording
+      // 1. Setup Audio Recording (The primary source)
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
@@ -47,7 +51,7 @@ export const useVoiceInput = () => {
         stream.getTracks().forEach(track => track.stop());
       };
 
-      // 2. Setup Speech Recognition
+      // 2. Setup Speech Recognition (The transcription helper)
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
       recognition.continuous = true;
@@ -56,16 +60,26 @@ export const useVoiceInput = () => {
 
       recognition.onstart = () => {
         setIsListening(true);
-        mediaRecorder.start();
+        if (mediaRecorder.state === 'inactive') {
+          mediaRecorder.start();
+        }
       };
 
       recognition.onend = () => {
-        setIsListening(false);
+        // We don't automatically stop the mediaRecorder here 
+        // because the user might still be recording audio even if recognition timed out
       };
 
       recognition.onerror = (event: any) => {
+        // 'no-speech' is a common timeout error we should handle silently
+        if (event.error === 'no-speech') {
+          console.warn("[useVoiceInput] Recognition timed out (no speech detected), but audio recording continues.");
+          return;
+        }
+        
         console.error("[useVoiceInput] Recognition error:", event.error);
         setError(event.error);
+        // For other errors, we stop everything
         stopListening();
       };
       
@@ -81,7 +95,6 @@ export const useVoiceInput = () => {
           }
         }
 
-        // Update the transcript with both final and interim results for real-time feel
         setTranscript(prev => {
           // If we have a lot of text, we append. If it's a fresh start, we set.
           const base = finalTranscript || interimTranscript;
