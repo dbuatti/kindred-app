@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
@@ -8,7 +8,7 @@ import { Input } from './ui/input';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Mic, Camera, X, Loader2, CheckCircle2, UploadCloud, Plus, Sparkles, RefreshCw, Trash2, Calendar, Star, Square, Settings2, Keyboard } from 'lucide-react';
+import { Mic, Camera, X, Loader2, CheckCircle2, UploadCloud, Plus, Sparkles, RefreshCw, Trash2, Calendar, Star, Square, Settings2, Keyboard, Users, User } from 'lucide-react';
 import { useVoiceInput } from '../hooks/use-voice';
 import { useFamily } from '../context/FamilyContext';
 import { cn } from '@/lib/utils';
@@ -26,15 +26,15 @@ interface AddMemoryDialogProps {
 }
 
 const AddMemoryDialog = ({ 
-  personId, 
-  personName, 
+  personId: initialPersonId, 
+  personName: initialPersonName, 
   initialContent, 
   initialImage,
   trigger,
   open: externalOpen,
   onOpenChange: setExternalOpen
 }: AddMemoryDialogProps) => {
-  const { addMemory, uploadAudio } = useFamily();
+  const { addMemory, uploadAudio, people } = useFamily();
   const { 
     isListening, 
     transcript, 
@@ -54,31 +54,37 @@ const AddMemoryDialog = ({
   const [isSaving, setIsSaving] = useState(false);
   const [eventDate, setEventDate] = useState('');
   const [isMilestone, setIsMilestone] = useState(false);
+  const [selectedPersonId, setSelectedPersonId] = useState<string>(initialPersonId || 'general');
   
   const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
   const setIsOpen = setExternalOpen || setInternalOpen;
+
+  const selectedPersonName = useMemo(() => {
+    if (selectedPersonId === 'general') return 'the family';
+    return people.find(p => p.id === selectedPersonId)?.name || 'the family';
+  }, [selectedPersonId, people]);
 
   // Fetch devices when dialog opens
   useEffect(() => {
     if (isOpen) {
       getDevices();
-      const draftKey = `kindred_draft_${personId || 'general'}`;
+      const draftKey = `kindred_draft_${selectedPersonId}`;
       const savedDraft = localStorage.getItem(draftKey);
       if (savedDraft && !transcript) setTranscript(savedDraft);
     }
-  }, [isOpen, personId, getDevices, setTranscript, transcript]);
+  }, [isOpen, selectedPersonId, getDevices, setTranscript, transcript]);
 
   useEffect(() => {
     if (transcript) {
-      const draftKey = `kindred_draft_${personId || 'general'}`;
+      const draftKey = `kindred_draft_${selectedPersonId}`;
       localStorage.setItem(draftKey, transcript);
     }
-  }, [transcript, personId]);
+  }, [transcript, selectedPersonId]);
 
   const clearDraft = () => {
     setTranscript('');
     setAudioBlob(null);
-    localStorage.removeItem(`kindred_draft_${personId || 'general'}`);
+    localStorage.removeItem(`kindred_draft_${selectedPersonId}`);
     toast.success("Draft cleared.");
   };
 
@@ -94,7 +100,7 @@ const AddMemoryDialog = ({
 
       if ((transcript.trim() || audioBlob) && images.length === 0) {
         await addMemory(
-          personId || 'general', 
+          selectedPersonId, 
           transcript || "Voice memo shared with the family.", 
           audioBlob ? 'voice' : 'text', 
           undefined, 
@@ -106,7 +112,7 @@ const AddMemoryDialog = ({
       else if (images.length > 0) {
         for (const img of images) {
           await addMemory(
-            personId || 'general', 
+            selectedPersonId, 
             img.caption || transcript || "A family photo.", 
             'photo', 
             img.url,
@@ -124,7 +130,7 @@ const AddMemoryDialog = ({
       });
       
       toast.success("Stories saved!");
-      localStorage.removeItem(`kindred_draft_${personId || 'general'}`);
+      localStorage.removeItem(`kindred_draft_${selectedPersonId}`);
       setTranscript('');
       setImages([]);
       setAudioBlob(null);
@@ -144,7 +150,7 @@ const AddMemoryDialog = ({
       <DialogContent className="sm:max-w-2xl rounded-[3rem] border-none bg-white p-8 max-h-[90vh] overflow-y-auto shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-3xl font-serif text-stone-800 text-center mb-2">
-            Tell a story about {personName.split(' ')[0]}
+            Tell a story about {selectedPersonName.split(' ')[0]}
           </DialogTitle>
           <DialogDescription className="text-center text-stone-500 text-lg">
             Choose how you'd like to share this memory.
@@ -152,6 +158,32 @@ const AddMemoryDialog = ({
         </DialogHeader>
         
         <div className="space-y-8 py-4">
+          {/* Person Selector */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-1">
+              <User className="w-3 h-3" />
+              Who is this story about?
+            </div>
+            <Select value={selectedPersonId} onValueChange={setSelectedPersonId}>
+              <SelectTrigger className="h-14 bg-stone-50 border-none rounded-2xl px-6 text-lg focus:ring-amber-500/20">
+                <SelectValue placeholder="Select a family member..." />
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl">
+                <SelectItem value="general" className="text-lg py-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-stone-400" />
+                    General Family Lore
+                  </div>
+                </SelectItem>
+                {people.map(p => (
+                  <SelectItem key={p.id} value={p.id} className="text-lg py-3">
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-stone-50 p-4 rounded-2xl border border-stone-100 flex items-center gap-4">
               <Calendar className="w-5 h-5 text-stone-400" />
