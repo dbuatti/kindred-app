@@ -46,7 +46,8 @@ interface FamilyContextType {
   addPerson: (person: Partial<Person>, relativeId?: string, relType?: string) => Promise<string | undefined>;
   updatePerson: (id: string, updates: Partial<Person> | Record<string, any>) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
-  addMemory: (personId: string, content: string, type: MemoryType, imageUrl?: string, eventDate?: string, isMilestone?: boolean) => Promise<void>;
+  addMemory: (personId: string, content: string, type: MemoryType, imageUrl?: string, eventDate?: string, isMilestone?: boolean, voiceUrl?: string) => Promise<void>;
+  uploadAudio: (blob: Blob) => Promise<string | null>;
   addComment: (memoryId: string, content: string) => Promise<void>;
   addSuggestion: (suggestion: Omit<Suggestion, 'id' | 'status'>) => Promise<void>;
   addRelationship: (personId: string, relatedId: string, type: string) => Promise<void>;
@@ -99,7 +100,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const logActivity = useCallback(async (eventType: string, details: any = {}) => {
     if (!user) return;
 
-    // Smarter login throttling: Only log once every 24 hours per user session
     if (eventType === 'login') {
       const storageKey = `kindred_last_login_${user.id}`;
       const lastLogStr = localStorage.getItem(storageKey);
@@ -107,7 +107,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
       if (lastLogStr) {
         const lastLog = parseInt(lastLogStr);
-        // 24 hour throttle
         if (now - lastLog < 1000 * 60 * 60 * 24) {
           return;
         }
@@ -196,15 +195,13 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setRelationships(relData || []);
 
       if (user?.email === ADMIN_EMAIL) {
-        // Fetch logs
         const { data: logs } = await supabase
           .from('activity_logs')
           .select('*')
           .order('created_at', { ascending: false })
-          .limit(200); // Increased limit to allow for filtering
+          .limit(200);
         setActivityLogs(logs || []);
 
-        // Fetch full user list via edge function
         try {
           const { data: authData, error: authError } = await supabase.functions.invoke('admin-tasks', {
             body: { action: 'list-users' }
@@ -327,6 +324,28 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (user) fetchData();
   }, [user, fetchData]);
 
+  const uploadAudio = useCallback(async (blob: Blob) => {
+    if (!user) return null;
+    const fileName = `${user.id}/${Date.now()}.webm`;
+    
+    try {
+      const { data, error } = await supabase.storage
+        .from('memories')
+        .upload(fileName, blob);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('memories')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (err: any) {
+      console.error("[FamilyContext] Audio upload failed:", err.message);
+      return null;
+    }
+  }, [user]);
+
   const resendMagicLink = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('admin-tasks', {
@@ -392,12 +411,9 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const updatePerson = useCallback(async (id: string, updates: Partial<Person> | Record<string, any>) => {
     if (!user) return;
-    console.log("[FamilyContext] updatePerson called for ID:", id, "with updates:", updates);
     
     try {
       const dbUpdates: Record<string, any> = {};
-      
-      // Map of camelCase keys to snake_case DB columns
       const keyMap: Record<string, string> = {
         middleName: 'middle_name',
         birthYear: 'birth_year',
@@ -417,7 +433,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         favoriteThings: 'favorite_things'
       };
 
-      // List of valid snake_case columns
       const directKeys = [
         'name', 'nickname', 'middle_name', 'birth_year', 'birth_date', 'birth_place', 
         'death_year', 'death_date', 'death_place', 'occupation', 
@@ -426,7 +441,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         'burial_place', 'physical_traits', 'favorite_things'
       ];
       
-      // Process updates: check both snake_case and camelCase versions
       Object.entries(updates).forEach(([key, value]) => {
         if (directKeys.includes(key)) {
           dbUpdates[key] = value;
@@ -435,12 +449,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       });
 
-      console.log("[FamilyContext] Final dbUpdates to Supabase:", dbUpdates);
-
-      if (Object.keys(dbUpdates).length === 0) {
-        console.warn("[FamilyContext] No valid fields found to update.");
-        return;
-      }
+      if (Object.keys(dbUpdates).length === 0) return;
 
       const { error } = await supabase.from('people').update(dbUpdates).eq('id', id);
       if (error) throw error;
@@ -448,7 +457,6 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       await logActivity('edit_person', { personId: id, fields: Object.keys(dbUpdates) });
       fetchData(true);
     } catch (error: any) {
-      console.error("[FamilyContext] Update error:", error.message);
       toast.error("Failed to update: " + error.message);
     }
   }, [fetchData, user, logActivity]);
@@ -466,7 +474,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [fetchData, user, logActivity]);
 
-  const addMemory = useCallback(async (personId: string, content: string, type: MemoryType, imageUrl?: string, eventDate?: string, isMilestone?: boolean) => {
+  const addMemory = useCallback(async (personId: string, content: string, type: MemoryType, imageUrl?: string, eventDate?: string, isMilestone?: boolean, voiceUrl?: string) => {
     if (!user) return;
     try {
       const { error } = await supabase
@@ -476,6 +484,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           content,
           type,
           image_url: imageUrl,
+          voice_url: voiceUrl,
           event_date: eventDate,
           is_milestone: isMilestone || false,
           created_by_email: user.email,
@@ -633,7 +642,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   return (
     <FamilyContext.Provider value={{ 
       people, suggestions, profiles, authUsers, reactions, relationships, activityLogs, loading, user, isAdmin, theme, setTheme, treeLayoutData, setTreeLayoutData,
-      addPerson, updatePerson, deletePerson, addMemory, addComment, addSuggestion, addRelationship, resolveSuggestion, resolveAllSuggestions, toggleReaction, refreshData: fetchData, logActivity,
+      addPerson, updatePerson, deletePerson, addMemory, uploadAudio, addComment, addSuggestion, addRelationship, resolveSuggestion, resolveAllSuggestions, toggleReaction, refreshData: fetchData, logActivity,
       resendMagicLink, deleteUserAccount, addEducation, deleteEducation
     }}>
       {children}

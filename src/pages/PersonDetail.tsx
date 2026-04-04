@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
   Mic,
   Camera,
   Play,
+  Pause,
   Star,
   Trophy
 } from 'lucide-react';
@@ -56,11 +57,10 @@ const PersonDetail = () => {
   
   const [memorySearch, setMemorySearch] = useState('');
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const shortId = useMemo(() => {
-    const id = parsePersonIdFromSlug(slug);
-    return id;
-  }, [slug]);
+  const shortId = useMemo(() => parsePersonIdFromSlug(slug), [slug]);
 
   const person = useMemo(() => {
     if (!shortId || loading) return null;
@@ -89,14 +89,24 @@ const PersonDetail = () => {
     }
   });
 
-  useEffect(() => {
-    if (person) {
-      const stored = localStorage.getItem('kindred_recent');
-      let recent = stored ? JSON.parse(stored) : [];
-      recent = [person.id, ...recent.filter((id: string) => id !== person.id)].slice(0, 10);
-      localStorage.setItem('kindred_recent', JSON.stringify(recent));
+  const handlePlayAudio = (memoryId: string, url: string) => {
+    if (playingId === memoryId) {
+      audioRef.current?.pause();
+      setPlayingId(null);
+      return;
     }
-  }, [person]);
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+
+    const audio = new Audio(url);
+    audioRef.current = audio;
+    setPlayingId(memoryId);
+    
+    audio.play();
+    audio.onended = () => setPlayingId(null);
+  };
 
   const filteredMemories = useMemo(() => {
     if (!person) return [];
@@ -146,20 +156,6 @@ const PersonDetail = () => {
   const isAdmin = user?.email === ADMIN_EMAIL;
   const isOwnProfile = user?.id === person.userId;
 
-  const handleShare = async () => {
-    const shareData = {
-      title: `${person.name} - Family Archive`,
-      text: `Check out the stories and memories of ${person.name} in our family archive.`,
-      url: window.location.href,
-    };
-    if (navigator.share) {
-      try { await navigator.share(shareData); } catch (err) {}
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success("Link copied to clipboard!");
-    }
-  };
-
   return (
     <div 
       className="min-h-screen bg-[#FDFCF9] text-stone-900 font-sans pb-32 relative"
@@ -168,15 +164,6 @@ const PersonDetail = () => {
       onDrop={onDropPage}
     >
       <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-amber-500 origin-left z-[100]" style={{ scaleX }} />
-
-      {isDraggingOverPage && !isDraggingOverProfile && (
-        <div className="fixed inset-0 z-50 bg-amber-600/20 backdrop-blur-sm flex items-center justify-center pointer-events-none animate-in fade-in duration-300">
-          <div className="bg-white p-8 rounded-[3rem] shadow-2xl border-4 border-amber-500 flex flex-col items-center gap-4 scale-105 transition-transform">
-            <UploadCloud className="w-16 h-16 text-amber-600 animate-bounce" />
-            <p className="text-2xl font-serif font-bold text-stone-800">Drop to share a photo</p>
-          </div>
-        </div>
-      )}
 
       <nav className="sticky top-0 z-30 bg-[#FDFCF9]/80 backdrop-blur-md border-b border-stone-100">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -195,7 +182,7 @@ const PersonDetail = () => {
                 trigger={<Button variant="ghost" size="icon" className="rounded-full text-amber-600 h-12 w-12 bg-amber-50 hover:bg-amber-100"><ShieldCheck className="w-6 h-6" /></Button>}
               />
             )}
-            <Button variant="ghost" size="icon" onClick={handleShare} className="rounded-full text-stone-500 h-12 w-12 hover:bg-stone-100"><Share2 className="w-6 h-6" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => {}} className="rounded-full text-stone-500 h-12 w-12 hover:bg-stone-100"><Share2 className="w-6 h-6" /></Button>
           </div>
         </div>
       </nav>
@@ -234,10 +221,6 @@ const PersonDetail = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b-4 border-stone-100 pb-6">
             <div className="space-y-1">
               <h2 className="text-3xl font-serif font-bold text-stone-800 flex items-center gap-3">The Archive</h2>
-              <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 rounded-full w-fit">
-                <UploadCloud className="w-3 h-3" />
-                <p className="text-[10px] font-bold uppercase tracking-widest">Drag & Drop photos anywhere to share</p>
-              </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="relative group">
@@ -248,7 +231,6 @@ const PersonDetail = () => {
                   onChange={(e) => setMemorySearch(e.target.value)}
                   className="pl-10 h-10 bg-stone-100 border-none rounded-full text-sm w-48 md:w-64 focus-visible:ring-amber-500/20"
                 />
-                {memorySearch && <button onClick={() => setMemorySearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400"><X className="w-3 h-3" /></button>}
               </div>
               <Button onClick={() => setIsAddMemoryOpen(true)} className="rounded-full bg-stone-800 hover:bg-stone-900 text-white gap-2 px-6"><Plus className="w-4 h-4" /> Add Story</Button>
             </div>
@@ -265,6 +247,7 @@ const PersonDetail = () => {
                   const memoryReactions = reactions[memory.id] || [];
                   const isWarmed = memoryReactions.includes(user?.id);
                   const isMilestone = memory.isMilestone;
+                  const isPlaying = playingId === memory.id;
                   
                   return (
                     <motion.div 
@@ -298,11 +281,6 @@ const PersonDetail = () => {
                             <span className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em]">
                               {formatFamilyDate(memory.createdAt)}
                             </span>
-                            {isMilestone && (
-                              <Badge className="bg-amber-500 text-white border-none rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest ml-2">
-                                Significant Milestone
-                              </Badge>
-                            )}
                           </div>
                           <button 
                             onClick={() => handleWarm(memory.id)}
@@ -326,7 +304,19 @@ const PersonDetail = () => {
                           memory.type === 'photo' ? "bg-stone-50/50 border border-stone-100" : 
                           "bg-white border border-stone-100 group-hover:shadow-md"
                         )}>
-                          {memory.type === 'voice' && <Button size="icon" variant="ghost" className="mb-6 h-14 w-14 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 shadow-sm"><Play className="w-6 h-6 fill-current" /></Button>}
+                          {memory.type === 'voice' && memory.voiceUrl && (
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              onClick={() => handlePlayAudio(memory.id, memory.voiceUrl!)}
+                              className={cn(
+                                "mb-6 h-14 w-14 rounded-full shadow-sm transition-all",
+                                isPlaying ? "bg-amber-600 text-white scale-110" : "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                              )}
+                            >
+                              {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
+                            </Button>
+                          )}
                           {memory.type === 'photo' && memory.imageUrl && <div className="mb-6 rounded-2xl overflow-hidden border-4 border-white shadow-sm"><img src={memory.imageUrl} alt="Memory" className="w-full h-auto max-h-[400px] object-cover" /></div>}
                           <p className="text-stone-700 italic">"{memory.content}"</p>
                           
