@@ -27,6 +27,7 @@ import { getPersonUrl } from '@/lib/slugify';
 import MissionProgress from '../components/MissionProgress';
 import SuggestionDialog from '../components/SuggestionDialog';
 import MissingPersonBanner from '../components/MissingPersonBanner';
+import ArchiveStats from '../components/ArchiveStats';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const CompleteArchive = () => {
@@ -128,7 +129,7 @@ const CompleteArchive = () => {
             </Button>
             <div>
               <h1 className="text-4xl font-serif font-bold text-stone-800">Family Mission</h1>
-              <p className="text-stone-500 text-xl italic">Preserving our story, one detail at a time.</p>
+              <p className="text-stone-50 text-xl italic">Preserving our story, one detail at a time.</p>
             </div>
           </div>
           
@@ -150,6 +151,8 @@ const CompleteArchive = () => {
           averageCompletion={stats.avg} 
           totalMemories={stats.totalMemories} 
         />
+
+        <ArchiveStats />
 
         {/* Archive Needs Summary */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4">

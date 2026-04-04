@@ -18,6 +18,7 @@ import PeopleViewControls from '../components/index/PeopleViewControls';
 import AddPersonDialog from '../components/AddPersonDialog';
 import MissionBanner from '../components/MissionBanner';
 import QuickPrompt from '../components/QuickPrompt';
+import Flashback from '../components/index/Flashback';
 import { PersonCardSkeleton } from '../components/SkeletonLoader';
 import { Button } from '@/components/ui/button';
 import { Share2, ScrollText, HelpCircle, UserCircle, Users, ShieldCheck, Sparkles, History, ArrowRight, Search, GitBranch, UserPlus, Brain } from 'lucide-react';
@@ -67,12 +68,6 @@ const Index = () => {
 
   const hasMemories = useMemo(() => {
     return people.some(p => p.memories.length > 0);
-  }, [people]);
-
-  const flashback = useMemo(() => {
-    const all = people.flatMap(p => p.memories.map(m => ({ ...m, personName: p.name, personId: p.id })));
-    if (all.length < 2) return null;
-    return all[Math.floor(Math.random() * all.length)];
   }, [people]);
 
   const filteredPeople = useMemo(() => {
@@ -210,25 +205,8 @@ const Index = () => {
                     <MemoryHighlight />
                   </div>
                   <div className="lg:col-span-1 space-y-8">
+                    <Flashback />
                     <StoryStarter />
-                    {flashback && (
-                      <Card 
-                        onClick={() => navigate(getPersonUrl(flashback.personId, flashback.personName))}
-                        className="bg-white border-stone-100 p-6 rounded-[2rem] shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                      >
-                        <div className="flex items-center gap-2 text-stone-400 text-[10px] font-bold uppercase tracking-widest mb-4">
-                          <History className="w-3 h-3" />
-                          Flashback
-                        </div>
-                        <p className="text-stone-600 italic font-serif line-clamp-3 mb-4">
-                          "{flashback.content}"
-                        </p>
-                        <div className="flex items-center justify-between pt-4 border-t border-stone-50">
-                          <span className="text-xs font-bold text-stone-800">{flashback.personName}</span>
-                          <ArrowRight className="w-4 h-4 text-stone-300 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
-                        </div>
-                      </Card>
-                    )}
                   </div>
                 </>
               ) : (
