@@ -8,7 +8,7 @@ import { Input } from './ui/input';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Mic, Camera, X, Loader2, CheckCircle2, UploadCloud, Plus, Sparkles, RefreshCw, Trash2, Calendar, Star, Square, Settings2 } from 'lucide-react';
+import { Mic, Camera, X, Loader2, CheckCircle2, UploadCloud, Plus, Sparkles, RefreshCw, Trash2, Calendar, Star, Square, Settings2, Keyboard } from 'lucide-react';
 import { useVoiceInput } from '../hooks/use-voice';
 import { useFamily } from '../context/FamilyContext';
 import { cn } from '@/lib/utils';
@@ -147,7 +147,7 @@ const AddMemoryDialog = ({
             Tell a story about {personName.split(' ')[0]}
           </DialogTitle>
           <DialogDescription className="text-center text-stone-500 text-lg">
-            Use your voice or type to share a memory.
+            Choose how you'd like to share this memory.
           </DialogDescription>
         </DialogHeader>
         
@@ -181,6 +181,16 @@ const AddMemoryDialog = ({
               </div>
               <Switch checked={isMilestone} onCheckedChange={setIsMilestone} />
             </div>
+          </div>
+
+          <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-100 space-y-4">
+            <div className="flex items-center gap-3 text-blue-700">
+              <Keyboard className="w-5 h-5" />
+              <h3 className="font-serif font-bold">Prefer to type?</h3>
+            </div>
+            <p className="text-sm text-blue-600 leading-relaxed">
+              Voice recording is completely optional. You can simply type your story into the box below and we'll preserve it just the same.
+            </p>
           </div>
 
           {/* Microphone Selector */}
@@ -226,7 +236,7 @@ const AddMemoryDialog = ({
                 {isListening ? "Recording your voice..." : audioBlob ? "Voice recorded!" : "Tap to start talking"}
               </p>
               <p className="text-stone-500">
-                {isListening ? "Tap the square to stop." : "We'll save your actual voice and the text below."}
+                {isListening ? "Tap the square to stop." : "Or just start typing your story below."}
               </p>
             </div>
           </div>
@@ -250,7 +260,7 @@ const AddMemoryDialog = ({
               <Textarea
                 value={transcript}
                 onChange={(e) => setTranscript(e.target.value)}
-                placeholder="Your story will appear here as you speak..."
+                placeholder="Your story will appear here as you speak, or you can type it manually..."
                 className="min-h-[150px] bg-stone-50 border-none rounded-[2rem] p-6 text-xl font-serif leading-relaxed focus-visible:ring-amber-500/20"
               />
               {transcript && (
