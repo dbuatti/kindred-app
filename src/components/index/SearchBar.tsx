@@ -27,33 +27,33 @@ const SearchBar = ({ value, onChange }: SearchBarProps) => {
   return (
     <div className="relative group">
       <div className={cn(
-        "absolute inset-0 bg-amber-500/5 rounded-2xl blur-xl transition-opacity duration-500",
+        "absolute inset-0 bg-amber-500/10 rounded-[2rem] blur-2xl transition-opacity duration-500",
         value ? "opacity-100" : "opacity-0"
       )} />
       
-      <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-stone-400 group-focus-within:text-amber-600 transition-colors z-10" />
+      <Search className="absolute left-8 top-1/2 -translate-y-1/2 w-8 h-8 text-stone-400 group-focus-within:text-amber-600 transition-colors z-10" />
       
       <Input 
         ref={inputRef}
-        placeholder="Search names or stories..."
-        className="pl-14 h-16 bg-stone-100 border-4 border-transparent focus:border-amber-500 focus:bg-white rounded-2xl text-xl placeholder:text-stone-400 transition-all shadow-sm focus:shadow-md relative z-0"
+        placeholder="Search for a name or a story..."
+        className="pl-20 h-20 bg-stone-100 border-4 border-transparent focus:border-amber-500 focus:bg-white rounded-[2rem] text-2xl placeholder:text-stone-400 transition-all shadow-sm focus:shadow-xl relative z-0 font-serif italic"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
       
-      <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
+      <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-3 z-10">
         {value ? (
           <button 
             onClick={() => onChange('')} 
-            className="p-2 bg-stone-200 rounded-full hover:bg-stone-300 transition-colors"
+            className="h-12 w-12 bg-stone-200 rounded-full hover:bg-stone-300 transition-colors flex items-center justify-center"
             title="Clear search"
           >
-            <X className="w-5 h-5 text-stone-600" />
+            <X className="w-6 h-6 text-stone-600" />
           </button>
         ) : (
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 bg-stone-200/50 rounded-lg text-[10px] font-bold text-stone-400 uppercase tracking-widest border border-stone-200/30">
-            <Command className="w-3 h-3" />
-            <span>/</span>
+          <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-stone-200/50 rounded-xl text-xs font-black text-stone-500 uppercase tracking-widest border-2 border-stone-200/30">
+            <Command className="w-4 h-4" />
+            <span>Press / to Search</span>
           </div>
         )}
       </div>

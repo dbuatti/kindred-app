@@ -23,18 +23,18 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
-    --radius: 1rem;
+    --radius: 1.25rem;
   }
 
-  /* Heritage Mode (Vintage Theme) */
+  /* Heritage Mode (Vintage Theme) - Enhanced for high contrast */
   .heritage {
     --background: 36 33% 94%; /* Aged paper color */
-    --foreground: 25 20% 20%;
-    --card: 36 33% 97%;
-    --card-foreground: 25 20% 20%;
-    --primary: 25 30% 25%;
-    --border: 36 20% 85%;
-    --ring: 36 50% 50%;
+    --foreground: 25 10% 10%; /* Darker for better contrast */
+    --card: 36 33% 98%;
+    --card-foreground: 25 10% 10%;
+    --primary: 25 40% 15%;
+    --border: 36 20% 80%;
+    --ring: 36 60% 40%;
   }
 }
 
@@ -43,8 +43,10 @@
     @apply border-border;
   }
   body {
+    /* Increased base font size for boomers */
     @apply bg-[#FDFCF9] text-stone-900 antialiased transition-colors duration-700;
-    font-size: 16px;
+    font-size: 18px; 
+    line-height: 1.6;
   }
   
   body.heritage {
@@ -53,16 +55,22 @@
   }
 
   h1, h2, h3 {
-    @apply font-serif;
+    @apply font-serif font-bold tracking-tight;
+  }
+
+  /* Ensure all buttons have a minimum touch target size */
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .heritage h1, .heritage h2, .heritage h3 {
-    @apply tracking-tight text-stone-900;
-    filter: sepia(0.2);
+    @apply text-stone-950;
+    filter: sepia(0.1);
   }
 
   .heritage img {
-    @apply grayscale sepia-[0.3] contrast-[1.1];
+    @apply grayscale-[0.2] sepia-[0.2] contrast-[1.1];
   }
 
   .heritage .bg-white {
@@ -70,20 +78,20 @@
   }
 
   .heritage .border-stone-100 {
-    @apply border-[#E8E2D5];
+    @apply border-[#E0D9C8];
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar - Wider for easier grabbing */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  @apply bg-stone-200 rounded-full;
+  @apply bg-stone-300 rounded-full border-2 border-transparent bg-clip-padding;
 }
 .heritage .custom-scrollbar::-webkit-scrollbar-thumb {
-  @apply bg-amber-200/50;
+  @apply bg-amber-300/60;
 }
