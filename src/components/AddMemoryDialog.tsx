@@ -7,7 +7,8 @@ import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
-import { Mic, Camera, X, Loader2, CheckCircle2, UploadCloud, Plus, Sparkles, RefreshCw, Trash2, Calendar, Star, Square } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Mic, Camera, X, Loader2, CheckCircle2, UploadCloud, Plus, Sparkles, RefreshCw, Trash2, Calendar, Star, Square, Settings2 } from 'lucide-react';
 import { useVoiceInput } from '../hooks/use-voice';
 import { useFamily } from '../context/FamilyContext';
 import { cn } from '@/lib/utils';
@@ -24,17 +25,6 @@ interface AddMemoryDialogProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-const STORY_PROMPTS = [
-  "What was their favorite meal to cook?",
-  "Do you remember a funny thing they used to say?",
-  "What was their first job?",
-  "What's a song that always reminds you of them?",
-  "What was the best advice they ever gave you?",
-  "Describe the smell of their house.",
-  "What was their favorite hobby or pastime?",
-  "Do you remember a story they told about their own childhood?"
-];
-
 const AddMemoryDialog = ({ 
   personId, 
   personName, 
@@ -45,31 +35,38 @@ const AddMemoryDialog = ({
   onOpenChange: setExternalOpen
 }: AddMemoryDialogProps) => {
   const { addMemory, uploadAudio } = useFamily();
-  const { isListening, transcript, setTranscript, startListening, stopListening, audioBlob, setAudioBlob } = useVoiceInput();
+  const { 
+    isListening, 
+    transcript, 
+    setTranscript, 
+    startListening, 
+    stopListening, 
+    audioBlob, 
+    setAudioBlob,
+    devices,
+    selectedDeviceId,
+    setSelectedDeviceId,
+    getDevices
+  } = useVoiceInput();
+
   const [internalOpen, setInternalOpen] = useState(false);
   const [images, setImages] = useState<{ url: string, caption: string }[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [promptIndex, setPromptIndex] = useState(0);
-  const [showPrompt, setShowPrompt] = useState(false);
-  
   const [eventDate, setEventDate] = useState('');
   const [isMilestone, setIsMilestone] = useState(false);
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
   const setIsOpen = setExternalOpen || setInternalOpen;
 
+  // Fetch devices when dialog opens
   useEffect(() => {
-    if (isOpen && !transcript) {
+    if (isOpen) {
+      getDevices();
       const draftKey = `kindred_draft_${personId || 'general'}`;
       const savedDraft = localStorage.getItem(draftKey);
-      if (savedDraft) {
-        setTranscript(savedDraft);
-      }
+      if (savedDraft && !transcript) setTranscript(savedDraft);
     }
-  }, [isOpen, personId, setTranscript]);
+  }, [isOpen, personId, getDevices, setTranscript, transcript]);
 
   useEffect(() => {
     if (transcript) {
@@ -77,21 +74,6 @@ const AddMemoryDialog = ({
       localStorage.setItem(draftKey, transcript);
     }
   }, [transcript, personId]);
-
-  const handleFiles = useCallback((files: FileList | File[]) => {
-    const fileList = Array.from(files);
-    fileList.forEach(file => {
-      if (!file.type.startsWith('image/')) {
-        toast.error(`${file.name} is not an image.`);
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImages(prev => [...prev, { url: reader.result as string, caption: '' }]);
-      };
-      reader.readAsDataURL(file);
-    });
-  }, []);
 
   const clearDraft = () => {
     setTranscript('');
@@ -141,7 +123,7 @@ const AddMemoryDialog = ({
         colors: ['#d97706', '#f59e0b', '#fbbf24']
       });
       
-      toast.success("Stories saved! The family will love these.");
+      toast.success("Stories saved!");
       localStorage.removeItem(`kindred_draft_${personId || 'general'}`);
       setTranscript('');
       setImages([]);
@@ -159,20 +141,13 @@ const AddMemoryDialog = ({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent 
-        className={cn(
-          "sm:max-w-2xl rounded-[3rem] border-none bg-white p-8 transition-all duration-300 max-h-[90vh] overflow-y-auto",
-          isDragging ? "ring-4 ring-amber-500/20 bg-amber-50/50" : ""
-        )}
-      >
+      <DialogContent className="sm:max-w-2xl rounded-[3rem] border-none bg-white p-8 max-h-[90vh] overflow-y-auto shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-3xl font-serif text-stone-800 text-center mb-2">
-            {images.length > 0 ? "Share these photos" : `Tell a story about ${personName.split(' ')[0]}`}
+            Tell a story about {personName.split(' ')[0]}
           </DialogTitle>
           <DialogDescription className="text-center text-stone-500 text-lg">
-            {images.length > 0 
-              ? `Adding ${images.length} photo${images.length === 1 ? '' : 's'} to the archive.`
-              : "Use your voice or type to share a memory with the family."}
+            Use your voice or type to share a memory.
           </DialogDescription>
         </DialogHeader>
         
@@ -208,33 +183,53 @@ const AddMemoryDialog = ({
             </div>
           </div>
 
-          {images.length === 0 && (
-            <div className="flex flex-col items-center gap-6">
-              <button
-                onClick={isListening ? stopListening : startListening}
-                className={cn(
-                  "h-28 w-28 rounded-full shadow-lg transition-all duration-500 flex items-center justify-center border-8",
-                  isListening 
-                    ? "bg-red-500 border-red-200 animate-pulse scale-105" 
-                    : "bg-amber-600 border-amber-100 hover:bg-amber-700"
-                )}
-              >
-                {isListening ? (
-                  <Square className="w-10 h-10 text-white fill-current" />
-                ) : (
-                  <Mic className="w-12 h-12 text-white" />
-                )}
-              </button>
-              <div className="text-center space-y-1">
-                <p className="text-2xl font-serif font-bold text-stone-800">
-                  {isListening ? "Recording your voice..." : audioBlob ? "Voice recorded!" : "Tap to start talking"}
-                </p>
-                <p className="text-stone-500">
-                  {isListening ? "Tap the square to stop." : "We'll save your actual voice and the text below."}
-                </p>
+          {/* Microphone Selector */}
+          {devices.length > 1 && !isListening && (
+            <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-1">
+                <Settings2 className="w-3 h-3" />
+                Select Microphone
               </div>
+              <Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
+                <SelectTrigger className="h-12 bg-stone-50 border-none rounded-xl px-4 text-sm focus:ring-amber-500/20">
+                  <SelectValue placeholder="Choose microphone..." />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {devices.map(device => (
+                    <SelectItem key={device.deviceId} value={device.deviceId} className="text-sm">
+                      {device.label || `Microphone ${device.deviceId.substring(0, 5)}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
+
+          <div className="flex flex-col items-center gap-6">
+            <button
+              onClick={isListening ? stopListening : startListening}
+              className={cn(
+                "h-28 w-28 rounded-full shadow-lg transition-all duration-500 flex items-center justify-center border-8",
+                isListening 
+                  ? "bg-red-500 border-red-200 animate-pulse scale-105" 
+                  : "bg-amber-600 border-amber-100 hover:bg-amber-700"
+              )}
+            >
+              {isListening ? (
+                <Square className="w-10 h-10 text-white fill-current" />
+              ) : (
+                <Mic className="w-12 h-12 text-white" />
+              )}
+            </button>
+            <div className="text-center space-y-1">
+              <p className="text-2xl font-serif font-bold text-stone-800">
+                {isListening ? "Recording your voice..." : audioBlob ? "Voice recorded!" : "Tap to start talking"}
+              </p>
+              <p className="text-stone-500">
+                {isListening ? "Tap the square to stop." : "We'll save your actual voice and the text below."}
+              </p>
+            </div>
+          </div>
 
           <div className="space-y-6">
             {audioBlob && !isListening && (
