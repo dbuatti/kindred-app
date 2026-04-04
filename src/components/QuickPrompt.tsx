@@ -15,6 +15,7 @@ const PROMPT_FIELDS = [
   { id: 'nickname', label: "Did {name} have a nickname?", placeholder: 'e.g. "Bibi" or "Skip"' },
   { id: 'middle_name', label: "What is {name}'s middle name?", placeholder: 'e.g. Maria' },
   { id: 'maiden_name', label: "What was {name}'s maiden name?", placeholder: 'Family name at birth', condition: (p: any) => p.gender?.toLowerCase() === 'female' },
+  { id: 'vibe_sentence', label: "How would you describe {name} in one sentence?", placeholder: 'e.g. A lover of books and quiet mornings.' },
 ];
 
 const QuickPrompt = () => {
@@ -26,12 +27,28 @@ const QuickPrompt = () => {
   // 1. Find the user's own person record
   const myPerson = useMemo(() => people.find(p => p.userId === user?.id), [people, user]);
 
-  // 2. Find immediate relatives with missing info
+  // 2. Generate quests (Self first, then immediate relatives)
   const potentialQuests = useMemo(() => {
+    const quests: any[] = [];
     if (!myPerson) return [];
 
+    // Priority 1: User's own missing info
+    PROMPT_FIELDS.forEach(field => {
+      const isMissing = !myPerson[field.id as keyof typeof myPerson];
+      const conditionMet = !field.condition || field.condition(myPerson);
+      if (isMissing && conditionMet) {
+        quests.push({
+          person: myPerson,
+          field: field.id,
+          label: field.label.replace('{name}', 'you'),
+          placeholder: field.placeholder,
+          isSelf: true
+        });
+      }
+    });
+
+    // Priority 2: Immediate relatives
     const immediateTypes = ['mother', 'father', 'sister', 'brother', 'son', 'daughter', 'spouse', 'wife', 'husband'];
-    
     const immediateRelatives = relationships
       .filter(r => (r.person_id === myPerson.id || r.related_person_id === myPerson.id) && 
                    immediateTypes.includes(r.relationship_type.toLowerCase()))
@@ -41,26 +58,22 @@ const QuickPrompt = () => {
       })
       .filter((p): p is any => !!p);
 
-    const quests: any[] = [];
-
     immediateRelatives.forEach(rel => {
       PROMPT_FIELDS.forEach(field => {
-        // Check if field is missing and condition (if any) is met
         const isMissing = !rel[field.id as keyof typeof rel];
         const conditionMet = !field.condition || field.condition(rel);
-
         if (isMissing && conditionMet) {
           quests.push({
             person: rel,
             field: field.id,
             label: field.label.replace('{name}', rel.name.split(' ')[0]),
-            placeholder: field.placeholder
+            placeholder: field.placeholder,
+            isSelf: false
           });
         }
       });
     });
 
-    // Shuffle slightly or just return
     return quests;
   }, [myPerson, people, relationships]);
 
@@ -71,9 +84,10 @@ const QuickPrompt = () => {
 
     setIsSaving(true);
     try {
-      if (isAdmin) {
+      // If it's the user's own profile, they can update it directly
+      if (currentQuest.isSelf || isAdmin) {
         await updatePerson(currentQuest.person.id, { [currentQuest.field]: answer });
-        toast.success("Archive updated!");
+        toast.success("Your profile has been updated!");
       } else {
         await addSuggestion({
           personId: currentQuest.person.id,
@@ -106,7 +120,9 @@ const QuickPrompt = () => {
             <Sparkles className="w-6 h-6" />
           </div>
           <div className="space-y-0.5">
-            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-[0.2em]">Quick Question</p>
+            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-[0.2em]">
+              {currentQuest.isSelf ? "Complete Your Profile" : "Family Quest"}
+            </p>
             <h3 className="text-lg font-serif font-bold text-stone-800 leading-tight">
               {currentQuest.label}
             </h3>
