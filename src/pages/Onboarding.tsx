@@ -14,11 +14,11 @@ import {
   X,
   Sparkles,
   UserCheck,
-  User
+  User,
+  Info
 } from 'lucide-react';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
-import { extractYear } from '@/lib/utils';
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -33,7 +33,6 @@ const Onboarding = () => {
     claimedPersonId: null as string | null,
   });
 
-  // Load existing progress if any
   useEffect(() => {
     if (!contextLoading && user && profiles[user.id]) {
       const profile = profiles[user.id];
@@ -63,7 +62,7 @@ const Onboarding = () => {
       lastName: names.slice(1).join(' '),
     });
     setSelfSearchQuery('');
-    toast.success(`Linked to ${person.name}!`);
+    toast.success(`Linked to ${person.name}! You can correct the spelling in the next step if needed.`);
   };
 
   const handleComplete = async () => {
@@ -71,7 +70,6 @@ const Onboarding = () => {
     setIsSaving(true);
 
     try {
-      // 1. Update Profile
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -86,7 +84,6 @@ const Onboarding = () => {
 
       const fullName = `${formData.firstName} ${formData.lastName}`.trim();
       
-      // 2. Link or Create Person record
       if (formData.claimedPersonId) {
         await supabase
           .from('people')
@@ -147,12 +144,11 @@ const Onboarding = () => {
           <div className="h-16 w-16 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 mx-auto mb-6">
             <Heart className="w-8 h-8 fill-current" />
           </div>
-          <h1 className="text-4xl font-serif font-medium text-stone-800">Welcome Home</h1>
+          <h1 className="text-4xl font-serif font-bold text-stone-800">Welcome Home</h1>
           <p className="text-stone-500 italic text-lg">Let's get you settled into the family storybook.</p>
         </div>
 
         <div className="bg-white p-10 rounded-[3rem] shadow-sm border border-stone-100 flex flex-col gap-10">
-          {/* Search Section */}
           <div className="space-y-6">
             <div className="bg-amber-50/50 p-6 rounded-3xl border-2 border-amber-100 space-y-4">
               <div className="flex items-center gap-3 text-amber-700">
@@ -160,7 +156,7 @@ const Onboarding = () => {
                 <h2 className="text-lg font-serif font-bold">Are you already in the tree?</h2>
               </div>
               <p className="text-sm text-stone-600 leading-relaxed">
-                Search for your name. If a relative has already added you, we can link your account right now.
+                Search for your name. If a relative has already added you, we can link your account right now. <strong>Don't worry if the spelling is slightly off—you can fix it in the next step!</strong>
               </p>
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
@@ -230,6 +226,13 @@ const Onboarding = () => {
                   className="h-14 bg-stone-50 border-none rounded-2xl text-lg focus-visible:ring-amber-500/20" 
                 />
               </div>
+            </div>
+
+            <div className="bg-stone-50 p-4 rounded-2xl flex items-start gap-3">
+              <Info className="w-5 h-5 text-stone-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-stone-500 leading-relaxed italic">
+                Please use your <strong>current or married name</strong> here. You'll be able to add your maiden name and other details once you're inside the archive.
+              </p>
             </div>
           </div>
 

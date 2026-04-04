@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFamily } from '../context/FamilyContext';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ import { getPersonUrl } from '@/lib/slugify';
 import ConnectionSuggestionDialog from '../components/ConnectionSuggestionDialog';
 import AddMemoryDialog from '../components/AddMemoryDialog';
 import FloatingMenu from '../components/FloatingMenu';
+import ProfileChecklist from '../components/ProfileChecklist';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useImageUpload } from '@/hooks/use-image-upload';
@@ -41,7 +42,7 @@ const ADMIN_EMAIL = "daniele.buatti@gmail.com";
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { user, profiles, people, relationships, suggestions, resolveSuggestion, updatePerson, loading, refreshData } = useFamily();
+  const { user, profiles, people, relationships, suggestions, resolveSuggestion, updatePerson, loading } = useFamily();
 
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -89,20 +90,14 @@ const Profile = () => {
     if (!user) return;
     setIsResetting(true);
     try {
-      // 1. Reset the flag in DB
       const { error } = await supabase
         .from('profiles')
         .update({ onboarding_completed: false })
         .eq('id', user.id);
 
       if (error) throw error;
-      
       toast.success("Onboarding reset! Signing you out to start fresh...");
-      
-      // 2. Sign out so user can test the magic link flow
       await supabase.auth.signOut();
-      
-      // 3. Redirect to Join page
       navigate('/join');
     } catch (error: any) {
       toast.error("Failed to reset: " + error.message);
@@ -122,7 +117,6 @@ const Profile = () => {
       onDragLeave={onDragLeavePage}
       onDrop={onDropPage}
     >
-      {/* Drag Overlay for Memories */}
       {isDraggingOverPage && !isDraggingOverProfile && (
         <div className="fixed inset-0 z-50 bg-amber-600/20 backdrop-blur-sm flex items-center justify-center pointer-events-none animate-in fade-in duration-300">
           <div className="bg-white p-8 rounded-[3rem] shadow-2xl border-4 border-amber-500 flex flex-col items-center gap-4 scale-105 transition-transform">
@@ -169,7 +163,6 @@ const Profile = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-12 space-y-12">
-        {/* Profile Header Section */}
         <section className="flex flex-col md:flex-row gap-10 items-start">
           <div 
             className={cn(
@@ -255,50 +248,52 @@ const Profile = () => {
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* Left Column: Connections */}
-          <div className="lg:col-span-2 space-y-8">
-            <div className="flex items-center justify-between">
-              <h3 className="text-2xl font-serif font-bold text-stone-800 flex items-center gap-3">
-                <Users className="w-6 h-6 text-stone-400" />
-                Your Connections
-              </h3>
-              {myPerson && <ConnectionSuggestionDialog person={myPerson} />}
-            </div>
+          <div className="lg:col-span-2 space-y-12">
+            {myPerson && <ProfileChecklist person={myPerson} />}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {relatives.length === 0 ? (
-                <Card className="p-8 border-dashed border-2 border-stone-200 bg-transparent text-center space-y-4 md:col-span-2">
-                  <p className="text-stone-400 italic">No connections mapped yet.</p>
-                </Card>
-              ) : (
-                relatives.map((rel: any) => (
-                  <Card 
-                    key={rel.id} 
-                    onClick={() => navigate(getPersonUrl(rel.id, rel.name))}
-                    className="p-4 bg-white border-stone-100 shadow-sm rounded-2xl flex items-center justify-between group hover:border-amber-200 transition-all cursor-pointer"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full overflow-hidden bg-stone-100 shrink-0">
-                        {rel.photoUrl ? (
-                          <img src={rel.photoUrl} className="w-full h-full object-cover grayscale-[0.4] group-hover:grayscale-0" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-stone-300">
-                            <UserCircle className="w-6 h-6" />
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-bold text-stone-800">{rel.name}</p>
-                        <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">{rel.type}</p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-amber-600 transition-colors" />
+            <div className="space-y-8">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-serif font-bold text-stone-800 flex items-center gap-3">
+                  <Users className="w-6 h-6 text-stone-400" />
+                  Your Connections
+                </h3>
+                {myPerson && <ConnectionSuggestionDialog person={myPerson} />}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {relatives.length === 0 ? (
+                  <Card className="p-8 border-dashed border-2 border-stone-200 bg-transparent text-center space-y-4 md:col-span-2">
+                    <p className="text-stone-400 italic">No connections mapped yet.</p>
                   </Card>
-                ))
-              )}
+                ) : (
+                  relatives.map((rel: any) => (
+                    <Card 
+                      key={rel.id} 
+                      onClick={() => navigate(getPersonUrl(rel.id, rel.name))}
+                      className="p-4 bg-white border-stone-100 shadow-sm rounded-2xl flex items-center justify-between group hover:border-amber-200 transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full overflow-hidden bg-stone-100 shrink-0">
+                          {rel.photoUrl ? (
+                            <img src={rel.photoUrl} className="w-full h-full object-cover grayscale-[0.4] group-hover:grayscale-0" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-stone-300">
+                              <UserCircle className="w-6 h-6" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-stone-800">{rel.name}</p>
+                          <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">{rel.type}</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-stone-300 group-hover:text-amber-600 transition-colors" />
+                    </Card>
+                  ))
+                )}
+              </div>
             </div>
 
-            {/* Recent Activity about me */}
             <div className="space-y-6">
               <h3 className="text-2xl font-serif font-bold text-stone-800 flex items-center gap-3">
                 <MessageSquare className="w-6 h-6 text-stone-400" />
@@ -326,7 +321,6 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Right Column: Reviews & Quick Actions */}
           <div className="space-y-8">
             <div className="space-y-6">
               <h3 className="text-2xl font-serif font-bold text-stone-800 flex items-center gap-3">
@@ -386,7 +380,6 @@ const Profile = () => {
                 <ChevronRight className="w-4 h-4 text-stone-300" />
               </Button>
               
-              {/* Debug/Trial Action */}
               <Button 
                 variant="outline"
                 onClick={handleResetOnboarding}
@@ -404,7 +397,6 @@ const Profile = () => {
         </div>
       </main>
 
-      {/* Floating Action */}
       <FloatingMenu personId={myPerson?.id} personName={fullName} />
       <AddMemoryDialog 
         personId={myPerson?.id}
