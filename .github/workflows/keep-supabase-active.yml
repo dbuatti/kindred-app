@@ -1,0 +1,27 @@
+name: Keep Supabase Active
+
+# This workflow runs every 5 days to prevent Supabase free-tier project from pausing due to inactivity
+on:
+  schedule:
+    - cron: '0 0 */5 * *'  # Every 5 days at midnight UTC
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Project
+        run: |
+          echo "Pinging Supabase project to prevent auto-pause..."
+          # Make a request to the Supabase project URL
+          # We use a timeout of 10 seconds and follow redirects
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 --follow-location "$SUPABASE_URL" || echo "000")
+          
+          if [ "$HTTP_CODE" = "000" ]; then
+            echo "Warning: Failed to connect to Supabase project (connection timeout or network error)"
+            # Don't fail the job - we just want to log the issue
+          else
+            echo "Success: Supabase project returned HTTP $HTTP_CODE"
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
