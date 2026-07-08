@@ -1,0 +1,31 @@
+name: Supabase Keep Alive
+
+# This workflow runs every 5 days to prevent Supabase free-tier project from pausing due to inactivity
+on:
+  schedule:
+    - cron: '0 0 */5 * *'  # Every 5 days at midnight UTC
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          echo "Pinging Supabase project to reset inactivity timer..."
+          
+          SUPABASE_URL="https://bcchduauwyyymvthxgkf.supabase.co"
+          SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY2hkdWF1d3l5eW12dGh4Z2tmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMjgxNjcsImV4cCI6MjA4OTgwNDE2N30.NacZyuCbwJUYXOFbAN3dzK2X3UMBMARTzzTR0Cm1hug"
+          
+          # Make a request to the Supabase REST API with the anon key
+          # This hits the API and counts as activity to reset the inactivity timer
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/" || echo "000")
+          
+          if [ "$HTTP_CODE" = "000" ]; then
+            echo "Warning: Failed to connect to Supabase project (connection timeout or network error)"
+          else
+            echo "Success: Supabase REST API returned HTTP $HTTP_CODE — inactivity timer reset"
+          fi
